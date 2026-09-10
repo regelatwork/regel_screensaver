@@ -1,0 +1,19 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "info@regel.org",
+                "Name": "Regel Contributors"
+            }
+        ],
+        "Category": "Plasma/Wallpaper",
+        "Description": "Audio-reactive, physics-driven interactive desktop canvas for KDE Plasma 6",
+        "Icon": "preferences-desktop-wallpaper",
+        "Id": "org.regel.wallpaper",
+        "Name": "Regel Interactive Canvas",
+        "ServiceTypes": [
+            "Plasma/Wallpaper"
+        ],
+        "Version": "0.1.0"
+    }
+}

@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/regel-audio",
+    "crates/regel-engine",
+    "crates/regel-daemon",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Regel Project Contributors"]
+license = "GPL-2.0-or-later"
+repository = "https://github.com/rchandia/regel_screensaver"
+
+[workspace.dependencies]
+# Audio and DSP
+rustfft = "6.2"
+pipewire = "0.8"
+
+# Serialization & System
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+log = "0.4"
+env_logger = "0.11"
