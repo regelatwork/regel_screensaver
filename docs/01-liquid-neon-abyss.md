@@ -36,6 +36,7 @@ graph LR
 | **Mouse Hover & Drag** | The cursor acts as a paddle and heating element. Fast drags inject velocity vectors creating dual Karman vortex streets; holding still creates thermal convection plumes that rise. | Smooth viscous drag friction. |
 | **Audio Beat (Kick / Sub-bass)** | Perimeter velocity injectors fire high-speed pulses of luminescent dye inward towards the screen center on every kick drum transient. | Direct physical coupling with sound pressure level. |
 | **Audio Treble & Mids** | Modulates fluid vorticity confinement and viscosity: high frequencies create fine wispy filament swirls, while mid frequencies churn fluid eddies. | Surface shimmer and micro-droplet splatter. |
+| **Audio Silence (Fallback Floor)** | When no audio is playing, a low-frequency Simplex curl noise field ($E_{\text{floor}} \ge 0.05$) drives autonomous, hypnotic convection currents so the fluid stays gently alive. | Soft, low ambient respiratory hum. |
 | **Microphone Input** | Sudden loud sounds (speech, claps) trigger acoustic standing waves (Faraday waves / cymatics) that form geometric ripple interference patterns across the pool. | Acoustic resonance across liquid surface. |
 
 ---

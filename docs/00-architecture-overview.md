@@ -146,3 +146,64 @@ graph TD
    * Multi-pass compute and fragment shaders written in Vulkan GLSL and compiled via `qsb` (Qt Shader Baker) into unified SPIR-V packages.
    * Leverages GPU hardware acceleration for Eulerian fluid advection, N-body particle rendering, and raymarched distance fields.
 
+---
+
+## 6. Wayland Security & Input Isolation Boundary
+
+A core architectural principle of Wayland is **strict client isolation**: background windows cannot eavesdrop on global pointer coordinates or keystrokes belonging to other applications.
+
+* **In Lockscreen / Screensaver Mode**:
+  * `kscreenlocker` establishes an exclusive session lock (via Wayland's `ext-session-lock-v1`).
+  * The locker surface possesses **100% exclusive input focus**. Every keystroke, backspace, and cursor motion is routed directly into `LockScreenUi.qml` with zero security compromises.
+* **In Wallpaper Mode**:
+  * The wallpaper resides on the `zwlr_layer_shell_v1` background layer.
+  * It receives pointer events (`onPositionChanged`, `onPressed`) **only when the cursor directly hovers over the exposed desktop canvas**.
+  * When other application windows have focus, wallpaper mode does not capture keystrokes (by design, adhering to Wayland security). It continues animating smoothly using ambient audio (PipeWire), system telemetry, and internal simulation momentum.
+
+---
+
+## 7. Power Management & Occlusion Throttling
+
+Running high-fidelity simulations at 60–144 FPS must not drain laptop batteries or waste GPU cycles when the desktop is hidden. The architecture implements strict lifecycle throttling:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Active: Desktop Exposed
+    Active --> Throttled: Maximized Window / Obscured
+    Throttled --> Suspended: DPMS Screen-Off / Session Lock
+    Suspended --> Throttled: Screen Wake
+    Throttled --> Active: Windows Minimized / Desktop Shown
+```
+
+1. **Occlusion Detection (`onObscured` / `onExposed`)**:
+   * Plasma’s containment exposes window visibility signals.
+   * When the desktop is completely obscured by maximized or fullscreen windows (e.g., games or video playback), `ShaderEffect.visible = false` stops rendering, and the QML timer pauses frame requests.
+2. **DPMS Screen-Off & Suspend (`onDpmsOff`)**:
+   * Listens to system power management events via `org.freedesktop.ScreenSaver` and `logind`.
+   * **GPU Pipeline**: Halts all draw calls and buffer swaps immediately.
+   * **Rust Engine**: Suspends the PipeWire stream processing thread and parks the simulation worker loop using condition variables, dropping CPU utilization to 0.0%.
+
+---
+
+## 8. Multi-Monitor Topology & Coordination
+
+KDE Plasma instantiates an independent `main.qml` instance for each connected display (`Screen.name`, resolution, DPI scale factor). The Rust backend supports two configurable coordination strategies:
+
+1. **Independent Instance Mode (Default)**:
+   * Each monitor hosts its own self-contained simulation kernel and aspect-ratio-corrected framebuffer.
+   * Maximizes performance and avoids coordinate stretching across displays with mismatched resolutions or refresh rates (e.g., 4K 60Hz paired with 1440p 144Hz).
+2. **Unified Spanned Canvas Mode**:
+   * The Rust backend maintains a single global coordinate space encompassing all physical monitor bounds.
+   * The QML frontend on each monitor renders its respective viewport slice $(x, y, w, h)$ of the shared simulation field, enabling fluid swirls and celestial bodies to seamlessly drift across monitor borders.
+
+---
+
+## 9. Audio Silence & Ambient Energy Floor
+
+To guarantee that visualizers remain visually mesmerizing even when no music or audio is playing:
+
+* The PipeWire audio analyzer enforces a mathematical **ambient baseline energy floor** ($E_{\text{floor}} \ge 0.05$).
+* When system audio amplitude drops below the noise gate threshold, the simulation smoothly interpolates from audio-driven turbulence into **procedural Perlin/curl noise drifts** and autonomous breathing cycles.
+* The canvas never freezes into a dead static image when music stops.
+
+
