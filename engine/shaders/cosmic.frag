@@ -25,6 +25,13 @@ layout(std140, binding = 0) uniform buf {
     float u_mids;
     float u_treble;
     float u_lens_strength;
+    vec2 u_camera_offset;
+    float u_disk_tilt;
+    float u_disk_inclination;
+    float u_hole_scale;
+    float u_hyperspace_phase;
+    float u_accretion_rate;
+    float u_pad;
 };
 
 // --- Fast GPU Simplex Noise & Hash ---
@@ -76,8 +83,8 @@ void main() {
 
     float t = u_time * u_vortex_speed;
 
-    // Primary Singularity Location (settles near center with subtle drift)
-    vec2 holePos = centerP + u_ambient_drift * 0.25;
+    // Primary Singularity Location (dynamic camera position prevents monitor ghosting)
+    vec2 holePos = centerP + u_camera_offset + u_ambient_drift * 0.25;
 
     // ------------------------------------------------------------------------
     // 1. Schwarzschild Gravitational Lensing & Spacetime Curvature
@@ -85,8 +92,8 @@ void main() {
     vec2 toHole = p - holePos;
     float r = length(toHole);
 
-    // Dynamic Schwarzschild radius (pulsed by sub-bass and fed by keystroke energy)
-    float rs = 0.075 * (1.0 + u_bass * 0.35 + u_keystroke_energy * 0.40);
+    // Dynamic Schwarzschild radius (scaled by astronomical object mass and audio/keystrokes)
+    float rs = 0.075 * u_hole_scale * (1.0 + u_bass * 0.35 + u_keystroke_energy * 0.40);
     float rh = rs * 0.96;         // Event horizon radius
     float rPhoton = rs * 1.50;    // Photon sphere (infinite orbital focusing)
 
@@ -136,27 +143,35 @@ void main() {
     // ------------------------------------------------------------------------
     // 3. Relativistic Accretion Disk with Doppler Beaming
     // ------------------------------------------------------------------------
+    // Rotate toHole coordinates by u_disk_tilt
+    float ct = cos(u_disk_tilt);
+    float st = sin(u_disk_tilt);
+    mat2 rotTilt = mat2(ct, -st, st, ct);
+    vec2 rotToHole = rotTilt * toHole;
+
     // Inclined elliptical projection of Keplerian accretion disk
-    vec2 diskCoord = toHole;
-    float diskDist = length(vec2(diskCoord.x, diskCoord.y * 2.3)); // Inclined ~ 65 degrees
-    float diskAngle = atan(diskCoord.y * 2.3, diskCoord.x);
+    float incl = max(u_disk_inclination, 1.0);
+    vec2 diskCoord = vec2(rotToHole.x, rotToHole.y * incl);
+    float diskDist = length(diskCoord);
+    float diskAngle = atan(diskCoord.y, diskCoord.x);
 
     // Keplerian orbital angular velocity: omega proportional to r^(-1.5)
     float omega = 4.0 / (diskDist + 0.12);
     float diskPhase = diskAngle - t * omega * 0.8;
 
-    // Volumetric plasma turbulence filaments
+    // Volumetric plasma turbulence filaments (modulated by u_accretion_rate)
     float plasmaTurb = fbm(vec2(diskPhase * 2.2, diskDist * 18.0));
     float innerRadius = rs * 1.8;
     float outerRadius = rs * 6.2;
 
     float diskEnvelope = smoothstep(innerRadius, innerRadius + 0.03, diskDist) *
                          (1.0 - smoothstep(outerRadius * 0.65, outerRadius, diskDist));
-    float diskIntensity = diskEnvelope * (0.7 + 0.6 * plasmaTurb);
+    float accRate = max(u_accretion_rate, 0.2);
+    float diskIntensity = diskEnvelope * (0.7 + 0.6 * plasmaTurb) * accRate;
 
-    // Relativistic Doppler Beaming: Approaching side (left: diskCoord.x < 0) shines blue-white,
-    // receding side (right: diskCoord.x > 0) is red-shifted and dimmed.
-    float lineOfSightVel = -diskCoord.x / (diskDist + 0.001); // Positive = moving towards camera
+    // Relativistic Doppler Beaming: Approaching side (rotToHole.x < 0) shines blue-white,
+    // receding side (rotToHole.x > 0) is red-shifted and dimmed.
+    float lineOfSightVel = -rotToHole.x / (diskDist + 0.001); // Positive = moving towards camera
     float dopplerBoost = pow(clamp(1.0 + lineOfSightVel * 0.85, 0.25, 2.8), 3.5);
 
     // Color shifting: Approaching = blue-white plasma, Receding = deep crimson/amber
@@ -179,13 +194,13 @@ void main() {
     // ------------------------------------------------------------------------
     // 5. Relativistic Polar Plasma Jets
     // ------------------------------------------------------------------------
-    // High-energy particle beams collimated along vertical magnetic poles
-    float jetDistX = abs(toHole.x);
-    float jetDistY = abs(toHole.y);
+    // High-energy particle beams collimated along magnetic poles (perpendicular to disk)
+    float jetDistX = abs(rotToHole.x);
+    float jetDistY = abs(rotToHole.y);
     float jetCollimation = 42.0 - min(35.0, jetDistY * 20.0);
     float jetProfile = exp(-jetDistX * jetCollimation) * smoothstep(rs * 0.8, rs * 2.5, jetDistY);
-    float jetHelix = sin(jetDistY * 30.0 - t * 16.0 + sign(toHole.y) * toHole.x * 25.0);
-    float jetGlow = jetProfile * (0.75 + 0.45 * jetHelix) * (0.5 + u_bass * 1.2 + u_keystroke_energy * 2.0);
+    float jetHelix = sin(jetDistY * 30.0 - t * 16.0 + sign(rotToHole.y) * rotToHole.x * 25.0);
+    float jetGlow = jetProfile * (0.75 + 0.45 * jetHelix) * (0.5 + u_bass * 1.2 + u_keystroke_energy * 2.0) * accRate;
     vec3 jetColor = u_color_jets.rgb * jetGlow * 2.5;
 
     // ------------------------------------------------------------------------
@@ -243,6 +258,31 @@ void main() {
         float warpSpeed = u_vortex_speed - 2.2;
         float warpStreaks = pow(noise2D(vec2(atan(toHole.y, toHole.x) * 16.0, r * 2.0 - t * 10.0)), 3.0) * warpSpeed * 3.0;
         finalColor += vec3(0.8, 0.9, 1.0) * warpStreaks;
+    }
+
+    // ------------------------------------------------------------------------
+    // 8. Hyperspace Jump Warp Streaks & Spacetime Flash (Burn-in Protection)
+    // ------------------------------------------------------------------------
+    if (u_hyperspace_phase > 0.001) {
+        float warpPhase = u_hyperspace_phase;
+        vec2 warpVector = p - holePos;
+        float warpAngle = atan(warpVector.y, warpVector.x);
+        float warpDist = length(warpVector);
+
+        // Relativistic radial star streaks
+        float streakFreq = 36.0;
+        float streakNoise = fract(sin(floor(warpAngle * streakFreq / 6.2831853) * 43758.5453) * 123.456);
+        float streakRadial = sin(warpAngle * streakFreq) * 0.5 + 0.5;
+        float streakIntensity = pow(streakRadial * streakNoise, 4.0) * smoothstep(0.05, 0.5, warpDist);
+
+        // Optical flash & spacetime compression peak near phase = 1.0
+        float flashPeak = sin(warpPhase * 3.14159265);
+        vec3 warpColor = mix(vec3(0.65, 0.85, 1.0), vec3(1.0, 1.0, 1.0), flashPeak);
+        
+        vec3 warpEffect = warpColor * streakIntensity * flashPeak * 5.0;
+        warpEffect += vec3(0.9, 0.95, 1.0) * pow(flashPeak, 4.0) * 1.8;
+        
+        finalColor += warpEffect;
     }
 
     fragColor = vec4(finalColor, 1.0) * qt_Opacity;

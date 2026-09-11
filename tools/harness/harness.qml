@@ -64,11 +64,12 @@ ApplicationWindow {
 
     // Concept 4 Palettes (Cosmic Gravitational Sandbox)
     readonly property var cosmicPalettes: [
-        { name: "Cygnus X-1 (Cyan & Relativistic Gold)",       bg: "#02040a", dye1: "#38bdf8", dye2: "#f97316", dye3: "#a855f7" },
-        { name: "Sagittarius A* (Infrared & Synchrotron)",     bg: "#0a0305", dye1: "#fb923c", dye2: "#c084fc", dye3: "#f43f5e" },
-        { name: "Magnetar Core (Ultraviolet & Solar Flare)",   bg: "#030712", dye1: "#818cf8", dye2: "#facc15", dye3: "#38bdf8" },
-        { name: "Gargantua (Obsidian & Accretion Amber)",      bg: "#000000", dye1: "#fef08a", dye2: "#ea580c", dye3: "#e0e7ff" },
-        { name: "Supernova Remnant (Emerald Gas & Blast)",     bg: "#021208", dye1: "#34d399", dye2: "#ef4444", dye3: "#60a5fa" }
+        { name: "Sagittarius A* (Supermassive Singularity)", bg: "#0f172a", dye1: "#38bdf8", dye2: "#f97316", dye3: "#a855f7" },
+        { name: "M87* (Supergiant Elliptical Shadow)",       bg: "#18181b", dye1: "#fef08a", dye2: "#ea580c", dye3: "#6366f1" },
+        { name: "Cygnus X-1 (Stellar Microquasar)",          bg: "#030712", dye1: "#67e8f9", dye2: "#2563eb", dye3: "#ec4899" },
+        { name: "Magnetar SGR 1806-20 (Ultra-Magnetic)",     bg: "#042f2e", dye1: "#a7f3d0", dye2: "#059669", dye3: "#f43f5e" },
+        { name: "Gargantua (Kerr Extreme Horizon)",          bg: "#09090b", dye1: "#ffffff", dye2: "#eab308", dye3: "#8b5cf6" },
+        { name: "Blazar 3C 273 (Relativistic Jet Alignment)", bg: "#1e1b4b", dye1: "#f472b6", dye2: "#fb923c", dye3: "#38bdf8" }
     ]
 
     property int selectedPalette: 0
@@ -212,6 +213,7 @@ ApplicationWindow {
 
         // Concept 4: Cosmic Gravitational Sandbox (Black Hole & Relativistic Jets)
         CosmicGravitationalSandbox {
+            id: cosmicSandbox
             anchors.fill: parent
             visible: root.selectedConcept === 4
             simTime: root.simTime
@@ -227,11 +229,13 @@ ApplicationWindow {
             keystrokeDir: root.keystrokeDir
             beatCenter: root.beatCenter
             ambientDrift: root.ambientDrift
-            colorCore: root.activeDye1
-            colorDisk: root.activeDye2
-            colorJets: root.activeDye3
-            colorNebula: root.activeBg
             lensStrength: 1.0
+            onHyperspaceJumped: (objName, objIdx) => {
+                if (root.selectedConcept === 4) {
+                    root.selectedPalette = objIdx % root.currentPalettes.length
+                    cmbPalette.currentIndex = root.selectedPalette
+                }
+            }
         }
 
         // Pointer Reactive Cursor Halo
@@ -343,7 +347,12 @@ ApplicationWindow {
                             return names
                         }
                         currentIndex: root.selectedPalette
-                        onActivated: (idx) => root.selectedPalette = idx
+                        onActivated: (idx) => {
+                            root.selectedPalette = idx
+                            if (root.selectedConcept === 4 && typeof cosmicSandbox !== "undefined") {
+                                cosmicSandbox.setAstronomicalObject(idx)
+                            }
+                        }
                     }
                 }
 
@@ -355,6 +364,68 @@ ApplicationWindow {
                     Switch {
                         checked: root.petriCircularAperture
                         onToggled: root.petriCircularAperture = checked
+                    }
+                }
+
+                // Concept 4 Hyperspace Jump & Anti-Ghosting Controls
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    visible: root.selectedConcept === 4
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Hyperspace Navigation:"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Rectangle {
+                            width: lblSec.width + 14
+                            height: 20
+                            radius: 10
+                            color: (typeof cosmicSandbox !== "undefined" && cosmicSandbox.hyperspacePhase > 0.0) ? "#0284c7" : ((typeof cosmicSandbox !== "undefined" && cosmicSandbox.secondsRemaining <= 5) ? "#b91c1c" : "#1e293b")
+                            border.color: (typeof cosmicSandbox !== "undefined" && cosmicSandbox.hyperspacePhase > 0.0) ? "#38bdf8" : ((typeof cosmicSandbox !== "undefined" && cosmicSandbox.secondsRemaining <= 5) ? "#f87171" : "#475569")
+                            Text {
+                                id: lblSec
+                                anchors.centerIn: parent
+                                text: (typeof cosmicSandbox !== "undefined" && cosmicSandbox.hyperspacePhase > 0.0) ? "WARPING..." : ("Jump in: " + (typeof cosmicSandbox !== "undefined" ? cosmicSandbox.secondsRemaining : 0) + "s")
+                                color: "#ffffff"
+                                font.bold: true
+                                font.pixelSize: 10
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: typeof cosmicSandbox !== "undefined" ? ("Cam Offset: (" + cosmicSandbox.cameraOffset.x.toFixed(2) + ", " + cosmicSandbox.cameraOffset.y.toFixed(2) + ") | Tilt: " + (cosmicSandbox.diskTilt * 180 / Math.PI).toFixed(0) + "°") : ""
+                            color: "#94a3b8"
+                            font.pixelSize: 10
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Auto Jump (15-60s):"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Switch {
+                            checked: typeof cosmicSandbox !== "undefined" ? cosmicSandbox.autoHyperspace : true
+                            onToggled: {
+                                if (typeof cosmicSandbox !== "undefined") {
+                                    cosmicSandbox.autoHyperspace = checked
+                                }
+                            }
+                        }
+                    }
+
+                    Button {
+                        text: "🚀 Trigger Hyperspace Jump"
+                        Layout.fillWidth: true
+                        enabled: typeof cosmicSandbox !== "undefined" && cosmicSandbox.hyperspacePhase <= 0.01
+                        onClicked: {
+                            if (typeof cosmicSandbox !== "undefined") {
+                                cosmicSandbox.triggerHyperspace()
+                            }
+                        }
                     }
                 }
 
