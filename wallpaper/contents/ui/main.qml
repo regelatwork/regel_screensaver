@@ -76,6 +76,19 @@ Item {
         vortexSpeed: 0.8
     }
 
+    // Concept 5: Procedural Synthwave Megacity (Cyberpunk Skyline & Raymarched Highway)
+    SynthwaveMegacity {
+        anchors.fill: parent
+        visible: wallpaperRoot.activeConcept === 5
+        simTime: wallpaperRoot.simTime
+        bass: wallpaperRoot.bass
+        mids: wallpaperRoot.mids
+        treble: wallpaperRoot.treble
+        pointerPos: wallpaperRoot.pointerPos
+        pointerVel: wallpaperRoot.pointerVel
+        vortexSpeed: 0.8
+    }
+
     // Pointer tracker when cursor hovers over exposed desktop
     MouseArea {
         anchors.fill: parent

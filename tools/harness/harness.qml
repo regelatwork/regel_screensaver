@@ -72,8 +72,17 @@ ApplicationWindow {
         { name: "Blazar 3C 273 (Relativistic Jet Alignment)", bg: "#1e1b4b", dye1: "#f472b6", dye2: "#fb923c", dye3: "#38bdf8" }
     ]
 
+    // Concept 5 Palettes (Procedural Synthwave Megacity)
+    readonly property var cityPalettes: [
+        { name: "Neo-Tokyo Outrun (Cyber Cyan & Hot Magenta)", bg: "#180c2e", dye1: "#06b6d4", dye2: "#ec4899", dye3: "#8b5cf6" },
+        { name: "Blade Runner 2049 (Amber Smog & Deep Cyan)",  bg: "#1c1917", dye1: "#38bdf8", dye2: "#f59e0b", dye3: "#ea580c" },
+        { name: "Matrix Phosphor (Terminal Emerald & Mint)",    bg: "#022c22", dye1: "#34d399", dye2: "#10b981", dye3: "#059669" },
+        { name: "Syndicate Blood (Crimson Hazard & Gold)",     bg: "#1a050b", dye1: "#ef4444", dye2: "#facc15", dye3: "#dc2626" },
+        { name: "Retrowave Sunset (Electric Purple & Coral)",  bg: "#2e1065", dye1: "#a855f7", dye2: "#fb923c", dye3: "#f43f5e" }
+    ]
+
     property int selectedPalette: 0
-    readonly property var currentPalettes: selectedConcept === 4 ? cosmicPalettes : (selectedConcept === 3 ? koiPalettes : (selectedConcept === 2 ? petriPalettes : fluidPalettes))
+    readonly property var currentPalettes: selectedConcept === 5 ? cityPalettes : (selectedConcept === 4 ? cosmicPalettes : (selectedConcept === 3 ? koiPalettes : (selectedConcept === 2 ? petriPalettes : fluidPalettes)))
     property color activeBg: currentPalettes[selectedPalette % currentPalettes.length].bg
     property color activeDye1: currentPalettes[selectedPalette % currentPalettes.length].dye1
     property color activeDye2: currentPalettes[selectedPalette % currentPalettes.length].dye2
@@ -238,6 +247,33 @@ ApplicationWindow {
             }
         }
 
+        // Concept 5: Procedural Synthwave Megacity (Cyberpunk Skyline & Raymarched Highway)
+        SynthwaveMegacity {
+            id: citySandbox
+            anchors.fill: parent
+            visible: root.selectedConcept === 5
+            simTime: root.simTime
+            keystrokeEnergy: root.keystrokeEnergy
+            shockwaveIntensity: root.shockwaveIntensity
+            vortexSpeed: root.vortexSpeed
+            bass: root.bass
+            mids: root.mids
+            treble: root.treble
+            pointerPos: root.pointerPos
+            pointerVel: root.pointerVel
+            keystrokePos: root.keystrokePos
+            keystrokeDir: root.keystrokeDir
+            beatCenter: root.beatCenter
+            ambientDrift: root.ambientDrift
+            colorSky: root.activeBg
+            colorNeon1: root.activeDye1
+            colorNeon2: root.activeDye2
+            colorGrid: root.activeDye3
+            searchlightPower: (typeof sldDroneLight !== "undefined") ? sldDroneLight.value : 1.0
+            rainDensity: (typeof chkRain !== "undefined" && chkRain.checked) ? 0.75 : 0.0
+            fogDensity: (typeof sldSmog !== "undefined") ? sldSmog.value : 0.85
+        }
+
         // Pointer Reactive Cursor Halo
         Rectangle {
             x: root.pointerPos.x * canvasArea.width - width / 2
@@ -321,7 +357,8 @@ ApplicationWindow {
                             "1: Liquid Neon Abyss",
                             "2: The Living Petri Dish (Lenia)",
                             "3: The Tranquil Sanctuary (Koi Pond)",
-                            "4: Cosmic Gravitational Sandbox (Black Hole)"
+                            "4: Cosmic Gravitational Sandbox (Black Hole)",
+                            "5: Procedural Synthwave Megacity (Cyberpunk Skyline)"
                         ]
                         currentIndex: root.selectedConcept - 1
                         onActivated: (idx) => {
@@ -425,6 +462,53 @@ ApplicationWindow {
                             if (typeof cosmicSandbox !== "undefined") {
                                 cosmicSandbox.triggerHyperspace()
                             }
+                        }
+                    }
+                }
+
+                // Concept 5 Synthwave Megacity Controls
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    visible: root.selectedConcept === 5
+
+                    Text { text: "Metropolis Environmental Controls"; color: "#06b6d4"; font.bold: true }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Drone Searchlight: " + sldDroneLight.value.toFixed(1) + "x"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldDroneLight
+                            from: 0.2
+                            to: 3.0
+                            value: 1.2
+                            stepSize: 0.1
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Cyber Smog / Fog: " + sldSmog.value.toFixed(2); color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldSmog
+                            from: 0.1
+                            to: 1.5
+                            value: 0.85
+                            stepSize: 0.05
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Volumetric Rain & Lens Condensation:"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Switch {
+                            id: chkRain
+                            checked: true
                         }
                     }
                 }

@@ -43,7 +43,9 @@ test -f engine/shaders/koi.vert.qsb
 test -f engine/shaders/koi.frag.qsb
 test -f engine/shaders/cosmic.vert.qsb
 test -f engine/shaders/cosmic.frag.qsb
-echo "    All shader bundles (Fluid, Petri, Koi, Cosmic) verified."
+test -f engine/shaders/city.vert.qsb
+test -f engine/shaders/city.frag.qsb
+echo "    All shader bundles (Fluid, Petri, Koi, Cosmic, City) verified."
 
 echo "--> 4. Running Rust Unit Tests..."
 cargo test --workspace
@@ -54,6 +56,7 @@ if command -v qmllint &>/dev/null; then
     qmllint engine/LivingPetriDish.qml
     qmllint engine/TranquilKoiSanctuary.qml
     qmllint engine/CosmicGravitationalSandbox.qml
+    qmllint engine/SynthwaveMegacity.qml
     qmllint tools/harness/harness.qml
     qmllint wallpaper/contents/ui/main.qml
     qmllint lockscreen/contents/lockscreen/LockScreenUi.qml
