@@ -108,6 +108,21 @@ Item {
         pointerVel: lockScreenRoot.pointerVel
     }
 
+    // Concept 6: Real-Time Ephemeris Biome (Ghibli Weather Terrarium)
+    RealtimeEphemerisBiome {
+        anchors.fill: parent
+        visible: lockScreenRoot.activeConcept === 6
+        simTime: lockScreenRoot.simTime
+        keystrokeEnergy: lockScreenRoot.keystrokeEnergy
+        shockwaveIntensity: lockScreenRoot.shockwaveIntensity
+        vortexSpeed: lockScreenRoot.vortexSpeed
+        bass: lockScreenRoot.bass
+        mids: lockScreenRoot.mids
+        treble: lockScreenRoot.treble
+        pointerPos: lockScreenRoot.pointerPos
+        pointerVel: lockScreenRoot.pointerVel
+    }
+
     // Authenticator connection for Plasma 6 kscreenlocker
     Connections {
         target: typeof authenticator !== "undefined" ? authenticator : null

@@ -81,8 +81,17 @@ ApplicationWindow {
         { name: "Retrowave Sunset (Electric Purple & Coral)",  bg: "#2e1065", dye1: "#a855f7", dye2: "#fb923c", dye3: "#f43f5e" }
     ]
 
+    // Concept 6 Palettes (Real-Time Ephemeris Biome)
+    readonly property var biomePalettes: [
+        { name: "Yakushima Ancient Forest (Ghibli Emerald & Gold)", sky: "#0f172a", dye1: "#15803d", dye2: "#fde047", dye3: "#facc15" },
+        { name: "Sakura Spring Dawn (Cherry Blossom & Lavender)",   sky: "#1e1b4b", dye1: "#f472b6", dye2: "#fda4af", dye3: "#f43f5e" },
+        { name: "Autumn Koyo Harvest (Crimson Maple & Amber)",      sky: "#1c1917", dye1: "#dc2626", dye2: "#f97316", dye3: "#fbbf24" },
+        { name: "Alpine Winter Twilight (Cobalt Frost & Snow)",     sky: "#020617", dye1: "#38bdf8", dye2: "#e0f2fe", dye3: "#67e8f9" },
+        { name: "Midnight Bioluminescence (Obsidian & Jade)",       sky: "#030712", dye1: "#10b981", dye2: "#a7f3d0", dye3: "#34d399" }
+    ]
+
     property int selectedPalette: 0
-    readonly property var currentPalettes: selectedConcept === 5 ? cityPalettes : (selectedConcept === 4 ? cosmicPalettes : (selectedConcept === 3 ? koiPalettes : (selectedConcept === 2 ? petriPalettes : fluidPalettes)))
+    readonly property var currentPalettes: selectedConcept === 6 ? biomePalettes : (selectedConcept === 5 ? cityPalettes : (selectedConcept === 4 ? cosmicPalettes : (selectedConcept === 3 ? koiPalettes : (selectedConcept === 2 ? petriPalettes : fluidPalettes))))
     property color activeBg: currentPalettes[selectedPalette % currentPalettes.length].bg
     property color activeDye1: currentPalettes[selectedPalette % currentPalettes.length].dye1
     property color activeDye2: currentPalettes[selectedPalette % currentPalettes.length].dye2
@@ -274,6 +283,35 @@ ApplicationWindow {
             fogDensity: (typeof sldSmog !== "undefined") ? sldSmog.value : 0.85
         }
 
+        // Concept 6: Real-Time Ephemeris Biome (Ghibli Weather Terrarium)
+        RealtimeEphemerisBiome {
+            id: biomeSandbox
+            anchors.fill: parent
+            visible: root.selectedConcept === 6
+            simTime: root.simTime
+            keystrokeEnergy: root.keystrokeEnergy
+            shockwaveIntensity: root.shockwaveIntensity
+            vortexSpeed: root.vortexSpeed
+            bass: root.bass
+            mids: root.mids
+            treble: root.treble
+            pointerPos: root.pointerPos
+            pointerVel: root.pointerVel
+            keystrokePos: root.keystrokePos
+            keystrokeDir: root.keystrokeDir
+            beatCenter: root.beatCenter
+            ambientDrift: root.ambientDrift
+            colorSky: root.activeBg
+            colorFoliage: root.activeDye1
+            colorSunMoon: root.activeDye2
+            colorWisp: root.activeDye3
+            syncToSystemClock: (typeof chkClockSync !== "undefined") ? chkClockSync.checked : true
+            solarTime: (typeof chkClockSync !== "undefined" && chkClockSync.checked) ? biomeSandbox.solarTime : ((typeof sldSolarTime !== "undefined") ? sldSolarTime.value : 14.5)
+            weatherMode: (typeof cmbWeather !== "undefined") ? cmbWeather.currentIndex : 0.0
+            lunarPhase: (typeof sldMoonPhase !== "undefined") ? sldMoonPhase.value : 0.5
+            fogDensity: (typeof sldValleyFog !== "undefined") ? sldValleyFog.value : 0.5
+        }
+
         // Pointer Reactive Cursor Halo
         Rectangle {
             x: root.pointerPos.x * canvasArea.width - width / 2
@@ -358,7 +396,8 @@ ApplicationWindow {
                             "2: The Living Petri Dish (Lenia)",
                             "3: The Tranquil Sanctuary (Koi Pond)",
                             "4: Cosmic Gravitational Sandbox (Black Hole)",
-                            "5: Procedural Synthwave Megacity (Cyberpunk Skyline)"
+                            "5: Procedural Synthwave Megacity (Cyberpunk Skyline)",
+                            "6: Real-Time Ephemeris Biome (Ghibli Weather Terrarium)"
                         ]
                         currentIndex: root.selectedConcept - 1
                         onActivated: (idx) => {
@@ -509,6 +548,86 @@ ApplicationWindow {
                         Switch {
                             id: chkRain
                             checked: true
+                        }
+                    }
+                }
+
+                // Concept 6 Real-Time Ephemeris Biome Controls
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    visible: root.selectedConcept === 6
+
+                    Text { text: "Ephemeris & Terrarium Ingestion"; color: "#10b981"; font.bold: true }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Follow Local System Clock:"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Switch {
+                            id: chkClockSync
+                            checked: true
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        enabled: !chkClockSync.checked
+                        opacity: chkClockSync.checked ? 0.5 : 1.0
+                        Text {
+                            text: "Solar Hour: " + (typeof sldSolarTime !== "undefined" ? sldSolarTime.value.toFixed(1) : "12.0") + "h"
+                            color: "#cbd5e1"
+                        }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldSolarTime
+                            from: 0.0
+                            to: 24.0
+                            value: 14.5
+                            stepSize: 0.5
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Weather:"; color: "#cbd5e1" }
+                        ComboBox {
+                            id: cmbWeather
+                            Layout.fillWidth: true
+                            model: ["0: Clear Golden Sky", "1: Spring Rain", "2: Alpine Snowfall", "3: Valley Mist"]
+                            currentIndex: 0
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "Lunar Phase: " + (sldMoonPhase.value === 0.0 || sldMoonPhase.value === 1.0 ? "New" : (sldMoonPhase.value === 0.5 ? "Full" : (sldMoonPhase.value < 0.5 ? "Waxing" : "Waning")))
+                            color: "#cbd5e1"
+                        }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldMoonPhase
+                            from: 0.0
+                            to: 1.0
+                            value: 0.5
+                            stepSize: 0.05
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Valley Fog / Mist: " + sldValleyFog.value.toFixed(2); color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldValleyFog
+                            from: 0.0
+                            to: 1.2
+                            value: 0.5
+                            stepSize: 0.05
+                            Layout.preferredWidth: 140
                         }
                     }
                 }

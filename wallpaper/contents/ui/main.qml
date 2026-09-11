@@ -89,6 +89,19 @@ Item {
         vortexSpeed: 0.8
     }
 
+    // Concept 6: Real-Time Ephemeris Biome (Ghibli Weather Terrarium)
+    RealtimeEphemerisBiome {
+        anchors.fill: parent
+        visible: wallpaperRoot.activeConcept === 6
+        simTime: wallpaperRoot.simTime
+        bass: wallpaperRoot.bass
+        mids: wallpaperRoot.mids
+        treble: wallpaperRoot.treble
+        pointerPos: wallpaperRoot.pointerPos
+        pointerVel: wallpaperRoot.pointerVel
+        vortexSpeed: 0.8
+    }
+
     // Pointer tracker when cursor hovers over exposed desktop
     MouseArea {
         anchors.fill: parent
