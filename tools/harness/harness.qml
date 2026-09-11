@@ -60,6 +60,15 @@ ApplicationWindow {
     property color activeDye2: currentPalettes[selectedPalette % currentPalettes.length].dye2
     property color activeDye3: currentPalettes[selectedPalette % currentPalettes.length].dye3
 
+    function updateAudioParams() {
+        if (typeof liveAudio !== "undefined" && typeof liveAudio.setSensitivity === "function") {
+            let gain = (typeof sldGain !== "undefined") ? sldGain.value : 4.0
+            let gamma = (typeof sldGamma !== "undefined") ? sldGamma.value : 0.45
+            let autoGain = (typeof chkAutoGain !== "undefined") ? chkAutoGain.checked : true
+            liveAudio.setSensitivity(gain, gamma, autoGain)
+        }
+    }
+
     // Simulation Frame Loop (60 Hz) driving Rust EngineCore
     Timer {
         interval: 16
@@ -393,7 +402,7 @@ ApplicationWindow {
                         id: chkAutoGain
                         text: "Auto-Gain Control (AGC)"
                         checked: true
-                        onToggled: updateAudioParams()
+                        onToggled: root.updateAudioParams()
                     }
 
                     RowLayout {
@@ -406,7 +415,7 @@ ApplicationWindow {
                             value: 4.0
                             stepSize: 0.5
                             Layout.fillWidth: true
-                            onMoved: updateAudioParams()
+                            onMoved: root.updateAudioParams()
                         }
                     }
 
@@ -420,14 +429,8 @@ ApplicationWindow {
                             value: 0.45
                             stepSize: 0.05
                             Layout.fillWidth: true
-                            onMoved: updateAudioParams()
+                            onMoved: root.updateAudioParams()
                         }
-                    }
-                }
-
-                function updateAudioParams() {
-                    if (typeof liveAudio !== "undefined" && typeof liveAudio.setSensitivity === "function") {
-                        liveAudio.setSensitivity(sldGain.value, sldGamma.value, chkAutoGain.checked)
                     }
                 }
 
