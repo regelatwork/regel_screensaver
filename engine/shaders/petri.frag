@@ -98,6 +98,32 @@ float evaluateOrganism(vec2 p, vec2 center, float baseRadius, float lobes, float
     return clamp(coreDensity + cytoplasm + outerMembrane + pseudopod, 0.0, 1.0);
 }
 
+// Evaluates the full population of all 5 continuous organisms simultaneously
+float evaluateAllOrganisms(
+    vec2 p,
+    vec2 org1Center,
+    vec2 org2Center,
+    vec2 org3Center,
+    vec2 org4Center,
+    vec2 org5Center,
+    float t,
+    float bass,
+    float mitosisFactor,
+    float cystFactor
+) {
+    float field = 0.0;
+    // Organism 1: Large Central Amoeba (orbicular crawler)
+    field += evaluateOrganism(p, org1Center, 0.16, 5.0, 0.8, t, bass, mitosisFactor, cystFactor);
+    // Organism 2: Soliton Glider (harmonic orbital swimmer)
+    field += 0.85 * evaluateOrganism(p, org2Center, 0.11, 3.0, 1.4, t, bass * 0.8, mitosisFactor * 0.7, cystFactor);
+    // Organism 3: Agile Multi-lobed Crawler
+    field += 0.75 * evaluateOrganism(p, org3Center, 0.09, 4.0, -1.8, t, bass * 0.6, 0.0, cystFactor);
+    // Organism 4 & 5: Small Colony Wanderers
+    field += 0.60 * evaluateOrganism(p, org4Center, 0.07, 6.0, 2.2, t, bass * 0.5, 0.0, cystFactor);
+    field += 0.60 * evaluateOrganism(p, org5Center, 0.065, 3.0, -1.2, t, bass * 0.5, 0.0, cystFactor);
+    return field;
+}
+
 void main() {
     vec2 uv = qt_TexCoord0;
     float aspect = u_resolution.x / max(u_resolution.y, 1.0);
@@ -136,43 +162,47 @@ void main() {
     vec2 currentP = p - (u_ambient_drift * 0.5 + fluidStir);
 
     // ------------------------------------------------------------------------
-    // Continuous Organisms Population (Species Diversity)
+    // Continuous Organisms Population Trajectories
     // ------------------------------------------------------------------------
-    float organismField = 0.0;
-
-    // Organism 1: Large Central Amoeba (orbicular crawler, responds to beat center)
+    // Organism 1: Central Amoeba (attracted to beat epicenter & cursor)
     vec2 org1Center = beatCenterP + vec2(
         0.06 * cos(t * 0.4) + fluidStir.x,
         0.05 * sin(t * 0.5) + fluidStir.y
     );
-    // Attracted toward cursor (chemotaxis)
     org1Center = mix(org1Center, pointerP, 0.22);
-    organismField += evaluateOrganism(currentP, org1Center, 0.16, 5.0, 0.8, t, u_bass, mitosisFactor, cystFactor);
 
-    // Organism 2: Soliton Glider (swims in slow harmonic orbital path)
+    // Organism 2: Soliton Glider (harmonic orbital path, tracks cursor)
     float gliderAngle = t * 0.25;
     vec2 org2Center = centerP + vec2(
         0.28 * cos(gliderAngle) * aspect,
         0.18 * sin(gliderAngle * 1.3)
     );
-    // Pursues cursor trail
     org2Center = mix(org2Center, pointerP, 0.15);
-    organismField += 0.85 * evaluateOrganism(currentP, org2Center, 0.11, 3.0, 1.4, t, u_bass * 0.8, mitosisFactor * 0.7, cystFactor);
 
-    // Organism 3: Agile Multi-lobed Crawler (rapid undulating organelle)
+    // Organism 3: Agile Multi-lobed Crawler
     float crawlerAngle = -t * 0.35 + 2.0;
     vec2 org3Center = centerP + vec2(
         0.22 * sin(crawlerAngle),
         0.22 * cos(crawlerAngle * 0.9)
     );
-    organismField += 0.75 * evaluateOrganism(currentP, org3Center, 0.09, 4.0, -1.8, t, u_bass * 0.6, 0.0, cystFactor);
 
-    // Organism 4 & 5: Small Colony Wanderers (sensitive to ambient currents)
+    // Organisms 4 & 5: Small Colony Wanderers
     vec2 org4Center = centerP + vec2(0.18 * cos(t * 0.6 + 4.0), 0.26 * sin(t * 0.4 + 1.0));
-    organismField += 0.60 * evaluateOrganism(currentP, org4Center, 0.07, 6.0, 2.2, t, u_bass * 0.5, 0.0, cystFactor);
-
     vec2 org5Center = centerP + vec2(-0.24 * cos(t * 0.3 + 2.5), -0.16 * sin(t * 0.5 + 3.0));
-    organismField += 0.60 * evaluateOrganism(currentP, org5Center, 0.065, 3.0, -1.2, t, u_bass * 0.5, 0.0, cystFactor);
+
+    // Evaluate total continuous density field across all organisms
+    float organismField = evaluateAllOrganisms(
+        currentP,
+        org1Center,
+        org2Center,
+        org3Center,
+        org4Center,
+        org5Center,
+        t,
+        u_bass,
+        mitosisFactor,
+        cystFactor
+    );
 
     // ------------------------------------------------------------------------
     // Nutrient Droplet Injection (Keystrokes & Mitosis Sparks)
@@ -198,12 +228,34 @@ void main() {
     // ------------------------------------------------------------------------
     // Optical Phase-Contrast Shading & Membrane Specular Highlights
     // ------------------------------------------------------------------------
-    // Finite difference gradient for surface normals: nabla A = (dA/dx, dA/dy)
+    // Mathematically consistent finite difference gradient across all 5 organisms
     const float eps = 0.005;
     vec2 pDx = currentP + vec2(eps, 0.0);
     vec2 pDy = currentP + vec2(0.0, eps);
-    float densDx = evaluateOrganism(pDx, org1Center, 0.16, 5.0, 0.8, t, u_bass, mitosisFactor, cystFactor);
-    float densDy = evaluateOrganism(pDy, org1Center, 0.16, 5.0, 0.8, t, u_bass, mitosisFactor, cystFactor);
+    float densDx = evaluateAllOrganisms(
+        pDx,
+        org1Center,
+        org2Center,
+        org3Center,
+        org4Center,
+        org5Center,
+        t,
+        u_bass,
+        mitosisFactor,
+        cystFactor
+    );
+    float densDy = evaluateAllOrganisms(
+        pDy,
+        org1Center,
+        org2Center,
+        org3Center,
+        org4Center,
+        org5Center,
+        t,
+        u_bass,
+        mitosisFactor,
+        cystFactor
+    );
     vec2 gradient = vec2(densDx - organismField, densDy - organismField) / eps;
 
     vec3 normal = normalize(vec3(-gradient.x, -gradient.y, 0.22));
