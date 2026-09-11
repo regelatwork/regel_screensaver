@@ -7,7 +7,7 @@ use std::io::{self, Read, Write};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-fn run_audio_stream(source: &str) -> io::Result<()> {
+fn run_audio_stream(source: &str, gain: f32, gamma: f32, auto_gain: bool) -> io::Result<()> {
     let target = if source == "mic" {
         "@DEFAULT_AUDIO_SOURCE@"
     } else {
@@ -52,10 +52,16 @@ fn run_audio_stream(source: &str) -> io::Result<()> {
     };
 
     let mut analyzer = SpectrumAnalyzer::new(48000.0, 1024, 0.05);
+    analyzer.set_manual_gain(gain);
+    analyzer.set_gamma(gamma);
+    analyzer.set_auto_gain(auto_gain);
+
     let mut buffer = [0u8; 4096]; // 1024 samples * 4 bytes/f32
     let mut float_samples = [0.0f32; 1024];
 
-    eprintln!("==> regel-daemon audio DSP stream active ({source}) using rustfft");
+    eprintln!(
+        "==> regel-daemon audio DSP stream active ({source}) [AGC: {auto_gain}, Gain: {gain:.1}x, Gamma: {gamma:.2}]"
+    );
 
     loop {
         if let Err(_) = stdout.read_exact(&mut buffer) {
@@ -89,8 +95,41 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() > 1 && args[1] == "--audio-stream" {
-        let source = if args.len() > 2 { &args[2] } else { "monitor" };
-        if let Err(e) = run_audio_stream(source) {
+        let mut source = "monitor";
+        let mut gain = 3.5f32;
+        let mut gamma = 0.45f32;
+        let mut auto_gain = true;
+
+        let mut i = 2;
+        while i < args.len() {
+            match args[i].as_str() {
+                "--gain" if i + 1 < args.len() => {
+                    if let Ok(val) = args[i + 1].parse::<f32>() {
+                        gain = val;
+                    }
+                    i += 2;
+                }
+                "--gamma" if i + 1 < args.len() => {
+                    if let Ok(val) = args[i + 1].parse::<f32>() {
+                        gamma = val;
+                    }
+                    i += 2;
+                }
+                "--no-auto-gain" => {
+                    auto_gain = false;
+                    i += 1;
+                }
+                src if !src.starts_with("--") => {
+                    source = src;
+                    i += 1;
+                }
+                _ => {
+                    i += 1;
+                }
+            }
+        }
+
+        if let Err(e) = run_audio_stream(source, gain, gamma, auto_gain) {
             eprintln!("Error in audio stream: {}", e);
             std::process::exit(1);
         }

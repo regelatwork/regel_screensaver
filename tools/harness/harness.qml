@@ -384,6 +384,115 @@ ApplicationWindow {
                     }
                 }
 
+                // Automatic Gain Control (AGC) & Sensitivity Controls
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    CheckBox {
+                        id: chkAutoGain
+                        text: "Auto-Gain Control (AGC)"
+                        checked: true
+                        onToggled: updateAudioParams()
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Gain: " + sldGain.value.toFixed(1) + "x"; color: "#94a3b8"; Layout.preferredWidth: 80 }
+                        Slider {
+                            id: sldGain
+                            from: 1.0
+                            to: 10.0
+                            value: 4.0
+                            stepSize: 0.5
+                            Layout.fillWidth: true
+                            onMoved: updateAudioParams()
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Gamma: " + sldGamma.value.toFixed(2); color: "#94a3b8"; Layout.preferredWidth: 80 }
+                        Slider {
+                            id: sldGamma
+                            from: 0.25
+                            to: 1.00
+                            value: 0.45
+                            stepSize: 0.05
+                            Layout.fillWidth: true
+                            onMoved: updateAudioParams()
+                        }
+                    }
+                }
+
+                function updateAudioParams() {
+                    if (typeof liveAudio !== "undefined" && typeof liveAudio.setSensitivity === "function") {
+                        liveAudio.setSensitivity(sldGain.value, sldGamma.value, chkAutoGain.checked)
+                    }
+                }
+
+                // Real-Time Audio Level Meters
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    Text { text: "Live Audio Spectrum"; color: "#94a3b8"; font.pixelSize: 11; font.bold: true }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "BASS"; color: "#38bdf8"; font.pixelSize: 10; Layout.preferredWidth: 38 }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 8
+                            color: "#0f172a"
+                            radius: 4
+                            Rectangle {
+                                width: parent.width * Math.min(1.0, root.bass)
+                                height: parent.height
+                                radius: 4
+                                color: root.bass > 0.75 ? "#ff0055" : (root.bass > 0.4 ? "#00ffaa" : "#00d4ff")
+                            }
+                        }
+                        Text { text: (root.bass * 100).toFixed(0) + "%"; color: "#64748b"; font.pixelSize: 10; Layout.preferredWidth: 32 }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "MIDS"; color: "#a855f7"; font.pixelSize: 10; Layout.preferredWidth: 38 }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 8
+                            color: "#0f172a"
+                            radius: 4
+                            Rectangle {
+                                width: parent.width * Math.min(1.0, root.mids)
+                                height: parent.height
+                                radius: 4
+                                color: root.mids > 0.75 ? "#ff0055" : (root.mids > 0.4 ? "#a855f7" : "#818cf8")
+                            }
+                        }
+                        Text { text: (root.mids * 100).toFixed(0) + "%"; color: "#64748b"; font.pixelSize: 10; Layout.preferredWidth: 32 }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "TREB"; color: "#f59e0b"; font.pixelSize: 10; Layout.preferredWidth: 38 }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 8
+                            color: "#0f172a"
+                            radius: 4
+                            Rectangle {
+                                width: parent.width * Math.min(1.0, root.treble)
+                                height: parent.height
+                                radius: 4
+                                color: root.treble > 0.75 ? "#ff0055" : (root.treble > 0.4 ? "#f59e0b" : "#fbbf24")
+                            }
+                        }
+                        Text { text: (root.treble * 100).toFixed(0) + "%"; color: "#64748b"; font.pixelSize: 10; Layout.preferredWidth: 32 }
+                    }
+                }
+
                 CheckBox {
                     id: chkWanderBeat
                     text: "Auto-Wander Beat Center"

@@ -263,6 +263,7 @@ class EngineBridge(QObject):
 
 class LiveAudioBridge(QObject):
     spectrumChanged = pyqtSignal()
+    sensitivityChanged = pyqtSignal()
 
     def __init__(self, daemon_path, engine_bridge):
         super().__init__()
@@ -271,6 +272,11 @@ class LiveAudioBridge(QObject):
         self.process = None
         self.running = False
         self.thread = None
+        self.current_source = None
+
+        self._gain = 3.5
+        self._gamma = 0.45
+        self._auto_gain = True
 
         self._sub_bass = 0.05
         self._bass = 0.05
@@ -280,9 +286,33 @@ class LiveAudioBridge(QObject):
 
     @pyqtSlot(str)
     def setSource(self, source_name):
+        self.current_source = source_name
+        self._restart_stream()
+
+    @pyqtSlot(float, float, bool)
+    def setSensitivity(self, gain, gamma, auto_gain):
+        self._gain = max(0.5, min(10.0, gain))
+        self._gamma = max(0.20, min(1.0, gamma))
+        self._auto_gain = auto_gain
+        self.sensitivityChanged.emit()
+        if self.current_source in ["monitor", "mic"]:
+            self._restart_stream()
+
+    def _restart_stream(self):
         self.stop()
-        if source_name in ["monitor", "mic"]:
-            cmd = [self.daemon_path, "--audio-stream", source_name]
+        if self.current_source in ["monitor", "mic"]:
+            cmd = [
+                self.daemon_path,
+                "--audio-stream",
+                self.current_source,
+                "--gain",
+                f"{self._gain:.2f}",
+                "--gamma",
+                f"{self._gamma:.2f}",
+            ]
+            if not self._auto_gain:
+                cmd.append("--no-auto-gain")
+
             try:
                 self.process = subprocess.Popen(
                     cmd,
@@ -294,7 +324,7 @@ class LiveAudioBridge(QObject):
                 self.running = True
                 self.thread = threading.Thread(target=self._stream_reader, daemon=True)
                 self.thread.start()
-                print(f"==> Rust PipeWire audio stream launched ({source_name})")
+                print(f"==> Rust PipeWire audio stream launched ({self.current_source}) [AGC: {self._auto_gain}, Gain: {self._gain:.1f}x, Gamma: {self._gamma:.2f}]")
             except Exception as e:
                 print(f"Warning: Could not launch regel-daemon audio stream: {e}")
 
@@ -355,6 +385,18 @@ class LiveAudioBridge(QObject):
     @pyqtProperty(float, notify=spectrumChanged)
     def rms(self):
         return self._rms
+
+    @pyqtProperty(float, notify=sensitivityChanged)
+    def gain(self):
+        return self._gain
+
+    @pyqtProperty(float, notify=sensitivityChanged)
+    def gamma(self):
+        return self._gamma
+
+    @pyqtProperty(bool, notify=sensitivityChanged)
+    def autoGain(self):
+        return self._auto_gain
 
 
 # -----------------------------------------------------------------------------

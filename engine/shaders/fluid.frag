@@ -115,16 +115,16 @@ void main() {
     float distBeat = length(toBeat);
     vec2 outwardBeat = normalize(toBeat + vec2(0.0001));
     
-    // Pulsing acoustic shockfront from wandering epicenter
-    velocity += outwardBeat * u_bass * exp(-distBeat * 3.5) * 1.5;
+    // Pulsing acoustic shockfront from wandering epicenter (drives fluid outward)
+    velocity += outwardBeat * u_bass * exp(-distBeat * 3.2) * 2.4;
 
-    // Boundary jets firing inward on heavy sub-bass
+    // Boundary jets firing inward on heavy bass/hits
     float edgeDist = min(min(qt_TexCoord0.x, 1.0 - qt_TexCoord0.x), min(qt_TexCoord0.y, 1.0 - qt_TexCoord0.y));
     vec2 inwardDir = -normalize(uv);
-    velocity += inwardDir * u_bass * exp(-edgeDist * 7.0) * 0.9;
+    velocity += inwardDir * u_bass * exp(-edgeDist * 6.5) * 1.5;
 
     // Treble micro-turbulence
-    velocity += curlNoise(uv * 7.5, u_time * 1.2) * u_treble * 0.45;
+    velocity += curlNoise(uv * 7.5, u_time * 1.2) * u_treble * 0.75;
 
     // 6. Authentication Failure Cavitation Shockwave
     if (u_shockwave_intensity > 0.01) {
@@ -133,30 +133,28 @@ void main() {
         float shockFront = exp(-pow((centerDist - shockwaveRadius) * 12.0, 2.0));
         
         // Violent outward radial blast
-        vec2 radialBlast = normalize(uv + vec2(0.0001)) * shockFront * u_shockwave_intensity * 3.0;
-        velocity += radialBlast;
+        velocity += normalize(uv) * shockFront * 3.5;
     }
 
-    // 7. Multi-Step Coordinate Advection
-    float dt = 0.032;
-    vec2 advectedUV = uv;
-    advectedUV -= velocity * dt;
-    advectedUV -= curlNoise(advectedUV * 2.8, timeScaled * 1.1) * (dt * 0.5);
-
-    // 8. Dye Density Simulation
-    float d1 = fbm(advectedUV * 3.0 + vec2(0.4, 0.2));
-    float d2 = fbm(advectedUV * 4.2 - vec2(0.3, 0.6));
-    float d3 = fbm(advectedUV * 5.8 + vec2(0.7, -0.4));
+    // 7. Advection: Sample Dye Tracers along Physical Velocity Streamlines
+    vec2 advectedUV = qt_TexCoord0 + velocity * 0.045;
+    float d1 = fbm(advectedUV * 3.2 + u_ambient_drift * 0.6);
+    float d2 = fbm(advectedUV * 4.8 - u_ambient_drift * 0.4);
+    float d3 = noise2D(advectedUV * 8.0 + vec2(u_time * 0.15));
 
     // Dynamic Color Blending from Palette Uniforms
     vec3 color = u_color_bg;
-    float w1 = smoothstep(0.1, 0.7, d1 + u_bass * 0.25);
-    float w2 = smoothstep(0.2, 0.8, d2 + u_mids * 0.25);
-    float w3 = smoothstep(0.3, 0.9, d3 + u_treble * 0.20);
+    float w1 = smoothstep(0.08, 0.65, d1 + u_bass * 0.40);
+    float w2 = smoothstep(0.15, 0.75, d2 + u_mids * 0.35);
+    float w3 = smoothstep(0.20, 0.85, d3 + u_treble * 0.30);
 
     color = mix(color, u_color_dye1, w1 * 0.75);
     color = mix(color, u_color_dye2, w2 * 0.65);
     color = mix(color, u_color_dye3, w3 * 0.55);
+
+    // Beat epicenter acoustic luminescence burst
+    float beatGlow = exp(-distBeat * 7.5) * u_bass * 2.2;
+    color += mix(u_color_dye1, u_color_dye2, 0.5) * beatGlow;
 
     // 9. Directional Keystroke Dye Splat Rendering
     if (u_keystroke_energy > 0.01) {

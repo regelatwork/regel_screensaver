@@ -81,7 +81,7 @@ float evaluateOrganism(vec2 p, vec2 center, float baseRadius, float lobes, float
     }
 
     // Defensive Cyst formation during toxic shock: contract into dense sphere
-    float effectiveRadius = baseRadius * mix(1.0 + audioPulse * 0.18, 0.55, cystFactor);
+    float effectiveRadius = baseRadius * mix(1.0 + audioPulse * 0.45, 0.55, cystFactor);
 
     // Harmonic angular lobe modulation (Lenia continuous symmetry)
     float lobeMod = 0.14 * sin(lobes * angle + time * phaseSpeed);
@@ -270,7 +270,7 @@ void main() {
 
     // High-frequency interior organelle fluorescence (vibrates with mids & treble)
     float organelleNoise = fbm(p * 24.0 + vec2(t * 0.8, -t * 0.6));
-    float organelleScintillation = smoothstep(0.45, 0.85, organismField) * organelleNoise * (0.6 + u_treble * 1.5);
+    float organelleScintillation = smoothstep(0.38, 0.85, organismField) * organelleNoise * (0.6 + u_treble * 2.2 + u_mids * 1.4);
 
     // ------------------------------------------------------------------------
     // Bioluminescent Color Composition & Optical Staining
@@ -285,6 +285,10 @@ void main() {
 
     // Darkfield background tint with subtle radial falloff
     vec3 finalColor = colBg * (1.0 - 0.3 * slideDist) + colGlow * colloidalDust;
+
+    // Acoustic pressure wave across the petri dish substrate
+    float acousticWave = sin(slideDist * 32.0 - t * 8.0) * exp(-slideDist * 2.5) * (u_bass * 0.35);
+    finalColor += colGlow * max(0.0, acousticWave);
 
     // Composite living organisms with translucency and subsurface scattering
     vec3 organismColor = mix(colMembrane, colOrganelle, organelleScintillation);
@@ -309,8 +313,8 @@ void main() {
     finalColor = mix(finalColor, organismColor, alpha);
 
     // External Halo / Bioluminescent Bloom
-    float bloomHalo = smoothstep(0.01, 0.40, organismField) * (0.35 + u_bass * 0.4);
-    finalColor += bloomHalo * colGlow * 0.45;
+    float bloomHalo = smoothstep(0.01, 0.40, organismField) * (0.35 + u_bass * 0.85);
+    finalColor += bloomHalo * colGlow * 0.55;
 
     // Microscope Glass Rim with Chromatic Aberration & Dark Vignette
     vec3 glassEdgeColor = vec3(0.08, 0.15, 0.25) * glassRim;
