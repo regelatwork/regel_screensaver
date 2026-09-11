@@ -1,19 +1,110 @@
-//! regel-daemon: Background daemon for PipeWire stream tapping and IPC broadcasting.
+//! regel-daemon: Background daemon for PipeWire stream tapping, FFT analysis, and IPC state broadcasting.
 
 use regel_audio::{AudioSpectrum, SpectrumAnalyzer};
 use regel_engine::{CanvasMode, EngineCore, EngineEvent};
+use std::env;
+use std::io::{self, Read, Write};
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
+
+fn run_audio_stream(source: &str) -> io::Result<()> {
+    let target = if source == "mic" {
+        "@DEFAULT_AUDIO_SOURCE@"
+    } else {
+        "@DEFAULT_AUDIO_SINK@"
+    };
+
+    // Prefer native PipeWire recording via pw-record; fallback to parec if needed
+    let mut child = Command::new("pw-record")
+        .args(&[
+            "--raw",
+            "--rate=48000",
+            "--channels=1",
+            "--format=f32",
+            &format!("--target={}", target),
+            "-",
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .or_else(|_| {
+            let parec_device = if source == "mic" {
+                "@DEFAULT_SOURCE@"
+            } else {
+                "@DEFAULT_MONITOR@"
+            };
+            Command::new("parec")
+                .args(&[
+                    &format!("--device={}", parec_device),
+                    "--format=float32le",
+                    "--channels=1",
+                    "--rate=48000",
+                    "--raw",
+                ])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+        })?;
+
+    let mut stdout = match child.stdout.take() {
+        Some(s) => s,
+        None => return Err(io::Error::new(io::ErrorKind::Other, "Failed to capture audio stdout")),
+    };
+
+    let mut analyzer = SpectrumAnalyzer::new(48000.0, 1024, 0.05);
+    let mut buffer = [0u8; 4096]; // 1024 samples * 4 bytes/f32
+    let mut float_samples = [0.0f32; 1024];
+
+    eprintln!("==> regel-daemon audio DSP stream active ({source}) using rustfft");
+
+    loop {
+        if let Err(_) = stdout.read_exact(&mut buffer) {
+            break;
+        }
+
+        // Fast zero-copy f32 slice interpretation
+        for (i, chunk) in buffer.chunks_exact(4).enumerate() {
+            float_samples[i] = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+        }
+
+        // Perform SIMD FFT & spectral band decomposition using regel-audio
+        let spectrum = analyzer.analyze(&float_samples);
+
+        if let Ok(json) = serde_json::to_string(&spectrum) {
+            if writeln!(io::stdout(), "{}", json).is_err() {
+                break;
+            }
+            if io::stdout().flush().is_err() {
+                break;
+            }
+        }
+    }
+
+    let _ = child.kill();
+    Ok(())
+}
 
 fn main() {
     env_logger::init();
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() > 1 && args[1] == "--audio-stream" {
+        let source = if args.len() > 2 { &args[2] } else { "monitor" };
+        if let Err(e) = run_audio_stream(source) {
+            eprintln!("Error in audio stream: {}", e);
+            std::process::exit(1);
+        }
+        return;
+    }
+
     log::info!("Starting regel-daemon service...");
 
     let mut analyzer = SpectrumAnalyzer::new(48000.0, 1024, 0.05);
     let mut core = EngineCore::new(CanvasMode::Wallpaper);
 
     log::info!("Audio analyzer and engine core initialized.");
-    
-    // Demonstration loop running at 60 Hz
+
+    // Verification loop running at 60 Hz
     let start = Instant::now();
     let mut last_tick = Instant::now();
     let test_sine: Vec<f32> = (0..1024)

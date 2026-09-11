@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 /// Represents normalized audio frequency bands (0.0 to 1.0) and metrics.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[repr(C)]
 pub struct AudioSpectrum {
     /// Sub-bass frequencies (20 Hz - 60 Hz): Drives shockwaves, gravity wells, heavy impacts.
     pub sub_bass: f32,
