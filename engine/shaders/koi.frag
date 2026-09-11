@@ -354,10 +354,18 @@ void main() {
 
         // Predator Avoidance (fast cursor causes fish to scatter away)
         vec2 toPointer = basePos - pointerP;
-        basePos += normalize(toPointer + vec2(0.001)) * predatorPanic * (0.22 + fi * 0.05);
+        vec2 panicDir = normalize(toPointer + vec2(0.001));
+        basePos += panicDir * predatorPanic * (0.22 + fi * 0.05);
 
         // Chemotaxis Food Seeking (swim toward keystroke nutrient pellets)
+        vec2 feedDir = normalize(keystrokeP - basePos + vec2(0.001));
         basePos = mix(basePos, keystrokeP, feedAttract * (0.35 + fi * 0.08));
+
+        // Dynamically steer fish heading along real locomotion trajectory
+        vec2 dynamicHeading = heading;
+        dynamicHeading += panicDir * predatorPanic * 2.5;
+        dynamicHeading = mix(dynamicHeading, feedDir, feedAttract * 0.75);
+        heading = normalize(dynamicHeading + vec2(0.0001));
 
         float fishLen = 0.14 + fi * 0.015;
         float shad = 0.0;
