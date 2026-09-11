@@ -63,6 +63,19 @@ Item {
         vortexSpeed: 0.8
     }
 
+    // Concept 4: Cosmic Gravitational Sandbox (Black Hole & Relativistic Jets)
+    CosmicGravitationalSandbox {
+        anchors.fill: parent
+        visible: wallpaperRoot.activeConcept === 4
+        simTime: wallpaperRoot.simTime
+        bass: wallpaperRoot.bass
+        mids: wallpaperRoot.mids
+        treble: wallpaperRoot.treble
+        pointerPos: wallpaperRoot.pointerPos
+        pointerVel: wallpaperRoot.pointerVel
+        vortexSpeed: 0.8
+    }
+
     // Pointer tracker when cursor hovers over exposed desktop
     MouseArea {
         anchors.fill: parent

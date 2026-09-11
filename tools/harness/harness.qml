@@ -62,8 +62,17 @@ ApplicationWindow {
         { name: "Sumi-e Monochrome (Zen Charcoal & Pearl)", bg: "#09090b", dye1: "#27272a", dye2: "#f4f4f5", dye3: "#e4e4e7" }
     ]
 
+    // Concept 4 Palettes (Cosmic Gravitational Sandbox)
+    readonly property var cosmicPalettes: [
+        { name: "Cygnus X-1 (Cyan & Relativistic Gold)",       bg: "#02040a", dye1: "#38bdf8", dye2: "#f97316", dye3: "#a855f7" },
+        { name: "Sagittarius A* (Infrared & Synchrotron)",     bg: "#0a0305", dye1: "#fb923c", dye2: "#c084fc", dye3: "#f43f5e" },
+        { name: "Magnetar Core (Ultraviolet & Solar Flare)",   bg: "#030712", dye1: "#818cf8", dye2: "#facc15", dye3: "#38bdf8" },
+        { name: "Gargantua (Obsidian & Accretion Amber)",      bg: "#000000", dye1: "#fef08a", dye2: "#ea580c", dye3: "#e0e7ff" },
+        { name: "Supernova Remnant (Emerald Gas & Blast)",     bg: "#021208", dye1: "#34d399", dye2: "#ef4444", dye3: "#60a5fa" }
+    ]
+
     property int selectedPalette: 0
-    readonly property var currentPalettes: selectedConcept === 3 ? koiPalettes : (selectedConcept === 2 ? petriPalettes : fluidPalettes)
+    readonly property var currentPalettes: selectedConcept === 4 ? cosmicPalettes : (selectedConcept === 3 ? koiPalettes : (selectedConcept === 2 ? petriPalettes : fluidPalettes))
     property color activeBg: currentPalettes[selectedPalette % currentPalettes.length].bg
     property color activeDye1: currentPalettes[selectedPalette % currentPalettes.length].dye1
     property color activeDye2: currentPalettes[selectedPalette % currentPalettes.length].dye2
@@ -201,6 +210,30 @@ ApplicationWindow {
             waterClarity: 1.0
         }
 
+        // Concept 4: Cosmic Gravitational Sandbox (Black Hole & Relativistic Jets)
+        CosmicGravitationalSandbox {
+            anchors.fill: parent
+            visible: root.selectedConcept === 4
+            simTime: root.simTime
+            keystrokeEnergy: root.keystrokeEnergy
+            shockwaveIntensity: root.shockwaveIntensity
+            vortexSpeed: root.vortexSpeed
+            bass: root.bass
+            mids: root.mids
+            treble: root.treble
+            pointerPos: root.pointerPos
+            pointerVel: root.pointerVel
+            keystrokePos: root.keystrokePos
+            keystrokeDir: root.keystrokeDir
+            beatCenter: root.beatCenter
+            ambientDrift: root.ambientDrift
+            colorCore: root.activeDye1
+            colorDisk: root.activeDye2
+            colorJets: root.activeDye3
+            colorNebula: root.activeBg
+            lensStrength: 1.0
+        }
+
         // Pointer Reactive Cursor Halo
         Rectangle {
             x: root.pointerPos.x * canvasArea.width - width / 2
@@ -283,7 +316,8 @@ ApplicationWindow {
                         model: [
                             "1: Liquid Neon Abyss",
                             "2: The Living Petri Dish (Lenia)",
-                            "3: The Tranquil Sanctuary (Koi Pond)"
+                            "3: The Tranquil Sanctuary (Koi Pond)",
+                            "4: Cosmic Gravitational Sandbox (Black Hole)"
                         ]
                         currentIndex: root.selectedConcept - 1
                         onActivated: (idx) => {

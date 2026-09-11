@@ -78,6 +78,21 @@ Item {
         pointerVel: lockScreenRoot.pointerVel
     }
 
+    // Concept 4: Cosmic Gravitational Sandbox (Black Hole & Relativistic Jets)
+    CosmicGravitationalSandbox {
+        anchors.fill: parent
+        visible: lockScreenRoot.activeConcept === 4
+        simTime: lockScreenRoot.simTime
+        keystrokeEnergy: lockScreenRoot.keystrokeEnergy
+        shockwaveIntensity: lockScreenRoot.shockwaveIntensity
+        vortexSpeed: lockScreenRoot.vortexSpeed
+        bass: lockScreenRoot.bass
+        mids: lockScreenRoot.mids
+        treble: lockScreenRoot.treble
+        pointerPos: lockScreenRoot.pointerPos
+        pointerVel: lockScreenRoot.pointerVel
+    }
+
     // Authenticator connection for Plasma 6 kscreenlocker
     Connections {
         target: typeof authenticator !== "undefined" ? authenticator : null
