@@ -5,9 +5,20 @@ Uses PyQt6 (already installed on modern KDE Plasma) to launch the QML harness wi
 """
 import sys
 import os
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtQml import QQmlApplicationEngine
-from PyQt6.QtCore import QUrl
+
+# If running inside a virtualenv, pyenv, or conda, include Debian system dist-packages for PyQt6
+for dist_path in ["/usr/lib/python3/dist-packages", "/usr/local/lib/python3/dist-packages"]:
+    if dist_path not in sys.path and os.path.isdir(dist_path):
+        sys.path.insert(0, dist_path)
+
+try:
+    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtQml import QQmlApplicationEngine
+    from PyQt6.QtCore import QUrl
+except ImportError as err:
+    print(f"Error: Could not import PyQt6: {err}")
+    print("Please install native Qt 6 runner via: sudo apt install qml-qt6")
+    sys.exit(1)
 
 def main():
     app = QApplication(sys.argv)
