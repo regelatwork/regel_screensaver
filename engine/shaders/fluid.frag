@@ -9,6 +9,14 @@ layout(std140, binding = 0) uniform buf {
     vec2 u_resolution;
     vec2 u_pointer;
     vec2 u_pointer_vel;
+    vec2 u_keystroke_pos;
+    vec2 u_keystroke_dir;
+    vec2 u_beat_center;
+    vec2 u_ambient_drift;
+    vec3 u_color_bg;
+    vec3 u_color_dye1;
+    vec3 u_color_dye2;
+    vec3 u_color_dye3;
     float u_time;
     float u_keystroke_energy;
     float u_shockwave_intensity;
@@ -35,7 +43,6 @@ float noise2D(vec2 p) {
                    dot(hash22(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x), u.y);
 }
 
-// Fractal Brownian Motion (fBm)
 float fbm(vec2 p) {
     float v = 0.0;
     float a = 0.5;
@@ -67,93 +74,113 @@ void main() {
     vec2 aspect = vec2(u_resolution.x / max(u_resolution.y, 1.0), 1.0);
     vec2 uv = (qt_TexCoord0 - 0.5) * aspect;
     vec2 pointer = (u_pointer - 0.5) * aspect;
+    vec2 keyPos = (u_keystroke_pos - 0.5) * aspect;
+    vec2 beatCenter = (u_beat_center - 0.5) * aspect;
 
-    // 2. Base Fluid Velocity Field (Curl Noise + Thermal Convection)
-    float timeScaled = u_time * 0.4 * u_vortex_speed;
-    vec2 velocity = curlNoise(uv * 2.5, timeScaled);
+    // 2. Base Fluid Velocity Field (Curl Noise + Organic Steering Drift)
+    float timeScaled = u_time * 0.35 * u_vortex_speed;
+    vec2 velocity = curlNoise(uv * 2.2, timeScaled);
 
-    // 3. Pointer Vortex Injection & Linear Momentum
+    // Apply user-steered and slow autonomous oceanic drift (removes fixed top-left bias)
+    velocity += u_ambient_drift * 0.8;
+
+    // 3. Pointer Vortex Stirring with Persistent Inertia
     vec2 toPointer = uv - pointer;
     float distPointer = length(toPointer);
     
-    // Tangential vortex velocity (swirl paddle)
-    vec2 vortexTangential = vec2(-toPointer.y, toPointer.x) / (distPointer * distPointer + 0.04);
+    // Tangential vortex velocity (swirl paddle with core radius)
+    vec2 vortexTangential = vec2(-toPointer.y, toPointer.x) / (distPointer * distPointer + 0.035);
     velocity += vortexTangential * 0.35 * u_vortex_speed;
     
-    // Linear drag from cursor speed
-    velocity += u_pointer_vel * exp(-distPointer * 6.0) * 1.5;
+    // Persistent kinetic momentum injected by cursor dragging
+    float pointerInfluence = exp(-distPointer * 5.5);
+    velocity += u_pointer_vel * pointerInfluence * 2.0;
 
-    // 4. Audio-Driven Velocity Injections (PipeWire Bass & Mids)
-    // Boundary jets firing inward on beat
+    // 4. Directional Keystroke Push & Dye Splash
+    if (u_keystroke_energy > 0.01) {
+        vec2 toKey = uv - keyPos;
+        float distKey = length(toKey);
+        float keyInfluence = exp(-distKey * 6.0) * u_keystroke_energy;
+
+        // Push fluid along the letter's directional impulse vector
+        velocity += u_keystroke_dir * keyInfluence * 3.0;
+
+        // Micro-shear swirl at the keystroke epicenter
+        vec2 keySwirl = vec2(-toKey.y, toKey.x) / (distKey * distKey + 0.02);
+        velocity += keySwirl * keyInfluence * 0.6;
+    }
+
+    // 5. Audio-Driven Injections from Wandering Epicenter
+    vec2 toBeat = uv - beatCenter;
+    float distBeat = length(toBeat);
+    vec2 outwardBeat = normalize(toBeat + vec2(0.0001));
+    
+    // Pulsing acoustic shockfront from wandering epicenter
+    velocity += outwardBeat * u_bass * exp(-distBeat * 3.5) * 1.5;
+
+    // Boundary jets firing inward on heavy sub-bass
     float edgeDist = min(min(qt_TexCoord0.x, 1.0 - qt_TexCoord0.x), min(qt_TexCoord0.y, 1.0 - qt_TexCoord0.y));
     vec2 inwardDir = -normalize(uv);
-    velocity += inwardDir * u_bass * exp(-edgeDist * 8.0) * 1.2;
+    velocity += inwardDir * u_bass * exp(-edgeDist * 7.0) * 0.9;
 
     // Treble micro-turbulence
-    velocity += curlNoise(uv * 8.0, u_time * 1.5) * u_treble * 0.4;
+    velocity += curlNoise(uv * 7.5, u_time * 1.2) * u_treble * 0.45;
 
-    // 5. Authentication Failure Cavitation Shockwave
+    // 6. Authentication Failure Cavitation Shockwave
     if (u_shockwave_intensity > 0.01) {
         float centerDist = length(uv);
         float shockwaveRadius = (1.0 - u_shockwave_intensity) * 1.6;
         float shockFront = exp(-pow((centerDist - shockwaveRadius) * 12.0, 2.0));
         
-        // Violent outward radial displacement
-        vec2 radialBlast = normalize(uv) * shockFront * u_shockwave_intensity * 2.5;
+        // Violent outward radial blast
+        vec2 radialBlast = normalize(uv + vec2(0.0001)) * shockFront * u_shockwave_intensity * 3.0;
         velocity += radialBlast;
     }
 
-    // 6. Semi-Lagrangian Coordinate Advection (Multi-Step)
-    float dt = 0.035;
+    // 7. Multi-Step Coordinate Advection
+    float dt = 0.032;
     vec2 advectedUV = uv;
     advectedUV -= velocity * dt;
-    advectedUV -= curlNoise(advectedUV * 3.0, timeScaled * 1.2) * (dt * 0.5);
+    advectedUV -= curlNoise(advectedUV * 2.8, timeScaled * 1.1) * (dt * 0.5);
 
-    // 7. Radiant Dye Density & Color Channel Synthesis
-    float d1 = fbm(advectedUV * 3.2 + vec2(0.5, 0.2));
-    float d2 = fbm(advectedUV * 4.5 - vec2(0.3, 0.7));
-    float d3 = fbm(advectedUV * 6.0 + vec2(0.8, -0.4));
+    // 8. Dye Density Simulation
+    float d1 = fbm(advectedUV * 3.0 + vec2(0.4, 0.2));
+    float d2 = fbm(advectedUV * 4.2 - vec2(0.3, 0.6));
+    float d3 = fbm(advectedUV * 5.8 + vec2(0.7, -0.4));
 
-    // Dynamic dye palettes
-    vec3 cyanDye    = vec3(0.0, 0.85, 1.0);
-    vec3 magentaDye = vec3(1.0, 0.05, 0.65);
-    vec3 amberDye   = vec3(1.0, 0.75, 0.15);
-    vec3 crimsonDye = vec3(1.0, 0.08, 0.18);
-    vec3 obsidianBg = vec3(0.02, 0.03, 0.06);
+    // Dynamic Color Blending from Palette Uniforms
+    vec3 color = u_color_bg;
+    float w1 = smoothstep(0.1, 0.7, d1 + u_bass * 0.25);
+    float w2 = smoothstep(0.2, 0.8, d2 + u_mids * 0.25);
+    float w3 = smoothstep(0.3, 0.9, d3 + u_treble * 0.20);
 
-    // Baseline swirling dye composite
-    vec3 color = obsidianBg;
-    float cyanWeight = smoothstep(0.1, 0.7, d1 + u_bass * 0.3);
-    float magentaWeight = smoothstep(0.2, 0.8, d2 + u_mids * 0.3);
-    float amberWeight = smoothstep(0.3, 0.9, d3 + u_treble * 0.2);
+    color = mix(color, u_color_dye1, w1 * 0.75);
+    color = mix(color, u_color_dye2, w2 * 0.65);
+    color = mix(color, u_color_dye3, w3 * 0.55);
 
-    color = mix(color, cyanDye, cyanWeight * 0.7);
-    color = mix(color, magentaDye, magentaWeight * 0.6);
-    color = mix(color, amberDye, amberWeight * 0.5);
-
-    // 8. Keystroke Energy Splat (Typing Injection)
+    // 9. Directional Keystroke Dye Splat Rendering
     if (u_keystroke_energy > 0.01) {
-        float splatDist = length(uv - pointer);
-        float splatWave = sin(splatDist * 25.0 - u_time * 12.0) * 0.5 + 0.5;
-        float splatFalloff = exp(-splatDist * 7.0);
+        float splatDist = length(uv - keyPos);
+        float splatWave = sin(splatDist * 22.0 - u_time * 10.0) * 0.5 + 0.5;
+        float splatFalloff = exp(-splatDist * 6.5);
         float splatIntensity = splatFalloff * u_keystroke_energy;
 
-        vec3 typingDye = mix(magentaDye, amberDye, splatWave);
-        color += typingDye * splatIntensity * 1.8;
+        vec3 keyDye = mix(u_color_dye2, u_color_dye3, splatWave);
+        color += keyDye * splatIntensity * 1.75;
     }
 
-    // 9. Cavitation Detonation Flash (Auth Failed)
+    // 10. Cavitation Detonation Shockwave Flash (Auth Failed)
     if (u_shockwave_intensity > 0.01) {
         float centerDist = length(uv);
         float shockRadius = (1.0 - u_shockwave_intensity) * 1.6;
         float ring = exp(-pow((centerDist - shockRadius) * 10.0, 2.0));
 
-        // Crimson shock flash with hot white core
-        vec3 shockColor = mix(crimsonDye, vec3(1.0, 0.9, 0.8), ring * 0.6);
-        color = mix(color, shockColor, (ring + 0.3 * exp(-centerDist * 2.0)) * u_shockwave_intensity);
+        vec3 crimsonShock = vec3(1.0, 0.08, 0.16);
+        vec3 shockColor = mix(crimsonShock, vec3(1.0, 0.95, 0.85), ring * 0.6);
+        color = mix(color, shockColor, (ring + 0.35 * exp(-centerDist * 2.0)) * u_shockwave_intensity);
     }
 
-    // 10. Normal Vector Estimation & Specular Shading
+    // 11. Normal Vector & Blinn-Phong Specular Highlight
     vec2 eps = vec2(0.005, 0.0);
     float nL = fbm(advectedUV - eps.xy);
     float nR = fbm(advectedUV + eps.xy);
@@ -161,13 +188,12 @@ void main() {
     float nU = fbm(advectedUV + eps.yx);
     vec3 normal = normalize(vec3(nL - nR, nD - nU, 0.35));
 
-    // Specular highlight from light source
-    vec3 lightDir = normalize(vec3(0.3, 0.5, 0.8));
+    vec3 lightDir = normalize(vec3(0.35, 0.5, 0.8));
     float specular = pow(max(dot(reflect(-lightDir, normal), vec3(0.0, 0.0, 1.0)), 0.0), 16.0);
-    color += vec3(0.8, 0.95, 1.0) * specular * 0.45;
+    color += vec3(0.85, 0.95, 1.0) * specular * 0.45;
 
-    // 11. Tone Mapping, Vignette & Output
-    float vignette = smoothstep(1.2, 0.3, length(uv));
+    // 12. Tone Mapping, Vignette & Output
+    float vignette = smoothstep(1.25, 0.35, length(uv));
     color *= vignette;
 
     fragColor = vec4(color, 1.0) * qt_Opacity;
