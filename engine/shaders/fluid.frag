@@ -152,10 +152,6 @@ void main() {
     color = mix(color, u_color_dye2, w2 * 0.65);
     color = mix(color, u_color_dye3, w3 * 0.55);
 
-    // Beat epicenter acoustic luminescence burst
-    float beatGlow = exp(-distBeat * 7.5) * u_bass * 2.2;
-    color += mix(u_color_dye1, u_color_dye2, 0.5) * beatGlow;
-
     // 9. Directional Keystroke Dye Splat Rendering
     if (u_keystroke_energy > 0.01) {
         float splatDist = length(uv - keyPos);
