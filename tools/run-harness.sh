@@ -11,21 +11,16 @@ echo "    Workspace: ${WORKSPACE_ROOT}"
 # Automatically ensure Qt 6 RHI shaders are compiled
 "${SCRIPT_DIR}/build-shaders.sh"
 
-# 1. Prefer python3 runner (uses installed PyQt6, bypasses Debian qtchooser conflicts)
-if command -v python3 &>/dev/null && python3 -c "import PyQt6.QtQuick" &>/dev/null; then
-    exec python3 "${SCRIPT_DIR}/harness/runner.py" "$@"
-# 2. Native Qt 6 binary options
-elif command -v qml-qt6 &>/dev/null; then
+# 1. Native Debian Qt 6 binary (from package qml-qt6)
+if command -v qml-qt6 &>/dev/null; then
     exec qml-qt6 "${SCRIPT_DIR}/harness/harness.qml" "$@"
 elif [ -x "/usr/lib/qt6/bin/qml" ]; then
     exec /usr/lib/qt6/bin/qml "${SCRIPT_DIR}/harness/harness.qml" "$@"
-elif command -v qml6 &>/dev/null; then
-    exec qml6 "${SCRIPT_DIR}/harness/harness.qml" "$@"
-elif command -v qml &>/dev/null; then
-    export QT_SELECT=qt6
-    exec qml "${SCRIPT_DIR}/harness/harness.qml" "$@"
+# 2. Python PyQt6 Runner (built-in, bypasses qtchooser wrapper issues)
+elif [ -f "${SCRIPT_DIR}/harness/runner.py" ]; then
+    exec python3 "${SCRIPT_DIR}/harness/runner.py" "$@"
 else
-    echo "Error: No suitable Qt 6 / PyQt6 runtime found to run the QML harness."
-    echo "Please install python3-pyqt6 or qml-qt6: sudo apt install python3-pyqt6 qml-qt6"
+    echo "Error: No Qt 6 runtime found."
+    echo "Please install qml-qt6 via: sudo apt install qml-qt6"
     exit 1
 fi
