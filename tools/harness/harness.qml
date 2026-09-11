@@ -35,20 +35,30 @@ ApplicationWindow {
     property bool lockscreenMode: false
     property int wallpaperModeCycle: 0
 
-    // Palette Colors
-    property int selectedPalette: 0
-    readonly property var palettes: [
-        { name: "Cyber Neon",        bg: "#02040a", dye1: "#00d4ff", dye2: "#ff007f", dye3: "#ffaa00" },
-        { name: "Bioluminescent",    bg: "#01080e", dye1: "#00ffa3", dye2: "#00c8ff", dye3: "#a855f7" },
-        { name: "Solar Flare/Magma", bg: "#0d0402", dye1: "#ff9900", dye2: "#ff2200", dye3: "#ffffff" },
-        { name: "Quicksilver Metal", bg: "#08080a", dye1: "#e2e8f0", dye2: "#94a3b8", dye3: "#38bdf8" },
-        { name: "Nordic Aurora",     bg: "#020712", dye1: "#10b981", dye2: "#06b6d4", dye3: "#ec4899" }
+    // Concept 1 Palettes (Fluid Abyss)
+    readonly property var fluidPalettes: [
+        { name: "Cyber Neon (Default)",        bg: "#02040a", dye1: "#00d4ff", dye2: "#ff007f", dye3: "#ffaa00" },
+        { name: "Bioluminescent Abyssal",      bg: "#01080e", dye1: "#00ffa3", dye2: "#00c8ff", dye3: "#a855f7" },
+        { name: "Solar Flare / Magma",         bg: "#0d0402", dye1: "#ff9900", dye2: "#ff2200", dye3: "#ffffff" },
+        { name: "Quicksilver Metal",           bg: "#08080a", dye1: "#e2e8f0", dye2: "#94a3b8", dye3: "#38bdf8" },
+        { name: "Nordic Aurora",               bg: "#020712", dye1: "#10b981", dye2: "#06b6d4", dye3: "#ec4899" }
     ]
 
-    property color activeBg: palettes[selectedPalette].bg
-    property color activeDye1: palettes[selectedPalette].dye1
-    property color activeDye2: palettes[selectedPalette].dye2
-    property color activeDye3: palettes[selectedPalette].dye3
+    // Concept 2 Palettes (Living Petri Dish)
+    readonly property var petriPalettes: [
+        { name: "Deep Sea Abyssal (Cyan/Emerald)",   bg: "#01080e", dye1: "#00d4ff", dye2: "#00ffa3", dye3: "#a855f7" },
+        { name: "Bioluminescent Phytoplankton",      bg: "#020d10", dye1: "#00ffa3", dye2: "#ffcc00", dye3: "#00e5ff" },
+        { name: "Solar Extremophile (Thermal Vent)", bg: "#0d0402", dye1: "#ff5500", dye2: "#ffcc00", dye3: "#ff0044" },
+        { name: "Ethereal Ghost Amoeba",             bg: "#080a0f", dye1: "#e2e8f0", dye2: "#38bdf8", dye3: "#818cf8" },
+        { name: "Coral Reef UV Excitation",          bg: "#0a0212", dye1: "#ec4899", dye2: "#a3e635", dye3: "#06b6d4" }
+    ]
+
+    property int selectedPalette: 0
+    readonly property var currentPalettes: selectedConcept === 2 ? petriPalettes : fluidPalettes
+    property color activeBg: currentPalettes[selectedPalette % currentPalettes.length].bg
+    property color activeDye1: currentPalettes[selectedPalette % currentPalettes.length].dye1
+    property color activeDye2: currentPalettes[selectedPalette % currentPalettes.length].dye2
+    property color activeDye3: currentPalettes[selectedPalette % currentPalettes.length].dye3
 
     // Simulation Frame Loop (60 Hz) driving Rust EngineCore
     Timer {
@@ -124,6 +134,29 @@ ApplicationWindow {
             colorDye3: root.activeDye3
         }
 
+        // Concept 2: The Living Petri Dish (Lenia & Continuous Artificial Life)
+        LivingPetriDish {
+            anchors.fill: parent
+            visible: root.selectedConcept === 2
+            simTime: root.simTime
+            keystrokeEnergy: root.keystrokeEnergy
+            shockwaveIntensity: root.shockwaveIntensity
+            vortexSpeed: root.vortexSpeed
+            bass: root.bass
+            mids: root.mids
+            treble: root.treble
+            pointerPos: root.pointerPos
+            pointerVel: root.pointerVel
+            keystrokePos: root.keystrokePos
+            keystrokeDir: root.keystrokeDir
+            beatCenter: root.beatCenter
+            ambientDrift: root.ambientDrift
+            colorBg: root.activeBg
+            colorMembrane: root.activeDye1
+            colorOrganelle: root.activeDye2
+            colorGlow: root.activeDye3
+        }
+
         // Pointer Reactive Cursor Halo
         Rectangle {
             x: root.pointerPos.x * canvasArea.width - width / 2
@@ -196,19 +229,40 @@ ApplicationWindow {
                     font.pixelSize: 18
                 }
 
+                // Concept Selector
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text { text: "Concept:"; color: "#94a3b8"; font.bold: true }
+                    ComboBox {
+                        id: cmbConcept
+                        Layout.fillWidth: true
+                        model: [
+                            "1: Liquid Neon Abyss",
+                            "2: The Living Petri Dish (Lenia)"
+                        ]
+                        currentIndex: root.selectedConcept - 1
+                        onActivated: (idx) => {
+                            root.selectedConcept = idx + 1
+                            root.selectedPalette = 0
+                            cmbPalette.currentIndex = 0
+                        }
+                    }
+                }
+
                 // Palette Selector
                 RowLayout {
                     Layout.fillWidth: true
                     Text { text: "Palette:"; color: "#94a3b8"; font.bold: true }
                     ComboBox {
+                        id: cmbPalette
                         Layout.fillWidth: true
-                        model: [
-                            "Cyber Neon (Default)",
-                            "Bioluminescent Abyssal",
-                            "Solar Flare / Magma",
-                            "Quicksilver Metal",
-                            "Nordic Aurora"
-                        ]
+                        model: {
+                            let names = []
+                            for (let i = 0; i < root.currentPalettes.length; i++) {
+                                names.push(root.currentPalettes[i].name)
+                            }
+                            return names
+                        }
                         currentIndex: root.selectedPalette
                         onActivated: (idx) => root.selectedPalette = idx
                     }
@@ -255,7 +309,7 @@ ApplicationWindow {
                 TextField {
                     id: txtPasswordSim
                     Layout.fillWidth: true
-                    placeholderText: "Type letters here (pushes fluid)..."
+                    placeholderText: "Type letters here (pushes fluid/nutrients)..."
                     echoMode: root.lockscreenMode ? TextInput.Password : TextInput.Normal
                     color: "#ffffff"
                     background: Rectangle { color: "#0f172a"; radius: 6; border.color: "#334155" }
