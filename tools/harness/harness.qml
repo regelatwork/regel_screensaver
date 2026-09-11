@@ -239,8 +239,12 @@ ApplicationWindow {
                     onTextEdited: {
                         root.keystrokeEnergy = Math.min(2.0, root.keystrokeEnergy + 0.4)
                     }
-                    Keys.onDeletePressed: root.keystrokeEnergy = Math.max(0.0, root.keystrokeEnergy - 0.2)
-                    Keys.onBackspacePressed: root.keystrokeEnergy = Math.max(0.0, root.keystrokeEnergy - 0.2)
+                    Keys.onPressed: (event) => {
+                        if (event.key === Qt.Key_Backspace || event.key === Qt.Key_Delete) {
+                            root.keystrokeEnergy = Math.max(0.0, root.keystrokeEnergy - 0.2)
+                            root.vortexSpeed = -1.5
+                        }
+                    }
                 }
 
                 RowLayout {
