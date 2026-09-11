@@ -53,8 +53,17 @@ ApplicationWindow {
         { name: "Coral Reef UV Excitation",          bg: "#0a0212", dye1: "#ec4899", dye2: "#a3e635", dye3: "#06b6d4" }
     ]
 
+    // Concept 3 Palettes (The Tranquil Sanctuary - Koi Pond)
+    readonly property var koiPalettes: [
+        { name: "Spring Sakura (Aqua & Cherry Blossom)",    bg: "#083344", dye1: "#64748b", dye2: "#e0f2fe", dye3: "#f472b6" },
+        { name: "Kyoto Moss Garden (Jade & Granite)",       bg: "#052e16", dye1: "#475569", dye2: "#bbf7d0", dye3: "#f59e0b" },
+        { name: "Twilight Fireflies (Midnight & Gold)",      bg: "#0f172a", dye1: "#334155", dye2: "#93c5fd", dye3: "#fbbf24" },
+        { name: "Autumn Maple (Deep Tea & Fallen Red)",     bg: "#1c1917", dye1: "#57534e", dye2: "#fed7aa", dye3: "#ef4444" },
+        { name: "Sumi-e Monochrome (Zen Charcoal & Pearl)", bg: "#09090b", dye1: "#27272a", dye2: "#f4f4f5", dye3: "#e4e4e7" }
+    ]
+
     property int selectedPalette: 0
-    readonly property var currentPalettes: selectedConcept === 2 ? petriPalettes : fluidPalettes
+    readonly property var currentPalettes: selectedConcept === 3 ? koiPalettes : (selectedConcept === 2 ? petriPalettes : fluidPalettes)
     property color activeBg: currentPalettes[selectedPalette % currentPalettes.length].bg
     property color activeDye1: currentPalettes[selectedPalette % currentPalettes.length].dye1
     property color activeDye2: currentPalettes[selectedPalette % currentPalettes.length].dye2
@@ -168,6 +177,30 @@ ApplicationWindow {
             apertureMode: root.petriCircularAperture ? 1.0 : 0.0
         }
 
+        // Concept 3: The Tranquil Sanctuary (Caustic Koi Pond & Boid Ecosystem)
+        TranquilKoiSanctuary {
+            anchors.fill: parent
+            visible: root.selectedConcept === 3
+            simTime: root.simTime
+            keystrokeEnergy: root.keystrokeEnergy
+            shockwaveIntensity: root.shockwaveIntensity
+            vortexSpeed: root.vortexSpeed
+            bass: root.bass
+            mids: root.mids
+            treble: root.treble
+            pointerPos: root.pointerPos
+            pointerVel: root.pointerVel
+            keystrokePos: root.keystrokePos
+            keystrokeDir: root.keystrokeDir
+            beatCenter: root.beatCenter
+            ambientDrift: root.ambientDrift
+            colorWater: root.activeBg
+            colorPebbles: root.activeDye1
+            colorCaustics: root.activeDye2
+            colorAccent: root.activeDye3
+            waterClarity: 1.0
+        }
+
         // Pointer Reactive Cursor Halo
         Rectangle {
             x: root.pointerPos.x * canvasArea.width - width / 2
@@ -249,7 +282,8 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         model: [
                             "1: Liquid Neon Abyss",
-                            "2: The Living Petri Dish (Lenia)"
+                            "2: The Living Petri Dish (Lenia)",
+                            "3: The Tranquil Sanctuary (Koi Pond)"
                         ]
                         currentIndex: root.selectedConcept - 1
                         onActivated: (idx) => {

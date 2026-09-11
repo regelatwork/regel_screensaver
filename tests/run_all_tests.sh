@@ -39,7 +39,9 @@ test -f engine/shaders/fluid.vert.qsb
 test -f engine/shaders/fluid.frag.qsb
 test -f engine/shaders/petri.vert.qsb
 test -f engine/shaders/petri.frag.qsb
-echo "    All shader bundles (Fluid & Petri) verified."
+test -f engine/shaders/koi.vert.qsb
+test -f engine/shaders/koi.frag.qsb
+echo "    All shader bundles (Fluid, Petri, Koi) verified."
 
 echo "--> 4. Running Rust Unit Tests..."
 cargo test --workspace
@@ -48,6 +50,7 @@ echo "--> 5. Running QML Lint on all Components..."
 if command -v qmllint &>/dev/null; then
     qmllint engine/LiquidNeonAbyss.qml
     qmllint engine/LivingPetriDish.qml
+    qmllint engine/TranquilKoiSanctuary.qml
     qmllint tools/harness/harness.qml
     qmllint wallpaper/contents/ui/main.qml
     qmllint lockscreen/contents/lockscreen/LockScreenUi.qml

@@ -21,9 +21,39 @@ Item {
         onTriggered: wallpaperRoot.simTime += 0.016
     }
 
+    property int activeConcept: (typeof plasmoid !== "undefined" && plasmoid.configuration && plasmoid.configuration.activeConcept) ? plasmoid.configuration.activeConcept : 1
+
     // Concept 1: Liquid Neon Abyss GPU Shader Visualizer
     LiquidNeonAbyss {
         anchors.fill: parent
+        visible: wallpaperRoot.activeConcept === 1
+        simTime: wallpaperRoot.simTime
+        bass: wallpaperRoot.bass
+        mids: wallpaperRoot.mids
+        treble: wallpaperRoot.treble
+        pointerPos: wallpaperRoot.pointerPos
+        pointerVel: wallpaperRoot.pointerVel
+        vortexSpeed: 0.8
+    }
+
+    // Concept 2: The Living Petri Dish (Lenia Continuous Artificial Life)
+    LivingPetriDish {
+        anchors.fill: parent
+        visible: wallpaperRoot.activeConcept === 2
+        simTime: wallpaperRoot.simTime
+        bass: wallpaperRoot.bass
+        mids: wallpaperRoot.mids
+        treble: wallpaperRoot.treble
+        pointerPos: wallpaperRoot.pointerPos
+        pointerVel: wallpaperRoot.pointerVel
+        vortexSpeed: 0.8
+        apertureMode: 0.0
+    }
+
+    // Concept 3: The Tranquil Sanctuary (Caustic Koi Pond & Boid Ecosystem)
+    TranquilKoiSanctuary {
+        anchors.fill: parent
+        visible: wallpaperRoot.activeConcept === 3
         simTime: wallpaperRoot.simTime
         bass: wallpaperRoot.bass
         mids: wallpaperRoot.mids

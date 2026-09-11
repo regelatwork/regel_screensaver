@@ -30,9 +30,43 @@ Item {
         }
     }
 
+    property int activeConcept: 1
+
     // Concept 1: Liquid Neon Abyss GPU Shader Visualizer
     LiquidNeonAbyss {
         anchors.fill: parent
+        visible: lockScreenRoot.activeConcept === 1
+        simTime: lockScreenRoot.simTime
+        keystrokeEnergy: lockScreenRoot.keystrokeEnergy
+        shockwaveIntensity: lockScreenRoot.shockwaveIntensity
+        vortexSpeed: lockScreenRoot.vortexSpeed
+        bass: lockScreenRoot.bass
+        mids: lockScreenRoot.mids
+        treble: lockScreenRoot.treble
+        pointerPos: lockScreenRoot.pointerPos
+        pointerVel: lockScreenRoot.pointerVel
+    }
+
+    // Concept 2: The Living Petri Dish (Lenia Continuous Artificial Life)
+    LivingPetriDish {
+        anchors.fill: parent
+        visible: lockScreenRoot.activeConcept === 2
+        simTime: lockScreenRoot.simTime
+        keystrokeEnergy: lockScreenRoot.keystrokeEnergy
+        shockwaveIntensity: lockScreenRoot.shockwaveIntensity
+        vortexSpeed: lockScreenRoot.vortexSpeed
+        bass: lockScreenRoot.bass
+        mids: lockScreenRoot.mids
+        treble: lockScreenRoot.treble
+        pointerPos: lockScreenRoot.pointerPos
+        pointerVel: lockScreenRoot.pointerVel
+        apertureMode: 1.0
+    }
+
+    // Concept 3: The Tranquil Sanctuary (Caustic Koi Pond & Boid Ecosystem)
+    TranquilKoiSanctuary {
+        anchors.fill: parent
+        visible: lockScreenRoot.activeConcept === 3
         simTime: lockScreenRoot.simTime
         keystrokeEnergy: lockScreenRoot.keystrokeEnergy
         shockwaveIntensity: lockScreenRoot.shockwaveIntensity
