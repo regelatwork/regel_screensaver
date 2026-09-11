@@ -59,6 +59,7 @@ ApplicationWindow {
     property color activeDye1: currentPalettes[selectedPalette % currentPalettes.length].dye1
     property color activeDye2: currentPalettes[selectedPalette % currentPalettes.length].dye2
     property color activeDye3: currentPalettes[selectedPalette % currentPalettes.length].dye3
+    property bool petriCircularAperture: true
 
     function updateAudioParams() {
         if (typeof liveAudio !== "undefined" && typeof liveAudio.setSensitivity === "function") {
@@ -164,6 +165,7 @@ ApplicationWindow {
             colorMembrane: root.activeDye1
             colorOrganelle: root.activeDye2
             colorGlow: root.activeDye3
+            apertureMode: root.petriCircularAperture ? 1.0 : 0.0
         }
 
         // Pointer Reactive Cursor Halo
@@ -274,6 +276,17 @@ ApplicationWindow {
                         }
                         currentIndex: root.selectedPalette
                         onActivated: (idx) => root.selectedPalette = idx
+                    }
+                }
+
+                // Concept 2 Microscope Slide Aperture Toggle
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: root.selectedConcept === 2
+                    Text { text: "Microscope Slide Aperture:"; color: "#cbd5e1" }
+                    Switch {
+                        checked: root.petriCircularAperture
+                        onToggled: root.petriCircularAperture = checked
                     }
                 }
 

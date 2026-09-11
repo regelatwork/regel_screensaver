@@ -24,6 +24,7 @@ layout(std140, binding = 0) uniform buf {
     float u_bass;
     float u_mids;
     float u_treble;
+    float u_aperture_mode;
 };
 
 // --- Fast GPU Simplex Noise & Hash Functions ---
@@ -63,39 +64,64 @@ float leniaKernel(float r, float r0, float sigma) {
     return exp(-0.5 * d * d);
 }
 
-// Evaluates an autonomous living organism with Lenia concentric morphology
-float evaluateOrganism(vec2 p, vec2 center, float baseRadius, float lobes, float phaseSpeed, float time, float audioPulse, float mitosisFactor, float cystFactor) {
+// Evaluates an autonomous living organism with Lenia morphology, cytokinesis & fluttering cilia
+float evaluateOrganism(
+    vec2 p,
+    vec2 center,
+    float baseRadius,
+    float lobes,
+    float phaseSpeed,
+    float time,
+    float audioBass,
+    float audioTreble,
+    float mitosisFactor,
+    float cystFactor,
+    float osmoticFactor
+) {
     vec2 offset = p - center;
     float dist = length(offset);
     float angle = atan(offset.y, offset.x);
 
-    // Mitosis: If metabolic energy is high, split into two daughter nuclei along an axis
-    if (mitosisFactor > 0.05) {
-        float splitDist = mitosisFactor * 0.12;
-        vec2 splitAxis = vec2(cos(time * 0.5), sin(time * 0.5));
+    // 1. Biological Cytokinesis (Mitosis Cleavage Furrow)
+    if (mitosisFactor > 0.02) {
+        float splitDist = mitosisFactor * 0.15;
+        vec2 splitAxis = vec2(cos(time * 0.35 + lobes * 0.7), sin(time * 0.35 + lobes * 0.7));
         vec2 c1 = center + splitAxis * splitDist;
         vec2 c2 = center - splitAxis * splitDist;
         float d1 = length(p - c1);
         float d2 = length(p - c2);
-        dist = min(d1, d2) + 0.3 * mitosisFactor * (d1 + d2 - 2.0 * min(d1, d2));
+
+        // Smooth contractile ring furrow
+        float k = 0.09 * (1.0 - clamp(mitosisFactor * 0.65, 0.0, 0.92));
+        float h = clamp(0.5 + 0.5 * (d2 - d1) / (k + 0.0001), 0.0, 1.0);
+        dist = mix(d2, d1, h) - k * h * (1.0 - h);
     }
 
-    // Defensive Cyst formation during toxic shock: contract into dense sphere
-    float effectiveRadius = baseRadius * mix(1.0 + audioPulse * 0.45, 0.55, cystFactor);
+    // 2. Defensive Spherical Cyst & Osmotic Contraction
+    float defenseContract = max(cystFactor, osmoticFactor);
+    float effectiveRadius = baseRadius * mix(1.0 + audioBass * 0.35, 0.52, defenseContract);
 
-    // Harmonic angular lobe modulation (Lenia continuous symmetry)
-    float lobeMod = 0.14 * sin(lobes * angle + time * phaseSpeed);
-    float undulatingRing = dist / (effectiveRadius * (1.0 + lobeMod));
+    // 3. Harmonic angular lobe undulation (continuous radial symmetry)
+    float lobeMod = 0.14 * sin(lobes * angle + time * phaseSpeed) * (1.0 - defenseContract * 0.85);
+    float undulatingRing = dist / (effectiveRadius * (1.0 + lobeMod) + 0.0001);
 
-    // Multi-ring concentric Lenia bell curves (organelle core, middle cytoplasm, outer membrane)
+    // 4. Multi-ring concentric Lenia bell curves (organelle core, middle cytoplasm, outer membrane)
     float coreDensity = leniaKernel(undulatingRing, 0.20, 0.16);
     float cytoplasm = 0.75 * leniaKernel(undulatingRing, 0.55, 0.22);
     float outerMembrane = 0.90 * leniaKernel(undulatingRing, 0.88, 0.14);
 
-    // Add fine pseudopod membrane undulations using procedural curl perturbation
-    float pseudopod = 0.08 * fbm(p * 8.0 + vec2(cos(time * 0.4), sin(time * 0.4)));
+    // 5. Fine pseudopod membrane undulations using procedural curl perturbation
+    float pseudopod = 0.08 * fbm(p * 8.0 + vec2(cos(time * 0.4), sin(time * 0.4))) * (1.0 - defenseContract);
 
-    return clamp(coreDensity + cytoplasm + outerMembrane + pseudopod, 0.0, 1.0);
+    // 6. Fluttering Cilia Fringe around outer lipid bilayer
+    float ciliaWave = sin(angle * (lobes * 6.0 + 20.0) + time * 26.0);
+    float ciliaMask = smoothstep(0.80, 0.92, undulatingRing) * (1.0 - smoothstep(0.95, 1.12, undulatingRing));
+    float cilia = ciliaMask * (0.10 + audioTreble * 0.40) * (ciliaWave * 0.5 + 0.5) * (1.0 - defenseContract);
+
+    // 7. Cytoplasmic Vacuoles & metabolic streaming
+    float vacuoles = 0.18 * noise2D(p * 26.0 - vec2(time * 0.2, -time * 0.15)) * coreDensity;
+
+    return clamp(coreDensity + cytoplasm + outerMembrane + pseudopod + cilia + vacuoles, 0.0, 1.0);
 }
 
 // Evaluates the full population of all 5 continuous organisms simultaneously
@@ -108,19 +134,21 @@ float evaluateAllOrganisms(
     vec2 org5Center,
     float t,
     float bass,
+    float treble,
     float mitosisFactor,
-    float cystFactor
+    float cystFactor,
+    float osmoticFactor
 ) {
     float field = 0.0;
     // Organism 1: Large Central Amoeba (orbicular crawler)
-    field += evaluateOrganism(p, org1Center, 0.16, 5.0, 0.8, t, bass, mitosisFactor, cystFactor);
+    field += evaluateOrganism(p, org1Center, 0.16, 5.0, 0.8, t, bass, treble, mitosisFactor, cystFactor, osmoticFactor);
     // Organism 2: Soliton Glider (harmonic orbital swimmer)
-    field += 0.85 * evaluateOrganism(p, org2Center, 0.11, 3.0, 1.4, t, bass * 0.8, mitosisFactor * 0.7, cystFactor);
+    field += 0.85 * evaluateOrganism(p, org2Center, 0.11, 3.0, 1.4, t, bass * 0.8, treble * 1.1, mitosisFactor * 0.7, cystFactor, osmoticFactor);
     // Organism 3: Agile Multi-lobed Crawler
-    field += 0.75 * evaluateOrganism(p, org3Center, 0.09, 4.0, -1.8, t, bass * 0.6, 0.0, cystFactor);
+    field += 0.75 * evaluateOrganism(p, org3Center, 0.09, 4.0, -1.8, t, bass * 0.6, treble * 0.9, 0.0, cystFactor, osmoticFactor);
     // Organism 4 & 5: Small Colony Wanderers
-    field += 0.60 * evaluateOrganism(p, org4Center, 0.07, 6.0, 2.2, t, bass * 0.5, 0.0, cystFactor);
-    field += 0.60 * evaluateOrganism(p, org5Center, 0.065, 3.0, -1.2, t, bass * 0.5, 0.0, cystFactor);
+    field += 0.60 * evaluateOrganism(p, org4Center, 0.07, 6.0, 2.2, t, bass * 0.5, treble * 1.2, 0.0, cystFactor, osmoticFactor);
+    field += 0.60 * evaluateOrganism(p, org5Center, 0.065, 3.0, -1.2, t, bass * 0.5, treble * 1.2, 0.0, cystFactor, osmoticFactor);
     return field;
 }
 
@@ -132,16 +160,26 @@ void main() {
 
     vec2 centerP = vec2(0.5 * aspect, 0.5);
 
-    // --- Circular Petri Dish Slide Optics ---
+    // --- Microscope Slide Aperture Optics ---
     vec2 slideOffset = p - centerP;
     float slideDist = length(slideOffset);
-    float dishRadius = 0.55 * aspect;
+    
+    // Circular aperture diameter fits comfortably within screen height with margin; or expands to fullscreen
+    float dishRadius = mix(2.5, 0.47, u_aperture_mode);
 
-    // Darkfield background illumination & microscopic glass rim
-    float glassRim = smoothstep(dishRadius - 0.03, dishRadius, slideDist);
-    float insideDish = 1.0 - smoothstep(dishRadius - 0.005, dishRadius + 0.015, slideDist);
+    float glassRim = smoothstep(dishRadius - 0.025, dishRadius, slideDist) * u_aperture_mode;
+    float insideDish = mix(1.0, 1.0 - smoothstep(dishRadius - 0.005, dishRadius + 0.018, slideDist), u_aperture_mode);
 
-    // --- Chemotaxis & Environmental Vectors ---
+    // Beveled glass optical refraction highlight & rim glint
+    float glassBevel = pow(clamp(1.0 - abs(slideDist - (dishRadius - 0.008)) * 80.0, 0.0, 1.0), 3.0) * glassRim;
+
+    // Micrometric stage graduation tick marks (authentic research microscope aesthetic)
+    float tickAngle = atan(slideOffset.y, slideOffset.x);
+    float majorTicks = smoothstep(0.97, 1.0, cos(tickAngle * 24.0)) * smoothstep(dishRadius - 0.022, dishRadius - 0.010, slideDist);
+    float minorTicks = smoothstep(0.985, 1.0, cos(tickAngle * 96.0)) * smoothstep(dishRadius - 0.016, dishRadius - 0.010, slideDist);
+    float stageTicks = (majorTicks * 0.7 + minorTicks * 0.35) * glassRim;
+
+    // --- Chemotaxis, Behavioral AI & Environmental Vectors ---
     vec2 pointerP = u_pointer;
     pointerP.x *= aspect;
 
@@ -154,6 +192,7 @@ void main() {
     float t = u_time * u_vortex_speed;
     float cystFactor = smoothstep(0.1, 0.9, u_shockwave_intensity);
     float mitosisFactor = smoothstep(0.3, 1.8, u_keystroke_energy);
+    float osmoticFactor = clamp(-u_vortex_speed * 0.6, 0.0, 1.0);
 
     // Fluid stirring displacement from mouse momentum
     vec2 fluidStir = u_pointer_vel * 0.4;
@@ -161,34 +200,53 @@ void main() {
     // Oceanic ambient drift
     vec2 currentP = p - (u_ambient_drift * 0.5 + fluidStir);
 
+    // Dynamic environmental vectors
+    float mouseSpeed = length(u_pointer_vel);
+    float predatorPanic = smoothstep(0.12, 0.55, mouseSpeed);
+    float feedAttract = smoothstep(0.04, 0.60, u_keystroke_energy);
+    float idleColony = smoothstep(0.70, 0.25, u_vortex_speed);
+
     // ------------------------------------------------------------------------
     // Continuous Organisms Population Trajectories
     // ------------------------------------------------------------------------
-    // Organism 1: Central Amoeba (attracted to beat epicenter & cursor)
+    // Organism 1: Central Amoeba (orbicular crawler)
     vec2 org1Center = beatCenterP + vec2(
         0.06 * cos(t * 0.4) + fluidStir.x,
         0.05 * sin(t * 0.5) + fluidStir.y
     );
-    org1Center = mix(org1Center, pointerP, 0.22);
+    vec2 toPointer1 = pointerP - org1Center;
+    // Attracted to pointer pheromones when slow; flees when cursor moves fast
+    org1Center += mix(toPointer1 * 0.22, -normalize(toPointer1 + vec2(0.001)) * 0.20, predatorPanic);
+    // Swarms keystroke nutrient sparks when typing
+    org1Center = mix(org1Center, keystrokeP, feedAttract * 0.45);
 
-    // Organism 2: Soliton Glider (harmonic orbital path, tracks cursor)
-    float gliderAngle = t * 0.25;
+    // Organism 2: Soliton Glider (harmonic orbital swimmer)
+    float gliderAngle = t * 0.28;
     vec2 org2Center = centerP + vec2(
         0.28 * cos(gliderAngle) * aspect,
         0.18 * sin(gliderAngle * 1.3)
     );
-    org2Center = mix(org2Center, pointerP, 0.15);
+    vec2 toPointer2 = pointerP - org2Center;
+    org2Center += mix(toPointer2 * 0.15, -normalize(toPointer2 + vec2(0.001)) * 0.22, predatorPanic);
+    org2Center = mix(org2Center, keystrokeP, feedAttract * 0.35);
 
     // Organism 3: Agile Multi-lobed Crawler
-    float crawlerAngle = -t * 0.35 + 2.0;
+    float crawlerAngle = -t * 0.38 + 2.0;
     vec2 org3Center = centerP + vec2(
         0.22 * sin(crawlerAngle),
         0.22 * cos(crawlerAngle * 0.9)
     );
+    vec2 toPointer3 = pointerP - org3Center;
+    org3Center += mix(vec2(0.0), -normalize(toPointer3 + vec2(0.001)) * 0.25, predatorPanic);
+    org3Center = mix(org3Center, keystrokeP, feedAttract * 0.25);
 
-    // Organisms 4 & 5: Small Colony Wanderers
-    vec2 org4Center = centerP + vec2(0.18 * cos(t * 0.6 + 4.0), 0.26 * sin(t * 0.4 + 1.0));
-    vec2 org5Center = centerP + vec2(-0.24 * cos(t * 0.3 + 2.5), -0.16 * sin(t * 0.5 + 3.0));
+    // Organisms 4 & 5: Small Colony Wanderers (cluster around central amoeba during idle)
+    vec2 org4Base = centerP + vec2(0.18 * cos(t * 0.6 + 4.0), 0.26 * sin(t * 0.4 + 1.0));
+    vec2 org5Base = centerP + vec2(-0.24 * cos(t * 0.3 + 2.5), -0.16 * sin(t * 0.5 + 3.0));
+    vec2 org4Center = mix(org4Base, org1Center + vec2(0.10, 0.06), idleColony * 0.65);
+    vec2 org5Center = mix(org5Base, org1Center - vec2(0.08, 0.09), idleColony * 0.70);
+    org4Center = mix(org4Center, keystrokeP, feedAttract * 0.30);
+    org5Center = mix(org5Center, keystrokeP, feedAttract * 0.30);
 
     // Evaluate total continuous density field across all organisms
     float organismField = evaluateAllOrganisms(
@@ -200,8 +258,10 @@ void main() {
         org5Center,
         t,
         u_bass,
+        u_treble,
         mitosisFactor,
-        cystFactor
+        cystFactor,
+        osmoticFactor
     );
 
     // ------------------------------------------------------------------------
@@ -228,7 +288,6 @@ void main() {
     // ------------------------------------------------------------------------
     // Optical Phase-Contrast Shading & Membrane Specular Highlights
     // ------------------------------------------------------------------------
-    // Mathematically consistent finite difference gradient across all 5 organisms
     const float eps = 0.005;
     vec2 pDx = currentP + vec2(eps, 0.0);
     vec2 pDy = currentP + vec2(0.0, eps);
@@ -241,8 +300,10 @@ void main() {
         org5Center,
         t,
         u_bass,
+        u_treble,
         mitosisFactor,
-        cystFactor
+        cystFactor,
+        osmoticFactor
     );
     float densDy = evaluateAllOrganisms(
         pDy,
@@ -253,8 +314,10 @@ void main() {
         org5Center,
         t,
         u_bass,
+        u_treble,
         mitosisFactor,
-        cystFactor
+        cystFactor,
+        osmoticFactor
     );
     vec2 gradient = vec2(densDx - organismField, densDy - organismField) / eps;
 
@@ -283,8 +346,12 @@ void main() {
     // Colloidal suspended dust particles in darkfield background
     float colloidalDust = smoothstep(0.72, 0.98, noise2D(p * 18.0 + vec2(t * 0.05, t * 0.02))) * 0.12;
 
-    // Darkfield background tint with subtle radial falloff
-    vec3 finalColor = colBg * (1.0 - 0.3 * slideDist) + colGlow * colloidalDust;
+    // Chladni cymatic modal resonance nodes from acoustic harmonics
+    float cymaticPattern = cos(p.x * 24.0) * cos(p.y * 24.0) - cos(p.x * 48.0 + p.y * 48.0) * 0.5;
+    float cymaticGlow = smoothstep(0.3, 0.8, abs(cymaticPattern)) * (u_mids * 0.35 + u_treble * 0.25);
+
+    // Darkfield background tint with subtle radial falloff & cymatics
+    vec3 finalColor = colBg * (1.0 - 0.25 * slideDist) + colGlow * (colloidalDust + cymaticGlow * 0.15);
 
     // Acoustic pressure wave across the petri dish substrate
     float acousticWave = sin(slideDist * 32.0 - t * 8.0) * exp(-slideDist * 2.5) * (u_bass * 0.35);
@@ -302,6 +369,13 @@ void main() {
         finalColor += toxicColor;
     }
 
+    // Backspace Osmotic Reverse-Pressure Wave
+    if (osmoticFactor > 0.01) {
+        float osmoticDist = length(p - keystrokeP);
+        float osmoticWave = sin(osmoticDist * 36.0 + t * 14.0) * exp(-osmoticDist * 8.0) * osmoticFactor;
+        finalColor += colMembrane * max(0.0, osmoticWave) * 1.6;
+    }
+
     // Nutrient Droplet Glow (Emerald / Cyan Phosphor)
     finalColor += nutrientGlow * colOrganelle * 1.8;
 
@@ -316,10 +390,19 @@ void main() {
     float bloomHalo = smoothstep(0.01, 0.40, organismField) * (0.35 + u_bass * 0.85);
     finalColor += bloomHalo * colGlow * 0.55;
 
-    // Microscope Glass Rim with Chromatic Aberration & Dark Vignette
-    vec3 glassEdgeColor = vec3(0.08, 0.15, 0.25) * glassRim;
-    finalColor = mix(finalColor, glassEdgeColor, glassRim * 0.7);
-    finalColor *= insideDish; // Mask outside petri dish border
+    // ------------------------------------------------------------------------
+    // Microscope Apparatus Presentation (Slide Glass vs Stage Enclosure)
+    // ------------------------------------------------------------------------
+    if (u_aperture_mode > 0.01) {
+        vec3 stageColor = vec3(0.02, 0.03, 0.05); // Matte dark graphite stage
+        float stageNoise = noise2D(p * 35.0) * 0.012;
+        stageColor += stageNoise;
+        
+        vec3 glassEdgeColor = vec3(0.12, 0.20, 0.32) * glassRim;
+        finalColor = mix(stageColor, finalColor, insideDish);
+        finalColor = mix(finalColor, glassEdgeColor, glassRim * 0.6);
+        finalColor += vec3(glassBevel * 0.75) + colGlow * stageTicks * 0.85;
+    }
 
     fragColor = vec4(finalColor, 1.0) * qt_Opacity;
 }

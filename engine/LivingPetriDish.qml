@@ -20,6 +20,7 @@ Item {
     property point keystrokeDir: Qt.point(0.0, 1.0)
     property point beatCenter: Qt.point(0.5, 0.5)
     property point ambientDrift: Qt.point(0.0, 0.0)
+    property real apertureMode: 1.0 // 1.0 = Circular Microscope Slide, 0.0 = Borderless Fullscreen
 
     // Palette Colors
     property color colorBg: "#01080e"
@@ -50,6 +51,7 @@ Item {
         property real u_bass: root.bass
         property real u_mids: root.mids
         property real u_treble: root.treble
+        property real u_aperture_mode: root.apertureMode
 
         vertexShader: "shaders/petri.vert.qsb"
         fragmentShader: "shaders/petri.frag.qsb"
