@@ -342,19 +342,26 @@ void main() {
     // 7. Atmospheric Rain, Lens Condensation & Weather
     // ------------------------------------------------------------------------
     if (u_rain_density > 0.05) {
-        // High-speed diagonal falling rain streaks
-        vec2 rainUV = uv * vec2(140.0 * aspect, 35.0) + vec2(u_time * 8.0, u_time * 38.0);
-        float rainStreak = pow(hash12(floor(rainUV)), 28.0) * (0.6 + u_treble * 1.2) * u_rain_density;
-        sceneColor += vec3(0.7, 0.85, 1.0) * rainStreak * 0.7;
+        // High-speed diagonal rain streaks falling downwards (from top uv.y=0 to bottom uv.y=1)
+        vec2 rainCoord = vec2(uv.x * aspect + uv.y * 0.20, uv.y);
+        vec2 rainCell = vec2(rainCoord.x * 130.0 - u_time * 6.0, rainCoord.y * 28.0 - u_time * 52.0);
+        vec2 rainId = floor(rainCell);
+        float rainRand = hash12(rainId);
 
-        // Condensation lens droplets running down the glass
-        vec2 dropUV = uv * vec2(30.0 * aspect, 20.0);
-        vec2 dropGrid = floor(dropUV);
+        float streakY = fract(rainCell.y); // Tapered streak head
+        float streakX = 1.0 - abs(fract(rainCell.x) - 0.5) * 2.0;
+        float rainStreak = pow(rainRand, 24.0) * pow(streakY, 3.5) * smoothstep(0.0, 0.5, streakX);
+        sceneColor += vec3(0.75, 0.9, 1.0) * rainStreak * (0.8 + u_treble * 1.5) * u_rain_density;
+
+        // Condensation lens droplets running downwards on the camera glass
+        vec2 dropUV = uv * vec2(28.0 * aspect, 18.0);
+        vec2 dropGrid = floor(vec2(dropUV.x, dropUV.y - u_time * 0.4));
         float dropRand = hash12(dropGrid);
         if (dropRand > 0.88) {
-            float dropDist = length(fract(dropUV) - vec2(0.5, fract(u_time * 0.4 + dropRand)));
-            float droplet = smoothstep(0.20, 0.05, dropDist) * 0.25;
-            sceneColor += vec3(0.8, 0.9, 1.0) * droplet;
+            float dropY = fract(dropUV.y - u_time * 0.4);
+            float dropDist = length(vec2(fract(dropUV.x) - 0.5, dropY - 0.5));
+            float droplet = smoothstep(0.22, 0.04, dropDist) * 0.35;
+            sceneColor += vec3(0.85, 0.95, 1.0) * droplet;
         }
     }
 
