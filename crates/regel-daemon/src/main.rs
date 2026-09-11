@@ -8,43 +8,63 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 fn run_audio_stream(source: &str, gain: f32, gamma: f32, auto_gain: bool) -> io::Result<()> {
-    let target = if source == "mic" {
-        "@DEFAULT_AUDIO_SOURCE@"
-    } else {
-        "@DEFAULT_AUDIO_SINK@"
-    };
 
     // Prefer native PipeWire recording via pw-record; fallback to parec if needed
-    let mut child = Command::new("pw-record")
-        .args(&[
-            "--raw",
-            "--rate=48000",
-            "--channels=1",
-            "--format=f32",
-            &format!("--target={}", target),
-            "-",
-        ])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .or_else(|_| {
-            let parec_device = if source == "mic" {
-                "@DEFAULT_SOURCE@"
-            } else {
-                "@DEFAULT_MONITOR@"
-            };
-            Command::new("parec")
-                .args(&[
-                    &format!("--device={}", parec_device),
-                    "--format=float32le",
-                    "--channels=1",
-                    "--rate=48000",
-                    "--raw",
-                ])
-                .stdout(Stdio::piped())
-                .stderr(Stdio::null())
-                .spawn()
-        })?;
+    let mut child = if source == "mic" {
+        Command::new("pw-record")
+            .args(&[
+                "--raw",
+                "--rate=48000",
+                "--channels=1",
+                "--format=f32",
+                "--target=@DEFAULT_AUDIO_SOURCE@",
+                "-",
+            ])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .or_else(|_| {
+                Command::new("parec")
+                    .args(&[
+                        "--device=@DEFAULT_SOURCE@",
+                        "--format=float32le",
+                        "--channels=1",
+                        "--rate=48000",
+                        "--raw",
+                    ])
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::null())
+                    .spawn()
+            })?
+    } else {
+        // Desktop audio sink monitor tap ("What You Hear" from YouTube, media players, games)
+        Command::new("pw-record")
+            .args(&[
+                "-P",
+                "{ stream.capture.sink = true }",
+                "--raw",
+                "--rate=48000",
+                "--channels=1",
+                "--format=f32",
+                "-",
+            ])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .or_else(|_| {
+                Command::new("parec")
+                    .args(&[
+                        "--device=@DEFAULT_MONITOR@",
+                        "--format=float32le",
+                        "--channels=1",
+                        "--rate=48000",
+                        "--raw",
+                    ])
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::null())
+                    .spawn()
+            })?
+    };
 
     let mut stdout = match child.stdout.take() {
         Some(s) => s,

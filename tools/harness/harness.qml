@@ -11,7 +11,7 @@ ApplicationWindow {
     title: "Regel Screensaver & Wallpaper - Interactive Developer Harness"
     color: "#05070a"
 
-    readonly property bool hasEngine: typeof engineCore !== "undefined"
+    readonly property bool hasEngine: typeof engineCore !== "undefined" && engineCore !== null
 
     // --- State Properties bound to native Rust regel-engine ---
     property real simTime: hasEngine ? engineCore.simTime : 0.0

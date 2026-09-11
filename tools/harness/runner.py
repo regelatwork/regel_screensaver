@@ -6,6 +6,7 @@ to the Qt 6 QML frontend via high-performance C ABI and JSON-stream IPC.
 """
 import sys
 import os
+import signal
 import ctypes
 import subprocess
 import threading
@@ -19,7 +20,7 @@ for dist_path in ["/usr/lib/python3/dist-packages", "/usr/local/lib/python3/dist
 try:
     from PyQt6.QtWidgets import QApplication
     from PyQt6.QtQml import QQmlApplicationEngine
-    from PyQt6.QtCore import QUrl, QObject, pyqtSignal, pyqtProperty, pyqtSlot, QPointF
+    from PyQt6.QtCore import QUrl, QObject, pyqtSignal, pyqtProperty, pyqtSlot, QPointF, QTimer
 except ImportError as err:
     print(f"Error: Could not import PyQt6: {err}")
     print("Please install native Qt 6 runner via: sudo apt install python3-pyqt6 qml-qt6")
@@ -251,10 +252,18 @@ class EngineBridge(QObject):
     def rms(self):
         return self._state.audio.rms
 
-    def __del__(self):
-        if hasattr(self, "_core") and self._core:
-            self._lib.regel_engine_destroy(self._core)
+    def close(self):
+        if hasattr(self, "_core") and self._core is not None:
+            core = self._core
             self._core = None
+            if hasattr(self, "_lib") and self._lib is not None:
+                try:
+                    self._lib.regel_engine_destroy(core)
+                except Exception:
+                    pass
+
+    def __del__(self):
+        self.close()
 
 
 # -----------------------------------------------------------------------------
@@ -432,6 +441,21 @@ def main():
     engine.rootContext().setContextProperty("engineCore", engine_bridge)
     engine.rootContext().setContextProperty("liveAudio", audio_bridge)
 
+    # Clean SIGINT (Ctrl-C) handling in PyQt event loop
+    sigint_timer = QTimer()
+    sigint_timer.setInterval(200)
+    sigint_timer.timeout.connect(lambda: None) # Keeps Python interpreter responsive to POSIX signals
+    sigint_timer.start()
+
+    def handle_sigint(signum, frame):
+        print("\n==> Regel Harness: Caught Ctrl-C, exiting gracefully...")
+        if QApplication.instance():
+            QApplication.instance().quit()
+        else:
+            sys.exit(0)
+
+    signal.signal(signal.SIGINT, handle_sigint)
+
     print(f"==> Loading QML Harness with Rust Engine & Audio Tap from: {qml_file}")
     engine.load(QUrl.fromLocalFile(qml_file))
 
@@ -439,8 +463,15 @@ def main():
         print("Error: Failed to load QML root object.")
         sys.exit(1)
 
-    exit_code = app.exec()
-    audio_bridge.stop()
+    exit_code = 0
+    try:
+        exit_code = app.exec()
+    except KeyboardInterrupt:
+        exit_code = 0
+    finally:
+        audio_bridge.stop()
+        engine_bridge.close()
+
     sys.exit(exit_code)
 
 if __name__ == "__main__":
