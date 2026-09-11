@@ -33,10 +33,16 @@ for meta in ['wallpaper/metadata.json', 'lockscreen/metadata.json']:
     print(f'    Valid: {meta}')
 "
 
-echo "--> 3. Running Rust Unit Tests..."
+echo "--> 3. Compiling and Verifying Qt 6 RHI Shaders..."
+./tools/build-shaders.sh
+test -f engine/shaders/fluid.vert.qsb
+test -f engine/shaders/fluid.frag.qsb
+echo "    Shader bundles verified."
+
+echo "--> 4. Running Rust Unit Tests..."
 cargo test --workspace
 
-echo "--> 4. Running QML Lint on all Components..."
+echo "--> 5. Running QML Lint on all Components..."
 if command -v qmllint &>/dev/null; then
     qmllint tools/harness/harness.qml
     qmllint wallpaper/contents/ui/main.qml

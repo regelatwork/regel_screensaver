@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "../../engine"
 
 ApplicationWindow {
     id: root
@@ -37,6 +38,10 @@ ApplicationWindow {
             root.keystrokeEnergy = Math.max(0.0, root.keystrokeEnergy * Math.exp(-2.5 * 0.016))
             root.shockwaveIntensity = Math.max(0.0, root.shockwaveIntensity * Math.exp(-3.0 * 0.016))
 
+            // Restore baseline vortex speed
+            let targetVortex = root.sessionState === "AuthSucceeded" ? 3.0 : 1.0
+            root.vortexSpeed += (targetVortex - root.vortexSpeed) * 3.0 * 0.016
+
             // Auto-beat simulation when enabled
             if (chkAutoBeat.checked) {
                 let beatPhase = (root.simTime * 2.0) % 1.0
@@ -56,9 +61,25 @@ ApplicationWindow {
         id: canvasArea
         anchors.fill: parent
 
-        // Multi-layered visual simulation preview
+        // Concept 1: Liquid Neon Abyss GPU Shader Simulation
+        LiquidNeonAbyss {
+            anchors.fill: parent
+            visible: root.selectedConcept === 1
+            simTime: root.simTime
+            keystrokeEnergy: root.keystrokeEnergy
+            shockwaveIntensity: root.shockwaveIntensity
+            vortexSpeed: root.vortexSpeed
+            bass: root.bass
+            mids: root.mids
+            treble: root.treble
+            pointerPos: root.pointerPos
+            pointerVel: root.pointerVel
+        }
+
+        // Fallback backdrop when other concepts selected
         Rectangle {
             anchors.fill: parent
+            visible: root.selectedConcept !== 1
             gradient: Gradient {
                 GradientStop { position: 0.0; color: root.sessionState === "AuthFailed" ? "#220508" : "#060912" }
                 GradientStop { position: 1.0; color: "#020306" }

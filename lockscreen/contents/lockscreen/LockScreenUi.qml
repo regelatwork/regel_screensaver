@@ -1,24 +1,58 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "../../../engine"
 
 Item {
     id: lockScreenRoot
     anchors.fill: parent
 
+    property real simTime: 0.0
     property real keystrokeEnergy: 0.0
     property real shockwaveIntensity: 0.0
+    property real vortexSpeed: 0.5
+    property real bass: 0.08
+    property real mids: 0.05
+    property real treble: 0.05
     property point pointerPos: Qt.point(0.5, 0.5)
+    property point pointerVel: Qt.point(0.0, 0.0)
+
+    // Simulation frame & impulse decay loop
+    Timer {
+        interval: 16
+        running: true
+        repeat: true
+        onTriggered: {
+            lockScreenRoot.simTime += 0.016
+            lockScreenRoot.keystrokeEnergy = Math.max(0.0, lockScreenRoot.keystrokeEnergy * Math.exp(-2.5 * 0.016))
+            lockScreenRoot.shockwaveIntensity = Math.max(0.0, lockScreenRoot.shockwaveIntensity * Math.exp(-3.0 * 0.016))
+            lockScreenRoot.vortexSpeed += (1.0 - lockScreenRoot.vortexSpeed) * 2.0 * 0.016
+        }
+    }
+
+    // Concept 1: Liquid Neon Abyss GPU Shader Visualizer
+    LiquidNeonAbyss {
+        anchors.fill: parent
+        simTime: lockScreenRoot.simTime
+        keystrokeEnergy: lockScreenRoot.keystrokeEnergy
+        shockwaveIntensity: lockScreenRoot.shockwaveIntensity
+        vortexSpeed: lockScreenRoot.vortexSpeed
+        bass: lockScreenRoot.bass
+        mids: lockScreenRoot.mids
+        treble: lockScreenRoot.treble
+        pointerPos: lockScreenRoot.pointerPos
+        pointerVel: lockScreenRoot.pointerVel
+    }
 
     // Authenticator connection for Plasma 6 kscreenlocker
     Connections {
         target: typeof authenticator !== "undefined" ? authenticator : null
         function onFailed() {
-            lockScreenRoot.shockwaveIntensity = 1.0
+            lockScreenRoot.shockwaveIntensity = 1.0 // Detonates violent crimson cavitation shockwave
             lockScreenRoot.keystrokeEnergy = 0.0
         }
         function onSucceeded() {
-            lockScreenRoot.keystrokeEnergy = 1.5
+            lockScreenRoot.vortexSpeed = 3.5 // Fast laminar vortex clears aperture to desktop
         }
     }
 
@@ -26,10 +60,11 @@ Item {
     Keys.onPressed: (event) => {
         if (event.key === Qt.Key_Backspace || event.key === Qt.Key_Delete) {
             lockScreenRoot.keystrokeEnergy = Math.max(0.0, lockScreenRoot.keystrokeEnergy - 0.2)
+            lockScreenRoot.vortexSpeed = -1.5 // Negative pressure suction
         } else {
             lockScreenRoot.keystrokeEnergy = Math.min(2.0, lockScreenRoot.keystrokeEnergy + 0.35)
         }
-        event.accepted = false // Pass key along to password input box
+        event.accepted = false // Forward key event to password box
     }
 
     // Cursor tracking
@@ -37,7 +72,10 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         onPositionChanged: (mouse) => {
-            lockScreenRoot.pointerPos = Qt.point(mouse.x / width, mouse.y / height)
+            let curX = mouse.x / width
+            let curY = mouse.y / height
+            lockScreenRoot.pointerVel = Qt.point(curX - lockScreenRoot.pointerPos.x, curY - lockScreenRoot.pointerPos.y)
+            lockScreenRoot.pointerPos = Qt.point(curX, curY)
         }
     }
 }
