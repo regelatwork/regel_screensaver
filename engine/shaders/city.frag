@@ -133,7 +133,10 @@ void main() {
     }
 
     float aspect = u_resolution.x / max(u_resolution.y, 1.0);
-    vec2 p = (uv - 0.5) * vec2(aspect, 1.0);
+    // In Qt Quick / QML, uv.y = 0 is the top, uv.y = 1 is the bottom.
+    // In 3D world space, +Y is UP (sky is +Y, highway ground is y = 0).
+    // Invert Y coordinate so that screen top (+Y) looks into the sky, and screen bottom (-Y) looks at the road.
+    vec2 p = vec2(uv.x - 0.5, 0.5 - uv.y) * vec2(aspect, 1.0);
 
     // ------------------------------------------------------------------------
     // 1. Camera & View Matrix Setup
