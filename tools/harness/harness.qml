@@ -90,8 +90,17 @@ ApplicationWindow {
         { name: "Midnight Bioluminescence (Obsidian & Jade)",       sky: "#030712", dye1: "#10b981", dye2: "#a7f3d0", dye3: "#34d399" }
     ]
 
+    // Concept 7 Palettes (Kinetic Spiderweb & Resonance Harp)
+    readonly property var harpPalettes: [
+        { name: "Moonlit Gossamer (Silver & Diamond Dew)",  bg: "#050814", dye1: "#e2e8f0", dye2: "#67e8f9", dye3: "#38bdf8" },
+        { name: "Golden Laser Harp (Amber & Topaz Dew)",    bg: "#0c0a00", dye1: "#fef08a", dye2: "#facc15", dye3: "#f59e0b" },
+        { name: "Bioluminescent Abyssal (Emerald & Jade)",  bg: "#022c22", dye1: "#a7f3d0", dye2: "#34d399", dye3: "#10b981" },
+        { name: "Electric Synapse (Magenta & Violet)",      bg: "#18021a", dye1: "#f472b6", dye2: "#ec4899", dye3: "#a855f7" },
+        { name: "Frost Crystal Web (Ice Blue & Rime)",      bg: "#021220", dye1: "#f0f9ff", dye2: "#bae6fd", dye3: "#7dd3fc" }
+    ]
+
     property int selectedPalette: 0
-    readonly property var currentPalettes: selectedConcept === 6 ? biomePalettes : (selectedConcept === 5 ? cityPalettes : (selectedConcept === 4 ? cosmicPalettes : (selectedConcept === 3 ? koiPalettes : (selectedConcept === 2 ? petriPalettes : fluidPalettes))))
+    readonly property var currentPalettes: selectedConcept === 7 ? harpPalettes : (selectedConcept === 6 ? biomePalettes : (selectedConcept === 5 ? cityPalettes : (selectedConcept === 4 ? cosmicPalettes : (selectedConcept === 3 ? koiPalettes : (selectedConcept === 2 ? petriPalettes : fluidPalettes)))))
     property color activeBg: currentPalettes[selectedPalette % currentPalettes.length].bg
     property color activeDye1: currentPalettes[selectedPalette % currentPalettes.length].dye1
     property color activeDye2: currentPalettes[selectedPalette % currentPalettes.length].dye2
@@ -312,6 +321,33 @@ ApplicationWindow {
             fogDensity: (typeof sldValleyFog !== "undefined") ? sldValleyFog.value : 0.5
         }
 
+        // Concept 7: Kinetic Spiderweb & Resonance Harp (Tactile Elastic Lattice)
+        KineticSpiderwebHarp {
+            id: harpSandbox
+            anchors.fill: parent
+            visible: root.selectedConcept === 7
+            simTime: root.simTime
+            keystrokeEnergy: root.keystrokeEnergy
+            shockwaveIntensity: root.shockwaveIntensity
+            vortexSpeed: root.vortexSpeed
+            bass: root.bass
+            mids: root.mids
+            treble: root.treble
+            pointerPos: root.pointerPos
+            pointerVel: root.pointerVel
+            keystrokePos: root.keystrokePos
+            keystrokeDir: root.keystrokeDir
+            beatCenter: root.beatCenter
+            ambientDrift: root.ambientDrift
+            colorVoid: root.activeBg
+            colorSilk: root.activeDye1
+            colorDew: root.activeDye2
+            colorResonance: root.activeDye3
+            tension: (typeof sldTension !== "undefined") ? sldTension.value : 1.0
+            dewDensity: (typeof sldDewDensity !== "undefined") ? sldDewDensity.value : 0.75
+            chromaticDispersion: (typeof sldDispersion !== "undefined") ? sldDispersion.value : 0.85
+        }
+
         // Pointer Reactive Cursor Halo
         Rectangle {
             x: root.pointerPos.x * canvasArea.width - width / 2
@@ -343,12 +379,21 @@ ApplicationWindow {
                 if (hasEngine) {
                     engineCore.pointerMove(curX, curY, dx, dy)
                 }
+                if (root.selectedConcept === 7 && typeof harpSandbox !== "undefined") {
+                    let speed = Math.sqrt(dx * dx + dy * dy)
+                    if (speed > 0.008) {
+                        harpSandbox.pluck(curX, curY, Math.min(1.0, speed * 25.0))
+                    }
+                }
             }
             onPressed: (mouse) => {
                 let curX = mouse.x / canvasArea.width
                 let curY = mouse.y / canvasArea.height
                 if (hasEngine) {
                     engineCore.pointerClick(curX, curY, mouse.button)
+                }
+                if (root.selectedConcept === 7 && typeof harpSandbox !== "undefined") {
+                    harpSandbox.pluck(curX, curY, 0.85)
                 }
             }
         }
@@ -397,7 +442,8 @@ ApplicationWindow {
                             "3: The Tranquil Sanctuary (Koi Pond)",
                             "4: Cosmic Gravitational Sandbox (Black Hole)",
                             "5: Procedural Synthwave Megacity (Cyberpunk Skyline)",
-                            "6: Real-Time Ephemeris Biome (Ghibli Weather Terrarium)"
+                            "6: Real-Time Ephemeris Biome (Ghibli Weather Terrarium)",
+                            "7: Kinetic Spiderweb Harp (Elastic Lattice & Dewdrops)"
                         ]
                         currentIndex: root.selectedConcept - 1
                         onActivated: (idx) => {
@@ -628,6 +674,71 @@ ApplicationWindow {
                             value: 0.5
                             stepSize: 0.05
                             Layout.preferredWidth: 140
+                        }
+                    }
+                }
+
+                // Concept 7 Kinetic Spiderweb & Resonance Harp Controls
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    visible: root.selectedConcept === 7
+
+                    Text { text: "Kinetic Silk Lattice & Acoustic Harp"; color: "#38bdf8"; font.bold: true }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Silk Tension: " + sldTension.value.toFixed(2) + "x"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldTension
+                            from: 0.5
+                            to: 2.0
+                            value: 1.0
+                            stepSize: 0.05
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Morning Dew Density: " + (sldDewDensity.value * 100).toFixed(0) + "%"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldDewDensity
+                            from: 0.0
+                            to: 1.0
+                            value: 0.75
+                            stepSize: 0.05
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Prismatic Dispersion: " + sldDispersion.value.toFixed(2); color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldDispersion
+                            from: 0.0
+                            to: 1.0
+                            value: 0.85
+                            stepSize: 0.05
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Button {
+                            text: "🎵 Pluck Radial Strand"
+                            Layout.fillWidth: true
+                            onClicked: {
+                                if (typeof harpSandbox !== "undefined") {
+                                    harpSandbox.pluck(0.5 + (Math.random() * 0.4 - 0.2), 0.5 + (Math.random() * 0.4 - 0.2), 1.0)
+                                }
+                            }
                         }
                     }
                 }

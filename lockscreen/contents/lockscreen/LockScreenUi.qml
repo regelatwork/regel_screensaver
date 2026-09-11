@@ -123,6 +123,21 @@ Item {
         pointerVel: lockScreenRoot.pointerVel
     }
 
+    // Concept 7: Kinetic Spiderweb & Resonance Harp (Tactile Elastic Lattice)
+    KineticSpiderwebHarp {
+        anchors.fill: parent
+        visible: lockScreenRoot.activeConcept === 7
+        simTime: lockScreenRoot.simTime
+        keystrokeEnergy: lockScreenRoot.keystrokeEnergy
+        shockwaveIntensity: lockScreenRoot.shockwaveIntensity
+        vortexSpeed: lockScreenRoot.vortexSpeed
+        bass: lockScreenRoot.bass
+        mids: lockScreenRoot.mids
+        treble: lockScreenRoot.treble
+        pointerPos: lockScreenRoot.pointerPos
+        pointerVel: lockScreenRoot.pointerVel
+    }
+
     // Authenticator connection for Plasma 6 kscreenlocker
     Connections {
         target: typeof authenticator !== "undefined" ? authenticator : null

@@ -47,7 +47,9 @@ test -f engine/shaders/city.vert.qsb
 test -f engine/shaders/city.frag.qsb
 test -f engine/shaders/ephemeris.vert.qsb
 test -f engine/shaders/ephemeris.frag.qsb
-echo "    All shader bundles (Fluid, Petri, Koi, Cosmic, City, Ephemeris) verified."
+test -f engine/shaders/harp.vert.qsb
+test -f engine/shaders/harp.frag.qsb
+echo "    All 7 shader bundles (Fluid, Petri, Koi, Cosmic, City, Ephemeris, Harp) verified."
 
 echo "--> 4. Running Rust Unit Tests..."
 cargo test --workspace
@@ -60,6 +62,7 @@ if command -v qmllint &>/dev/null; then
     qmllint engine/CosmicGravitationalSandbox.qml
     qmllint engine/SynthwaveMegacity.qml
     qmllint engine/RealtimeEphemerisBiome.qml
+    qmllint engine/KineticSpiderwebHarp.qml
     qmllint tools/harness/harness.qml
     qmllint wallpaper/contents/ui/main.qml
     qmllint lockscreen/contents/lockscreen/LockScreenUi.qml
