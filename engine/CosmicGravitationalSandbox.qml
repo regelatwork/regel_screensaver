@@ -225,7 +225,7 @@ Item {
         property real u_accretion_rate: root.accretionRate
         property real u_pad: 0.0
 
-        vertexShader: "shaders/cosmic.vert.qsb"
-        fragmentShader: "shaders/cosmic.frag.qsb"
+        vertexShader: Qt.resolvedUrl("shaders/cosmic.vert.qsb")
+        fragmentShader: Qt.resolvedUrl("shaders/cosmic.frag.qsb")
     }
 }

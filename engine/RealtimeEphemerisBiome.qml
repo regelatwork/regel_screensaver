@@ -133,7 +133,7 @@ Item {
         property real u_pad1: 0.0
         property real u_pad2: 0.0
 
-        vertexShader: "shaders/ephemeris.vert.qsb"
-        fragmentShader: "shaders/ephemeris.frag.qsb"
+        vertexShader: Qt.resolvedUrl("shaders/ephemeris.vert.qsb")
+        fragmentShader: Qt.resolvedUrl("shaders/ephemeris.frag.qsb")
     }
 }

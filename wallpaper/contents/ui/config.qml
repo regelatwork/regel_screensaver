@@ -1,11 +1,16 @@
 import QtQuick
 import QtQuick.Controls as QQC2
+import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 Kirigami.FormLayout {
     id: root
 
-    property alias cfg_activeConcept: conceptComboBox.currentConceptValue
+    property var configDialog
+    property var wallpaperConfiguration
+    property var parentLayout
+
+    property int cfg_activeConcept
     property alias cfg_vortexSpeed: speedSlider.value
 
     QQC2.ComboBox {
@@ -22,10 +27,14 @@ Kirigami.FormLayout {
             { text: "6. Real-Time Ephemeris Biome (Painterly Terrarium)", value: 6 },
             { text: "7. Kinetic Spiderweb & Resonance Harp (Elastic Lattice)", value: 7 }
         ]
-        property int currentConceptValue: currentIndex + 1
-        currentIndex: (typeof cfg_activeConcept !== "undefined" ? Math.max(0, cfg_activeConcept - 1) : 0)
+        currentIndex: {
+            for (let i = 0; i < model.length; ++i) {
+                if (model[i].value === root.cfg_activeConcept) return i
+            }
+            return 0
+        }
         onActivated: {
-            currentConceptValue = currentIndex + 1
+            root.cfg_activeConcept = model[currentIndex].value
         }
     }
 

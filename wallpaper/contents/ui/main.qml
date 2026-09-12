@@ -2,9 +2,16 @@ import QtQuick
 import org.kde.plasma.plasmoid
 import "../engine"
 
-Item {
+WallpaperItem {
     id: wallpaperRoot
     anchors.fill: parent
+
+    // Base background layer
+    Rectangle {
+        anchors.fill: parent
+        color: "#050811"
+        z: -1
+    }
 
     property real simTime: 0.0
     property real bass: 0.08
@@ -21,8 +28,8 @@ Item {
         onTriggered: wallpaperRoot.simTime += 0.016
     }
 
-    property int activeConcept: (typeof plasmoid !== "undefined" && plasmoid.configuration && plasmoid.configuration.activeConcept) ? plasmoid.configuration.activeConcept : 1
-    property real globalVortexSpeed: (typeof plasmoid !== "undefined" && plasmoid.configuration && plasmoid.configuration.vortexSpeed) ? plasmoid.configuration.vortexSpeed : 0.8
+    property int activeConcept: (typeof wallpaperRoot.configuration !== "undefined" && wallpaperRoot.configuration && wallpaperRoot.configuration.activeConcept) ? wallpaperRoot.configuration.activeConcept : ((typeof plasmoid !== "undefined" && plasmoid.configuration && plasmoid.configuration.activeConcept) ? plasmoid.configuration.activeConcept : 1)
+    property real globalVortexSpeed: (typeof wallpaperRoot.configuration !== "undefined" && wallpaperRoot.configuration && wallpaperRoot.configuration.vortexSpeed) ? wallpaperRoot.configuration.vortexSpeed : ((typeof plasmoid !== "undefined" && plasmoid.configuration && plasmoid.configuration.vortexSpeed) ? plasmoid.configuration.vortexSpeed : 0.8)
 
     // Concept 1: Liquid Neon Abyss GPU Shader Visualizer
     LiquidNeonAbyss {

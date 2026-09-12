@@ -51,7 +51,7 @@ Item {
         property real u_mids: root.mids
         property real u_treble: root.treble
 
-        vertexShader: "shaders/fluid.vert.qsb"
-        fragmentShader: "shaders/fluid.frag.qsb"
+        vertexShader: Qt.resolvedUrl("shaders/fluid.vert.qsb")
+        fragmentShader: Qt.resolvedUrl("shaders/fluid.frag.qsb")
     }
 }

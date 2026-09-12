@@ -1,4 +1,5 @@
 {
+    "KPackageStructure": "Plasma/LookAndFeel",
     "KPlugin": {
         "Authors": [
             {
@@ -6,14 +7,14 @@
                 "Name": "Regel Contributors"
             }
         ],
-        "Category": "Plasma/LookAndFeel",
+        "Category": "",
         "Description": "Interactive, audio-reactive screensaver and lockscreen for KDE Plasma 6",
         "Icon": "preferences-desktop-screensaver",
         "Id": "org.regel.lockscreen",
+        "License": "GPLv2+",
         "Name": "Regel Interactive Screensaver",
-        "ServiceTypes": [
-            "Plasma/LookAndFeel"
-        ],
-        "Version": "0.1.0"
-    }
+        "Version": "0.1.0",
+        "Website": "https://github.com/rchandia/regel_screensaver"
+    },
+    "Keywords": "screensaver;lockscreen;audio;reactive;"
 }

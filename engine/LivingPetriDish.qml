@@ -53,7 +53,7 @@ Item {
         property real u_treble: root.treble
         property real u_aperture_mode: root.apertureMode
 
-        vertexShader: "shaders/petri.vert.qsb"
-        fragmentShader: "shaders/petri.frag.qsb"
+        vertexShader: Qt.resolvedUrl("shaders/petri.vert.qsb")
+        fragmentShader: Qt.resolvedUrl("shaders/petri.frag.qsb")
     }
 }

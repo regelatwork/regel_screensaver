@@ -135,7 +135,7 @@ Item {
         property real u_pad1: 0.0
         property real u_pad2: 0.0
 
-        vertexShader: "shaders/harp.vert.qsb"
-        fragmentShader: "shaders/harp.frag.qsb"
+        vertexShader: Qt.resolvedUrl("shaders/harp.vert.qsb")
+        fragmentShader: Qt.resolvedUrl("shaders/harp.frag.qsb")
     }
 }

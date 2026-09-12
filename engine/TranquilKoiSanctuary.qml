@@ -53,7 +53,7 @@ Item {
         property real u_treble: root.treble
         property real u_water_clarity: root.waterClarity
 
-        vertexShader: "shaders/koi.vert.qsb"
-        fragmentShader: "shaders/koi.frag.qsb"
+        vertexShader: Qt.resolvedUrl("shaders/koi.vert.qsb")
+        fragmentShader: Qt.resolvedUrl("shaders/koi.frag.qsb")
     }
 }
