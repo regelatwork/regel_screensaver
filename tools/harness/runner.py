@@ -419,19 +419,35 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     workspace_dir = os.path.abspath(os.path.join(script_dir, "../.."))
     qml_file = os.path.join(script_dir, "harness.qml")
+    if not os.path.isfile(qml_file):
+        for candidate in ["/usr/share/regel/harness/harness.qml", "/usr/local/share/regel/harness/harness.qml"]:
+            if os.path.isfile(candidate):
+                qml_file = candidate
+                break
 
     # Locate libregel_engine.so
-    lib_path = os.path.join(workspace_dir, "target/debug/libregel_engine.so")
-    if not os.path.isfile(lib_path):
-        lib_path = os.path.join(workspace_dir, "target/release/libregel_engine.so")
-
-    if not os.path.isfile(lib_path):
-        print(f"Error: {lib_path} not found. Please run: cargo build --workspace")
+    arch = os.uname().machine
+    search_lib_paths = [
+        os.path.join(workspace_dir, "target/debug/libregel_engine.so"),
+        os.path.join(workspace_dir, "target/release/libregel_engine.so"),
+        f"/usr/lib/{arch}-linux-gnu/libregel_engine.so",
+        "/usr/lib/x86_64-linux-gnu/libregel_engine.so",
+        "/usr/lib/libregel_engine.so",
+        "/usr/local/lib/libregel_engine.so",
+    ]
+    lib_path = next((p for p in search_lib_paths if os.path.isfile(p)), None)
+    if not lib_path:
+        print(f"Error: libregel_engine.so not found. Checked:\n  " + "\n  ".join(search_lib_paths))
+        print("Please build with: cargo build --release --workspace")
         sys.exit(1)
 
-    daemon_path = os.path.join(workspace_dir, "target/debug/regel-daemon")
-    if not os.path.isfile(daemon_path):
-        daemon_path = os.path.join(workspace_dir, "target/release/regel-daemon")
+    search_daemon_paths = [
+        os.path.join(workspace_dir, "target/debug/regel-daemon"),
+        os.path.join(workspace_dir, "target/release/regel-daemon"),
+        "/usr/bin/regel-daemon",
+        "/usr/local/bin/regel-daemon",
+    ]
+    daemon_path = next((p for p in search_daemon_paths if os.path.isfile(p)), search_daemon_paths[0])
 
     # Instantiate Bridges
     engine_bridge = EngineBridge(lib_path)

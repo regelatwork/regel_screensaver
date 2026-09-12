@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Regel Screensaver & Wallpaper
+GenericName=Interactive Wallpaper & Screensaver Suite
+Comment=Audio-reactive, physics-driven wallpapers and screensavers for KDE Plasma 6
+Exec=regel-harness
+Icon=regel-screensaver
+Terminal=false
+Categories=Qt;KDE;Graphics;Utility;
+Keywords=wallpaper;screensaver;plasma;pipewire;audio;fft;
+StartupNotify=true

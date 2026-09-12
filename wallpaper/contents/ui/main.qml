@@ -1,6 +1,6 @@
 import QtQuick
 import org.kde.plasma.plasmoid
-import "../../../engine"
+import "../engine"
 
 Item {
     id: wallpaperRoot

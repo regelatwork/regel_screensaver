@@ -1,0 +1,15 @@
+[Unit]
+Description=Regel Screensaver & Wallpaper Audio Reactive Daemon
+Documentation=https://github.com/rchandia/regel_screensaver
+PartOf=graphical-session.target
+After=pipewire.service wireplumber.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/regel-daemon --gain 1.5 --gamma 1.2 --auto-gain
+Restart=on-failure
+RestartSec=3s
+Slice=session.slice
+
+[Install]
+WantedBy=graphical-session.target

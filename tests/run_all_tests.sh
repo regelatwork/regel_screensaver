@@ -71,6 +71,20 @@ else
     echo "    qmllint not available, skipping QML lint."
 fi
 
+echo "--> 6. Validating Debian Package Build..."
+if command -v dpkg-deb &>/dev/null; then
+    ./tools/package-deb.sh
+    ARCH="$(dpkg --print-architecture 2>/dev/null || uname -m)"
+    case "${ARCH}" in
+        x86_64) ARCH="amd64" ;;
+        aarch64) ARCH="arm64" ;;
+    esac
+    test -f "dist/regel-screensaver_0.1.0-1_${ARCH}.deb"
+    echo "    Debian package built and verified successfully."
+else
+    echo "    dpkg-deb not available, skipping packaging verification."
+fi
+
 echo "================================================="
 echo "  ALL TESTS PASSED SUCCESSFULLY!                 "
 echo "================================================="

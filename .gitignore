@@ -5,5 +5,6 @@ Cargo.lock
 *.jsc
 *.qsb
 build/
+dist/
 __pycache__/
 *.pyc
