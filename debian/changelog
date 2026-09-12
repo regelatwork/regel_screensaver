@@ -1,3 +1,17 @@
+regel-screensaver (0.3.0-1) unstable; urgency=medium
+
+  * Release v0.3.0: Neural Audio Choreography & 8 Aesthetic Archetypes.
+  * Concept 8: The Analog Telemetry Console with ANSI C16.5 ballistic
+    galvanometers, P1 phosphor CRT oscilloscope, Nixie tube BPM readouts,
+    and external faceted jewel pilot lamps.
+  * Deep neural audio rhythm and singing voice integration:
+    real-time beat phase, transient detection, vocal presence, and harmonic
+    choreography wired across all 8 visual archetypes.
+  * 8-tile showcase matrix and headless GPU RHI capture tools.
+  * Zero-warning Lintian conformance across binary and source packages.
+
+ -- Regel Project Contributors <info@regel.org>  Sat, 12 Sep 2026 18:00:00 -0400
+
 regel-screensaver (0.2.0-1) unstable; urgency=medium
 
   * Release v0.2.0: Native KDE Plasma 6 Desktop & Panel Audio Visualizer.

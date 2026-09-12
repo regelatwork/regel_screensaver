@@ -121,7 +121,7 @@ flowchart TD
 
 1. **Install the package**:
    ```bash
-   sudo dpkg -i dist/regel-screensaver_0.2.0-1_amd64.deb
+   sudo dpkg -i dist/regel-screensaver_0.3.0-1_amd64.deb
    sudo apt-get install -f   # Resolves any missing runtime dependencies automatically
    ```
 
@@ -193,9 +193,9 @@ To build only the pristine Debian source package:
 ```
 
 All build artifacts will be placed in the `dist/` directory:
-- `dist/regel-screensaver_0.2.0-1_amd64.deb`
-- `dist/source/regel-screensaver_0.2.0-1.dsc`
-- `dist/source/regel-screensaver_0.2.0.orig.tar.gz`
+- `dist/regel-screensaver_0.3.0-1_amd64.deb`
+- `dist/source/regel-screensaver_0.3.0-1.dsc`
+- `dist/source/regel-screensaver_0.3.0.orig.tar.gz`
 
 ---
 

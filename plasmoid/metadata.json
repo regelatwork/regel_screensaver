@@ -8,12 +8,12 @@
             }
         ],
         "Category": "Multimedia",
-        "Description": "Interactive audio-reactive visualizer widget embedding 7 physics-driven shader archetypes",
+        "Description": "Interactive audio-reactive visualizer widget embedding 8 physics-driven shader archetypes",
         "Icon": "multimedia-audio-player",
         "Id": "org.regel.widget",
         "License": "GPLv2+",
         "Name": "Regel Audio Visualizer",
-        "Version": "0.2.0",
+        "Version": "0.3.0",
         "Website": "https://github.com/regelatwork/regel_screensaver"
     },
     "Keywords": "audio;visualizer;plasma;widget;cymatics;fluid;shader;music;spectrum;reactive;",

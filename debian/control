@@ -35,7 +35,7 @@ Description: Audio-reactive interactive wallpapers and screensavers for KDE Plas
  Regel is an audio-reactive, physics-driven desktop canvas and screensaver
  suite running natively on modern Linux desktops using KDE Plasma 6 on Wayland.
  .
- Features 7 high-performance procedural archetypes:
+ Features 8 high-performance procedural and physical archetypes:
   * Liquid Neon Abyss: Navier-Stokes fluid dynamics and chromatic cymatics
   * The Living Petri Dish: Continuous artificial life (Lenia) solitons
   * The Tranquil Sanctuary: Caustic koi pond, depth refraction & boid flocking
@@ -43,6 +43,7 @@ Description: Audio-reactive interactive wallpapers and screensavers for KDE Plas
   * Synthwave Megacity: 3D raymarched cyberpunk skyline with rain acoustics
   * Real-Time Ephemeris Biome: Real solar/lunar ephemeris & weather terrarium
   * Kinetic Spiderweb & Resonance Harp: Mass-spring transverse wave harmonics
+  * The Analog Telemetry Console: ANSI C16.5 ballistic VU meters & CRT timebase
  .
  Ships with a low-latency PipeWire audio FFT engine, lockscreen authentication
  security reactivity, and an interactive developer testing harness.

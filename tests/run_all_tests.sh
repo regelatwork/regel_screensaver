@@ -80,7 +80,7 @@ else
 fi
 
 echo "--> 6. Validating Debian Package Build..."
-VERSION="$(dpkg-parsechangelog -S Version -l debian/changelog 2>/dev/null || echo '0.2.0-1')"
+VERSION="$(dpkg-parsechangelog -S Version -l debian/changelog 2>/dev/null || echo '0.3.0-1')"
 UPSTREAM_VERSION="${VERSION%%-*}"
 ARCH="$(dpkg --print-architecture 2>/dev/null || uname -m)"
 case "${ARCH}" in
