@@ -1,46 +1,252 @@
 # regel_screensaver
 
-> **Next-Generation Interactive Wallpapers & Screensavers for KDE Plasma 6**  
-> Running natively on Wayland with PipeWire audio analysis and kscreenlocker integration.
+> **Next-Generation Audio-Reactive Interactive Wallpapers & Screensavers for KDE Plasma 6**  
+> Running natively on modern Linux (Wayland, PipeWire, Qt 6 RHI, and Safe Rust).
 
 ---
 
-## 🌟 The Vision
+## 🌟 Overview
 
-`regel_screensaver` transforms standard, static desktop backgrounds into living, responsive canvases that operate across two distinct domains:
-1. **Passive Ambient Wallpaper**: Runs unobtrusively beneath your desktop icons, reacting to cursor sweeps, background music/audio spectrums, microphone transients, and system telemetry.
-2. **Interactive Screensaver & Lock Screen**: Takes full command of the screen upon idle/lock, unlocking micro-interactions for every step of the authentication lifecycle: keystroke typing rhythms, backspace deletions, authentication failure shockwaves, and unlock transitions.
+`regel_screensaver` transforms standard, static desktop backgrounds into living, responsive canvases operating across two distinct domains:
+
+1. **Passive Ambient Desktop Wallpaper**: Runs unobtrusively beneath desktop icons, reacting to cursor sweeps, background music/audio spectrums, microphone transients, and system telemetry.
+2. **Interactive Screensaver & Lock Screen**: Takes command of the screen upon idle/lock, unlocking micro-interactions across every step of the authentication lifecycle: typing rhythms, backspace deletions, authentication failure shockwaves, and unlock transitions.
 
 ---
 
-## 📚 High-Level Concept Designs
+## ✨ Key Features
 
-All seven concepts have been comprehensively designed with complete event-to-effect matrices and technical simulation blueprints:
+- **7 Procedural Aesthetic Archetypes**: From Navier-Stokes fluid dynamics and continuous artificial life (Lenia) to relativistic black hole gravitational lensing and cyberpunk raymarched skylines.
+- **Zero-Configuration Audio Reactivity**:
+  - Live PipeWire audio tap (`pw-record` / `parec`) monitoring desktop output ("What You Hear") or microphone.
+  - Real-time SIMD FFT spectral decomposition into 6 frequency bands (`sub_bass`, `bass`, `mids`, `treble`, `rms`, `transient`).
+  - Automatic Gain Control (AGC) with dynamic headroom normalization.
+  - Zero terminal setup required: auto-starts on login via systemd user service and features D-Bus on-demand auto-activation.
+- **Native KDE Plasma 6 Integration**:
+  - Pure Qt 6 QML / QtQuick with Vulkan / OpenGL Qt RHI shaders (SPIR-V compiled via `qsb`).
+  - Native `org.kde.plasma.workspace.dbus` integration without third-party C++ QML plugins.
+  - Full Wayland protocol compliance with cursor hover pass-through for desktop icons.
+- **Context-Sensitive Wallpaper Settings UI**:
+  - Directly embedded in KDE System Settings &rarr; Wallpaper.
+  - Dynamic **Archetype Customization** section that adapts controls to the currently selected concept.
+  - 35+ hand-crafted color themes and specialty parameter sliders (rain density, water clarity, gravitational lensing, ephemeris clock sync).
+- **Interactive Developer Harness**:
+  - Standalone PyQt6 desktop application (`regel-harness`) for real-time parameter tuning, audio stream testing, and lockscreen simulation.
+- **Strict Debian Policy Compliance**:
+  - 100% offline, reproducible builds via `dpkg-source` and `dpkg-buildpackage`.
+  - Passes `lintian -I -E --pedantic` with **0 errors and 0 warnings**.
 
-| # | Concept Document | Aesthetic Archetype | Key Interactive Highlight |
+---
+
+## 🏛️ System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Audio Subsystem
+        PW["PipeWire / PulseAudio Output Tap<br/>(Desktop Audio / Mic)"] --> RD["regel-daemon<br/>(Rust + SIMD FFT)"]
+        RD --> AGC["Automatic Gain Control (AGC)<br/>+ Gamma Mapping"]
+        AGC --> DBUS_SRV["Session D-Bus Server<br/>(org.regel.Audio)"]
+    end
+
+    subgraph KDE Plasma 6 Workspace
+        DBUS_SRV -->|"PropertiesChanged Signals<br/>(bass, mids, treble)"| QML_WP["Plasma Wallpaper Plugin<br/>(org.regel.wallpaper)"]
+        DBUS_SRV -->|"PropertiesChanged Signals"| QML_LOCK["Plasma Look-and-Feel<br/>(org.regel.lockscreen)"]
+        
+        KCM["Wallpaper Settings UI<br/>(config.qml)"] -->|"D-Bus Methods<br/>(SetSource, SetAutoGain, SetGain)"| DBUS_SRV
+        KCM -->|"KConfigXT Settings"| QML_WP
+    end
+
+    subgraph Graphics & Shaders
+        QML_WP --> RHI["Qt 6 RHI / SPIR-V Shaders<br/>(.vert.qsb / .frag.qsb)"]
+        QML_LOCK --> RHI
+        RHI --> GPU["Vulkan / OpenGL GPU Pipeline"]
+    end
+```
+
+---
+
+## 🎨 The 7 Aesthetic Archetypes
+
+| # | Archetype | Aesthetic Theme | Specialized Controls & Color Palettes |
 | :-: | :--- | :--- | :--- |
-| **00** | [**Architecture & Overview**](file:///home/rchandia/workspace/regel_screensaver/docs/00-architecture-overview.md) | System Pipeline | Unified event bus, PipeWire FFT, Wayland layer-shell, & QML bindings |
-| **01** | [**Liquid Neon Abyss**](file:///home/rchandia/workspace/regel_screensaver/docs/01-liquid-neon-abyss.md) | Fluid Dynamics & Chromatic Cymatics | Navier-Stokes fluid; typing drops vibrant dye; wrong password detonates cavitation shockwaves |
-| **02** | [**The Living Petri Dish**](file:///home/rchandia/workspace/regel_screensaver/docs/02-living-petri-dish.md) | Lenia & Continuous Artificial Life | Bioluminescent solitons & amoebae; typing feeds nutrients; high cadence triggers cell mitosis |
-| **03** | [**The Tranquil Sanctuary**](file:///home/rchandia/workspace/regel_screensaver/docs/03-tranquil-koi-sanctuary.md) | Caustic Koi Pond & Boid Ecosystem | 2D wave caustics; typing drops food pellets; fast cursor motion scatters koi flocking |
-| **04** | [**Cosmic Gravitational Sandbox**](file:///home/rchandia/workspace/regel_screensaver/docs/04-cosmic-gravitational-sandbox.md) | Relativistic Black Hole & N-Body Dust | 60k particles + Einstein ring lensing; typing fuels quasar; wrong password triggers gamma-ray burst |
-| **05** | [**Synthwave Megacity**](file:///home/rchandia/workspace/regel_screensaver/docs/05-synthwave-megacity.md) | Procedural Cyberpunk Skyline | 3D skyscrapers act as audio EQ; rain on lens; wrong password initiates security protocol lockdown |
-| **06** | [**Real-Time Ephemeris Biome**](file:///home/rchandia/workspace/regel_screensaver/docs/06-realtime-ephemeris-biome.md) | Procedural Weather Terrarium | Real solar/lunar ephemeris & live weather ingestion; keystrokes release swarms of glowing fireflies |
-| **07** | [**Kinetic Spiderweb & Resonance Harp**](file:///home/rchandia/workspace/regel_screensaver/docs/07-kinetic-spiderweb-harp.md) | Tactile Elastic Lattice | Mass-spring physics; typing plucks musical harp strings and flings dew drops; pull & snap strands |
+| **01** | [**Liquid Neon Abyss**](docs/01-liquid-neon-abyss.md) | Fluid Dynamics & Cymatics | **Themes**: *Cyber Neon, Bioluminescent Abyssal, Solar Flare / Magma, Quicksilver Metal, Nordic Aurora*.<br/>Navier-Stokes fluid with reactive cymatic wave rings. |
+| **02** | [**The Living Petri Dish**](docs/02-living-petri-dish.md) | Lenia Continuous Artificial Life | **Themes**: *Deep Sea Abyssal, Bioluminescent Phytoplankton, Solar Extremophile, Ghost Amoeba, Coral Reef UV*.<br/>**Options**: Circular microscope glass slide vs borderless canvas. |
+| **03** | [**The Tranquil Sanctuary**](docs/03-tranquil-koi-sanctuary.md) | Caustic Koi Pond & Boid Flocking | **Themes**: *Spring Sakura, Kyoto Moss Garden, Twilight Fireflies, Autumn Maple, Sumi-e Monochrome*.<br/>**Options**: Water clarity & caustic depth refraction slider. |
+| **04** | [**Cosmic Gravitational Sandbox**](docs/04-cosmic-gravitational-sandbox.md) | Relativistic Black Hole & Accretion | **Presets**: *Sagittarius A\*, M87\*, Cygnus X-1, Magnetar SGR 1806-20, Gargantua, Blazar 3C 273*.<br/>**Options**: Gravitational lensing strength, auto-hyperspace cycle. |
+| **05** | [**Synthwave Megacity**](docs/05-synthwave-megacity.md) | Procedural Cyberpunk Skyline | **Themes**: *Neo-Tokyo Outrun, Blade Runner 2049, Matrix Phosphor, Syndicate Blood, Retrowave Sunset*.<br/>**Options**: Neon rain downpour density, atmospheric smog density. |
+| **06** | [**Real-Time Ephemeris Biome**](docs/06-realtime-ephemeris-biome.md) | Painterly Ghibli Weather Terrarium | **Themes**: *Yakushima Ancient Forest, Sakura Spring Dawn, Autumn Koyo, Alpine Winter, Midnight Bioluminescence*.<br/>**Options**: Weather mode (Clear, Rain, Snow, Mist), real solar clock sync. |
+| **07** | [**Kinetic Spiderweb & Resonance Harp**](docs/07-kinetic-spiderweb-harp.md) | Tactile Elastic Lattice | **Themes**: *Moonlit Gossamer, Golden Laser Harp, Bioluminescent Abyssal, Electric Synapse, Frost Crystal Web*.<br/>**Options**: Dewdrop density slider, silk elastic tension slider. |
 
 ---
 
-## 🎮 Unified Event Map Summary
+## 🚀 Installation & Setup
 
-Each concept implements reactions for the following lifecycle events:
+### Prerequisites
 
-* `onLock`: Dynamic entry transition from active desktop.
-* `onIdle`: Atmospheric stasis, calming ambient motion, power-saving low-velocity state.
-* `onWake`: Presence detection upon first mouse move or key touch.
-* `onKeyStroke`: Real-time response to each password character entered.
-* `onBackspace`: Tactical deletion response (suction, shockwave recoil, or dampening).
-* `onAuthFailed`: Dramatic rejection animation (shockwave, alarm lockdown, thunderstorm, or burst).
-* `onAuthSucceeded`: Triumphant unlock transition back to desktop workspace.
-* `onCursorMove`: Continuous pointer interaction (vorticity, attractor, predator, or light beam).
-* `onAudioSpectrum`: Low-latency PipeWire FFT frequency mapping (Sub-bass, Bass, Mids, Treble).
-* `onMicrophone`: Voice perturbation, acoustic standing waves, and breath dispersal.
+- **OS**: Modern Linux distribution running **KDE Plasma 6** on **Wayland** (Ubuntu 24.04+, Kubuntu 24.10+, Debian 13/Trixie, Fedora 40+, Arch Linux).
+- **Sound**: PipeWire (`pipewire`, `wireplumber`, `pipewire-audio-client-libraries`).
+- **Qt / QML**: Qt 6.6+ with QtQuick and Kirigami.
+
+### Option A: Install from Debian / Ubuntu Package (`.deb`)
+
+1. **Install the package**:
+   ```bash
+   sudo dpkg -i dist/regel-screensaver_0.1.0-1_amd64.deb
+   sudo apt-get install -f   # Resolves any missing runtime dependencies automatically
+   ```
+
+   *(The installer automatically enables and launches `regel-daemon.service` for your user session.)*
+
+2. **Reload Plasma Shell**:
+   ```bash
+   systemctl --user restart plasma-plasmashell.service
+   ```
+
+3. **Enable the Wallpaper**:
+   - Right-click your desktop &rarr; **Configure Desktop and Wallpaper...** (or open **System Settings &rarr; Wallpaper**).
+   - In the **Wallpaper Type** dropdown, select **Regel Interactive Canvas**.
+   - Pick your desired **Aesthetic Concept**, choose a **Color Theme**, and customize the specialty parameters.
+   - Click **Apply**!
+
+---
+
+## 🛠️ Building from Source
+
+### 1. Install Build Dependencies
+
+On Debian / Ubuntu / Kubuntu:
+```bash
+sudo apt-get install \
+    build-essential \
+    debhelper-compat \
+    cargo \
+    rustc \
+    qt6-shadertools \
+    qt6-shader-baker \
+    libpipewire-0.3-dev \
+    libdbus-1-dev \
+    pkgconf \
+    dpkg-dev \
+    lintian \
+    python3-pyqt6
+```
+
+### 2. Compile Shaders
+
+Compile all GLSL fragment and vertex shaders to Qt RHI SPIR-V binaries (`.qsb`):
+```bash
+./tools/build-shaders.sh
+```
+
+### 3. Build Safe Rust Daemon & Libraries
+
+```bash
+cargo build --release --workspace
+cargo test --workspace
+```
+
+### 4. Build Official Debian Packages
+
+To build the Debian source package (`.orig.tar.gz`, `.debian.tar.xz`, `.dsc`) followed by the binary `.deb` package and execute full Lintian verification:
+```bash
+./tools/build-deb.sh
+```
+
+To build only the pristine Debian source package:
+```bash
+./tools/package-src.sh
+```
+
+All build artifacts will be placed in the `dist/` directory:
+- `dist/regel-screensaver_0.1.0-1_amd64.deb`
+- `dist/source/regel-screensaver_0.1.0-1.dsc`
+- `dist/source/regel-screensaver_0.1.0.orig.tar.gz`
+
+---
+
+## 🧪 Interactive Developer Harness
+
+A standalone PyQt6 testing utility is included to inspect simulations, tune parameters, and test audio pipelines independently of Plasma Shell:
+
+```bash
+# Launch via helper script
+./tools/run-harness.sh
+
+# Or via installed command
+regel-harness
+```
+
+**Features in the Harness**:
+- Real-time concept switcher (1 through 7).
+- Live spectrum analyzer visualizer (sub-bass, bass, mids, treble).
+- Sensitivity gain, gamma, and AGC sliders.
+- Interactive keyboard and mouse trigger simulator (keystroke velocity, backspace suction, lock/unlock states).
+- Hot-reloading of QML visualizers and shaders.
+
+---
+
+## 📡 D-Bus IPC Protocol Reference
+
+`regel-daemon` publishes the `org.regel.Audio` service on the D-Bus session bus:
+
+- **Bus Name**: `org.regel.Audio`
+- **Object Path**: `/org/regel/Audio`
+- **Interface**: `org.regel.Audio`
+
+### Properties (`org.freedesktop.DBus.Properties`)
+
+| Property | Type | Access | Description |
+| :--- | :---: | :---: | :--- |
+| `sub_bass` | `double` | Read | Sub-bass energy (20 Hz – 60 Hz), normalized `0.0 – 1.0` |
+| `bass` | `double` | Read | Bass / Kick energy (60 Hz – 250 Hz), normalized `0.0 – 1.0` |
+| `mids` | `double` | Read | Midrange / Vocal energy (250 Hz – 2 kHz), normalized `0.0 – 1.0` |
+| `treble` | `double` | Read | Treble / High-hat energy (2 kHz – 16 kHz), normalized `0.0 – 1.0` |
+| `rms` | `double` | Read | Root-mean-square overall volume, normalized `0.0 – 1.0` |
+| `transient` | `bool` | Read | Detected sudden acoustic onset / drum hit / clap |
+| `source` | `string` | Read | Active capture source (`"monitor"` or `"mic"`) |
+| `gain` | `double` | Read | Manual gain multiplier (`1.0 – 20.0`) |
+| `auto_gain` | `bool` | Read | Whether Automatic Gain Control (AGC) is active |
+
+### Methods
+
+| Method | Arguments | Description |
+| :--- | :--- | :--- |
+| `SetSource(string source)` | `source`: `"monitor"` or `"mic"` | Dynamically re-targets the PipeWire audio tap without restarting the daemon. |
+| `SetGain(double gain)` | `gain`: `0.1` to `20.0` | Adjusts manual sensitivity multiplier. |
+| `SetAutoGain(bool auto_gain)` | `auto_gain`: `true` or `false` | Enables/disables real-time automatic gain control normalization. |
+
+---
+
+## 📜 Project Structure
+
+```
+regel_screensaver/
+├── assets/                    # Systemd service, D-Bus service, desktop icons
+├── crates/
+│   ├── regel-audio/           # PipeWire DSP, rustfft SIMD, and AGC engine
+│   ├── regel-daemon/          # Background daemon with C-based session D-Bus server
+│   └── regel-engine/          # High-performance physics and state engine
+├── debian/                    # Official Debian packaging rules, control, and metadata
+├── docs/                      # Architectural specs & concept design blueprints
+├── engine/                    # Shared QtQuick QML components & shaders
+│   ├── Palettes.qml           # Centralized color theme palette definitions
+│   └── shaders/               # GLSL vertex/fragment shaders (.qsb SPIR-V binaries)
+├── lockscreen/                # KDE Look-and-Feel lockscreen theme
+├── tools/                     # Build scripts and interactive harness
+│   ├── build-deb.sh           # Debian binary package builder (.deb)
+│   ├── build-shaders.sh       # Shader compilation script (qsb)
+│   ├── package-src.sh         # Debian source package builder (.dsc + tarball)
+│   └── harness/               # PyQt6 interactive testing harness
+└── wallpaper/                 # KDE Plasma 6 wallpaper containment plugin
+    └── contents/
+        ├── config/main.xml    # KConfigXT schema for wallpaper settings
+        └── ui/
+            ├── config.qml     # Context-sensitive wallpaper configuration UI
+            └── main.qml       # Wallpaper entrypoint & D-Bus IPC client
+```
+
+---
+
+## 📄 License
+
+Licensed under GPL-2.0-or-later. See the project source headers for license notices.
