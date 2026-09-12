@@ -22,6 +22,10 @@
       <label>Audio Input Source</label>
       <default>monitor</default>
     </entry>
+    <entry name="audioAutoGain" type="Bool">
+      <label>Auto-detect Audio Gain</label>
+      <default>true</default>
+    </entry>
     <entry name="audioGain" type="Double">
       <label>Audio Sensitivity Gain</label>
       <default>3.5</default>

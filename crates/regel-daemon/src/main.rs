@@ -21,6 +21,7 @@ extern "C" {
     fn regel_dbus_process_messages();
     fn regel_dbus_check_source_change(out_source: *mut c_char, max_len: usize) -> c_int;
     fn regel_dbus_check_gain_change(out_gain: *mut f64) -> c_int;
+    fn regel_dbus_check_auto_gain_change(out_auto_gain: *mut c_int) -> c_int;
     #[allow(dead_code)]
     fn regel_dbus_get_gain() -> f64;
 }
@@ -87,7 +88,7 @@ fn run_audio_daemon(
     mut source: String,
     mut gain: f32,
     gamma: f32,
-    auto_gain: bool,
+    mut auto_gain: bool,
     write_stdout: bool,
 ) -> io::Result<()> {
     // 1. Initialize D-Bus session service
@@ -113,6 +114,7 @@ fn run_audio_daemon(
     let mut float_samples = [0.0f32; 1024];
     let mut source_buf = [0 as c_char; 32];
     let mut new_gain = 0.0f64;
+    let mut new_auto_gain = 0 as c_int;
 
     eprintln!(
         "==> regel-daemon audio DSP active (source: '{source}') [AGC: {auto_gain}, Gain: {gain:.1}x, Gamma: {gamma:.2}]"
@@ -140,7 +142,7 @@ fn run_audio_daemon(
         // Compute FFT spectral band decomposition
         let spectrum: AudioSpectrum = analyzer.analyze(&float_samples);
 
-        // Process D-Bus incoming requests (GetAll, Get, SetSource, SetGain)
+        // Process D-Bus incoming requests (GetAll, Get, SetSource, SetGain, SetAutoGain)
         if dbus_ok {
             unsafe {
                 regel_dbus_process_messages();
@@ -165,6 +167,16 @@ fn run_audio_daemon(
                 if regel_dbus_check_gain_change(&mut new_gain as *mut f64) != 0 {
                     gain = new_gain as f32;
                     analyzer.set_manual_gain(gain);
+                }
+
+                // Check if client requested auto-gain change via D-Bus
+                if regel_dbus_check_auto_gain_change(&mut new_auto_gain as *mut c_int) != 0 {
+                    let req_auto_gain = new_auto_gain != 0;
+                    if req_auto_gain != auto_gain {
+                        auto_gain = req_auto_gain;
+                        analyzer.set_auto_gain(auto_gain);
+                        eprintln!("==> regel-daemon: Auto-gain toggled via D-Bus: {auto_gain}");
+                    }
                 }
 
                 // Broadcast spectrum over D-Bus PropertiesChanged signal

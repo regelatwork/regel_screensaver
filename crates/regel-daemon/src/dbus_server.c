@@ -14,8 +14,10 @@ static double current_rms = 0.05;
 static dbus_bool_t current_transient = FALSE;
 static char current_source[32] = "monitor";
 static double current_gain = 3.5;
+static dbus_bool_t current_auto_gain = TRUE;
 static int source_change_requested = 0;
 static int gain_change_requested = 0;
+static int auto_gain_change_requested = 0;
 
 static const char *introspection_xml =
     "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\"\n"
@@ -51,11 +53,15 @@ static const char *introspection_xml =
     "    <property name=\"transient\" type=\"b\" access=\"read\"/>\n"
     "    <property name=\"source\" type=\"s\" access=\"read\"/>\n"
     "    <property name=\"gain\" type=\"d\" access=\"read\"/>\n"
+    "    <property name=\"auto_gain\" type=\"b\" access=\"read\"/>\n"
     "    <method name=\"SetSource\">\n"
     "      <arg name=\"source\" direction=\"in\" type=\"s\"/>\n"
     "    </method>\n"
     "    <method name=\"SetGain\">\n"
     "      <arg name=\"gain\" direction=\"in\" type=\"d\"/>\n"
+    "    </method>\n"
+    "    <method name=\"SetAutoGain\">\n"
+    "      <arg name=\"auto_gain\" direction=\"in\" type=\"b\"/>\n"
     "    </method>\n"
     "  </interface>\n"
     "</node>\n";
@@ -99,6 +105,7 @@ static void build_all_properties_dict(DBusMessageIter *dict) {
     append_dict_entry_bool(dict, "transient", current_transient);
     append_dict_entry_string(dict, "source", current_source);
     append_dict_entry_double(dict, "gain", current_gain);
+    append_dict_entry_bool(dict, "auto_gain", current_auto_gain);
 }
 
 static void handle_message(DBusConnection *conn, DBusMessage *msg) {
@@ -186,6 +193,23 @@ static void handle_message(DBusConnection *conn, DBusMessage *msg) {
                 if (g >= 0.1 && g <= 20.0) {
                     current_gain = g;
                     gain_change_requested = 1;
+                }
+            }
+            reply = dbus_message_new_method_return(msg);
+        } else if (member && strcmp(member, "SetAutoGain") == 0) {
+            DBusMessageIter args;
+            if (dbus_message_iter_init(msg, &args)) {
+                int arg_type = dbus_message_iter_get_arg_type(&args);
+                if (arg_type == DBUS_TYPE_BOOLEAN) {
+                    dbus_bool_t b;
+                    dbus_message_iter_get_basic(&args, &b);
+                    current_auto_gain = b;
+                    auto_gain_change_requested = 1;
+                } else if (arg_type == DBUS_TYPE_INT32) {
+                    int val;
+                    dbus_message_iter_get_basic(&args, &val);
+                    current_auto_gain = val ? TRUE : FALSE;
+                    auto_gain_change_requested = 1;
                 }
             }
             reply = dbus_message_new_method_return(msg);
@@ -301,6 +325,15 @@ int regel_dbus_check_gain_change(double *out_gain) {
     if (gain_change_requested) {
         gain_change_requested = 0;
         *out_gain = current_gain;
+        return 1;
+    }
+    return 0;
+}
+
+int regel_dbus_check_auto_gain_change(int *out_auto_gain) {
+    if (auto_gain_change_requested) {
+        auto_gain_change_requested = 0;
+        *out_auto_gain = current_auto_gain ? 1 : 0;
         return 1;
     }
     return 0;

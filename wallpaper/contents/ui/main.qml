@@ -32,6 +32,7 @@ WallpaperItem {
     property real globalVortexSpeed: (wallpaperRoot.configuration && wallpaperRoot.configuration.vortexSpeed) ? wallpaperRoot.configuration.vortexSpeed : 0.8
     property bool audioReactive: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.audioReactive !== "undefined") ? wallpaperRoot.configuration.audioReactive : true
     property string configuredAudioSource: (wallpaperRoot.configuration && wallpaperRoot.configuration.audioSource) ? wallpaperRoot.configuration.audioSource : "monitor"
+    property bool configuredAudioAutoGain: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.audioAutoGain !== "undefined") ? wallpaperRoot.configuration.audioAutoGain : true
     property real configuredAudioGain: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.audioGain !== "undefined") ? wallpaperRoot.configuration.audioGain : 3.5
 
     // Live audio properties from D-Bus
@@ -59,6 +60,14 @@ WallpaperItem {
                 service: "org.regel.Audio",
                 path: "/org/regel/Audio",
                 iface: "org.regel.Audio",
+                member: "SetAutoGain",
+                arguments: [wallpaperRoot.configuredAudioAutoGain]
+            }, function() {}, function() {});
+
+            PlasmaDBus.SessionBus.asyncCall({
+                service: "org.regel.Audio",
+                path: "/org/regel/Audio",
+                iface: "org.regel.Audio",
                 member: "SetGain",
                 arguments: [wallpaperRoot.configuredAudioGain]
             }, function() {}, function() {});
@@ -68,6 +77,7 @@ WallpaperItem {
     }
 
     onConfiguredAudioSourceChanged: syncDaemonSettings()
+    onConfiguredAudioAutoGainChanged: syncDaemonSettings()
     onConfiguredAudioGainChanged: syncDaemonSettings()
 
     Component.onCompleted: {

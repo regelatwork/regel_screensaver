@@ -12,6 +12,7 @@ void regel_dbus_emit_spectrum(double sub_bass, double bass, double mids, double 
 void regel_dbus_process_messages(void);
 int regel_dbus_check_source_change(char *out_source, size_t max_len);
 int regel_dbus_check_gain_change(double *out_gain);
+int regel_dbus_check_auto_gain_change(int *out_auto_gain);
 double regel_dbus_get_gain(void);
 
 #ifdef __cplusplus

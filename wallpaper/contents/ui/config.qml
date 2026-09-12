@@ -12,6 +12,7 @@ Kirigami.FormLayout {
     property alias cfg_vortexSpeed: speedSlider.value
     property alias cfg_audioReactive: audioReactiveCheckBox.checked
     property string cfg_audioSource: "monitor"
+    property alias cfg_audioAutoGain: autoGainCheckBox.checked
     property alias cfg_audioGain: gainSlider.value
 
     QQC2.ComboBox {
@@ -62,10 +63,18 @@ Kirigami.FormLayout {
         }
     }
 
+    QQC2.CheckBox {
+        id: autoGainCheckBox
+        Kirigami.FormData.label: "Gain Detection:"
+        text: "Auto-detect gain (Automatic Gain Control)"
+        enabled: audioReactiveCheckBox.checked
+        checked: true
+    }
+
     QQC2.Slider {
         id: gainSlider
         Kirigami.FormData.label: "Audio Sensitivity Gain:"
-        enabled: audioReactiveCheckBox.checked
+        enabled: audioReactiveCheckBox.checked && !autoGainCheckBox.checked
         from: 1.0
         to: 10.0
         stepSize: 0.5
