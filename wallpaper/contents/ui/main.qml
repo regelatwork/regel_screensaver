@@ -28,8 +28,8 @@ WallpaperItem {
         onTriggered: wallpaperRoot.simTime += 0.016
     }
 
-    property int activeConcept: (typeof wallpaperRoot.configuration !== "undefined" && wallpaperRoot.configuration && wallpaperRoot.configuration.activeConcept) ? wallpaperRoot.configuration.activeConcept : ((typeof plasmoid !== "undefined" && plasmoid.configuration && plasmoid.configuration.activeConcept) ? plasmoid.configuration.activeConcept : 1)
-    property real globalVortexSpeed: (typeof wallpaperRoot.configuration !== "undefined" && wallpaperRoot.configuration && wallpaperRoot.configuration.vortexSpeed) ? wallpaperRoot.configuration.vortexSpeed : ((typeof plasmoid !== "undefined" && plasmoid.configuration && plasmoid.configuration.vortexSpeed) ? plasmoid.configuration.vortexSpeed : 0.8)
+    property int activeConcept: (wallpaperRoot.configuration && wallpaperRoot.configuration.activeConcept) ? wallpaperRoot.configuration.activeConcept : 1
+    property real globalVortexSpeed: (wallpaperRoot.configuration && wallpaperRoot.configuration.vortexSpeed) ? wallpaperRoot.configuration.vortexSpeed : 0.8
 
     // Concept 1: Liquid Neon Abyss GPU Shader Visualizer
     LiquidNeonAbyss {
