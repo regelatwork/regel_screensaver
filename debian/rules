@@ -50,6 +50,15 @@ override_dh_auto_install:
 	rm -rf debian/regel-screensaver/usr/share/plasma/look-and-feel/org.regel.lockscreen/contents/engine
 	ln -s ../../../wallpapers/org.regel.wallpaper/contents/engine debian/regel-screensaver/usr/share/plasma/look-and-feel/org.regel.lockscreen/contents/engine
 
+	install -d debian/regel-screensaver/usr/share/plasma/plasmoids/org.regel.widget/contents/config
+	install -d debian/regel-screensaver/usr/share/plasma/plasmoids/org.regel.widget/contents/ui
+	install -m 644 plasmoid/metadata.json debian/regel-screensaver/usr/share/plasma/plasmoids/org.regel.widget/metadata.json
+	install -m 644 plasmoid/contents/config/main.xml debian/regel-screensaver/usr/share/plasma/plasmoids/org.regel.widget/contents/config/main.xml
+	install -m 644 plasmoid/contents/config/config.qml debian/regel-screensaver/usr/share/plasma/plasmoids/org.regel.widget/contents/config/config.qml
+	install -m 644 plasmoid/contents/ui/*.qml debian/regel-screensaver/usr/share/plasma/plasmoids/org.regel.widget/contents/ui/
+	rm -rf debian/regel-screensaver/usr/share/plasma/plasmoids/org.regel.widget/contents/engine
+	ln -s ../../../wallpapers/org.regel.wallpaper/contents/engine debian/regel-screensaver/usr/share/plasma/plasmoids/org.regel.widget/contents/engine
+
 	install -m 755 tools/harness/runner.py debian/regel-screensaver/usr/share/regel/harness/runner.py
 	install -m 644 tools/harness/harness.qml debian/regel-screensaver/usr/share/regel/harness/harness.qml
 	ln -s ../../plasma/wallpapers/org.regel.wallpaper/contents/engine debian/regel-screensaver/usr/share/regel/harness/engine

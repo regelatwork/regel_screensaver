@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
+  <kcfgfile name=""/>
+
+  <group name="General">
+    <entry name="activeConcept" type="Int">
+      <label>Active Visual Archetype</label>
+      <default>1</default>
+    </entry>
+    <entry name="vortexSpeed" type="Double">
+      <label>Simulation Flow Speed</label>
+      <default>0.8</default>
+    </entry>
+    <entry name="audioReactive" type="Bool">
+      <label>Enable Audio Reactivity</label>
+      <default>true</default>
+    </entry>
+    <entry name="audioSource" type="String">
+      <label>Audio Input Source</label>
+      <default>monitor</default>
+    </entry>
+    <entry name="audioAutoGain" type="Bool">
+      <label>Auto-detect Audio Gain</label>
+      <default>true</default>
+    </entry>
+    <entry name="audioGain" type="Double">
+      <label>Audio Sensitivity Gain</label>
+      <default>3.5</default>
+    </entry>
+
+    <!-- Archetype 1: Liquid Neon Abyss -->
+    <entry name="concept1Palette" type="Int">
+      <label>Fluid Abyss Color Palette</label>
+      <default>0</default>
+    </entry>
+
+    <!-- Archetype 2: The Living Petri Dish -->
+    <entry name="concept2Palette" type="Int">
+      <label>Petri Dish Color Palette</label>
+      <default>0</default>
+    </entry>
+    <entry name="petriAperture" type="Bool">
+      <label>Circular Microscope Lens Slide</label>
+      <default>false</default>
+    </entry>
+
+    <!-- Archetype 3: The Tranquil Sanctuary (Koi Pond) -->
+    <entry name="concept3Palette" type="Int">
+      <label>Koi Pond Zen Palette</label>
+      <default>0</default>
+    </entry>
+    <entry name="koiWaterClarity" type="Double">
+      <label>Water Clarity &amp; Caustics</label>
+      <default>1.0</default>
+    </entry>
+
+    <!-- Archetype 4: Cosmic Gravitational Sandbox -->
+    <entry name="concept4Palette" type="Int">
+      <label>Celestial Object &amp; Accretion Palette</label>
+      <default>0</default>
+    </entry>
+    <entry name="cosmicLensStrength" type="Double">
+      <label>Gravitational Lensing Strength</label>
+      <default>1.0</default>
+    </entry>
+    <entry name="cosmicAutoCycle" type="Bool">
+      <label>Auto-Hyperspace Rotation</label>
+      <default>true</default>
+    </entry>
+
+    <!-- Archetype 5: Procedural Synthwave Megacity -->
+    <entry name="concept5Palette" type="Int">
+      <label>Megacity Cyberpunk Palette</label>
+      <default>0</default>
+    </entry>
+    <entry name="cityRainDensity" type="Double">
+      <label>Neon Rain Downpour Density</label>
+      <default>0.65</default>
+    </entry>
+    <entry name="cityFogDensity" type="Double">
+      <label>Volumetric Smog &amp; Fog Density</label>
+      <default>0.85</default>
+    </entry>
+
+    <!-- Archetype 6: Real-Time Ephemeris Biome -->
+    <entry name="concept6Palette" type="Int">
+      <label>Painterly Biome Season Palette</label>
+      <default>0</default>
+    </entry>
+    <entry name="biomeWeatherMode" type="Int">
+      <label>Atmospheric Weather Mode</label>
+      <default>0</default>
+    </entry>
+    <entry name="biomeSyncClock" type="Bool">
+      <label>Sync Sun/Moon to Real System Clock</label>
+      <default>true</default>
+    </entry>
+
+    <!-- Archetype 7: Kinetic Spiderweb &amp; Resonance Harp -->
+    <entry name="concept7Palette" type="Int">
+      <label>Resonance Harp Palette</label>
+      <default>0</default>
+    </entry>
+    <entry name="harpDewDensity" type="Double">
+      <label>Dewdrop Concentration</label>
+      <default>0.75</default>
+    </entry>
+    <entry name="harpTension" type="Double">
+      <label>Silk Lattice Elastic Tension</label>
+      <default>1.0</default>
+    </entry>
+  </group>
+
+</kcfg>

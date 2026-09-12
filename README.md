@@ -11,12 +11,17 @@
 
 1. **Passive Ambient Desktop Wallpaper**: Runs unobtrusively beneath desktop icons, reacting to cursor sweeps, background music/audio spectrums, microphone transients, and system telemetry.
 2. **Interactive Screensaver & Lock Screen**: Takes command of the screen upon idle/lock, unlocking micro-interactions across every step of the authentication lifecycle: typing rhythms, backspace deletions, authentication failure shockwaves, and unlock transitions.
+3. **Desktop & Panel Plasma Widget (`org.regel.widget`)**: Can be placed as a resizable visualizer directly on the desktop canvas (for users with static photo wallpapers) or pinned to the Plasma panel as an animated compact audio spectrum meter with an expandable popup.
 
 ---
 
 ## ✨ Key Features
 
 - **7 Procedural Aesthetic Archetypes**: From Navier-Stokes fluid dynamics and continuous artificial life (Lenia) to relativistic black hole gravitational lensing and cyberpunk raymarched skylines.
+- **Versatile Plasma 6 Integrations**:
+  - **Wallpaper Containment Plugin (`org.regel.wallpaper`)**: Immersive, full-screen interactive background.
+  - **Desktop & Panel Widget / Plasmoid (`org.regel.widget`)**: Freely resizable planar widget on the desktop or animated compact equalizer in the taskbar panel with interactive popup HUD.
+  - **Lock Screen Look-and-Feel (`org.regel.lockscreen`)**: Full authentication lifecycle integration.
 - **Zero-Configuration Audio Reactivity**:
   - Live PipeWire audio tap (`pw-record` / `parec`) monitoring desktop output ("What You Hear") or microphone.
   - Real-time SIMD FFT spectral decomposition into 6 frequency bands (`sub_bass`, `bass`, `mids`, `treble`, `rms`, `transient`).
@@ -26,10 +31,11 @@
   - Pure Qt 6 QML / QtQuick with Vulkan / OpenGL Qt RHI shaders (SPIR-V compiled via `qsb`).
   - Native `org.kde.plasma.workspace.dbus` integration without third-party C++ QML plugins.
   - Full Wayland protocol compliance with cursor hover pass-through for desktop icons.
-- **Context-Sensitive Wallpaper Settings UI**:
-  - Directly embedded in KDE System Settings &rarr; Wallpaper.
+- **Context-Sensitive Settings & HUD**:
+  - Embedded in KDE System Settings &rarr; Wallpaper and Widget Configuration Dialog.
   - Dynamic **Archetype Customization** section that adapts controls to the currently selected concept.
   - 35+ hand-crafted color themes and specialty parameter sliders (rain density, water clarity, gravitational lensing, ephemeris clock sync).
+  - Floating on-screen HUD for quick concept switching (`<` and `>`), live audio status, and settings access.
 - **Interactive Developer Harness**:
   - Standalone PyQt6 desktop application (`regel-harness`) for real-time parameter tuning, audio stream testing, and lockscreen simulation.
 - **Strict Debian Policy Compliance**:
@@ -51,14 +57,17 @@ flowchart TD
     subgraph KDE Plasma 6 Workspace
         DBUS_SRV -->|"PropertiesChanged Signals<br/>(bass, mids, treble)"| QML_WP["Plasma Wallpaper Plugin<br/>(org.regel.wallpaper)"]
         DBUS_SRV -->|"PropertiesChanged Signals"| QML_LOCK["Plasma Look-and-Feel<br/>(org.regel.lockscreen)"]
+        DBUS_SRV -->|"PropertiesChanged Signals"| QML_WIDGET["Desktop & Panel Widget<br/>(org.regel.widget)"]
         
-        KCM["Wallpaper Settings UI<br/>(config.qml)"] -->|"D-Bus Methods<br/>(SetSource, SetAutoGain, SetGain)"| DBUS_SRV
+        KCM["Configuration UI<br/>(config.qml / ConfigGeneral.qml)"] -->|"D-Bus Methods<br/>(SetSource, SetAutoGain, SetGain)"| DBUS_SRV
         KCM -->|"KConfigXT Settings"| QML_WP
+        KCM -->|"KConfigXT Settings"| QML_WIDGET
     end
 
     subgraph Graphics & Shaders
         QML_WP --> RHI["Qt 6 RHI / SPIR-V Shaders<br/>(.vert.qsb / .frag.qsb)"]
         QML_LOCK --> RHI
+        QML_WIDGET --> RHI
         RHI --> GPU["Vulkan / OpenGL GPU Pipeline"]
     end
 ```
@@ -107,6 +116,11 @@ flowchart TD
    - In the **Wallpaper Type** dropdown, select **Regel Interactive Canvas**.
    - Pick your desired **Aesthetic Concept**, choose a **Color Theme**, and customize the specialty parameters.
    - Click **Apply**!
+
+4. **Add the Widget (Desktop or Panel)**:
+   - **Desktop Canvas**: Right-click your desktop &rarr; **Add Widgets...** &rarr; Search for `Regel Audio Visualizer` &rarr; Drag it onto the desktop. You can freely resize it, interact with physics ripples using your mouse, and switch archetypes using the on-hover HUD (`<` and `>`) or middle-click!
+   - **Panel / Taskbar**: Right-click your panel &rarr; **Add Widgets...** &rarr; Drag `Regel Audio Visualizer` into the panel. An animated 4-band neon spectrum meter dances to your music in real time. Click the icon to expand into the full popup visualizer.
+   - **Configure Widget**: Right-click the widget &rarr; **Configure Regel Audio Visualizer...** to choose themes, flow speed, and audio inputs.
 
 ---
 
@@ -232,6 +246,15 @@ regel_screensaver/
 │   ├── Palettes.qml           # Centralized color theme palette definitions
 │   └── shaders/               # GLSL vertex/fragment shaders (.qsb SPIR-V binaries)
 ├── lockscreen/                # KDE Look-and-Feel lockscreen theme
+├── plasmoid/                  # KDE Plasma 6 Desktop & Panel Widget (org.regel.widget)
+│   ├── metadata.json          # Plasma applet metadata
+│   └── contents/
+│       ├── config/            # KConfigXT schema & ConfigModel definition
+│       └── ui/
+│           ├── CompactRepresentation.qml  # Animated neon spectrum meter for panel
+│           ├── ConfigGeneral.qml          # Full widget configuration dialog
+│           ├── FullRepresentation.qml     # Visualizer canvas with interactive HUD
+│           └── main.qml                   # PlasmoidItem entrypoint & D-Bus client
 ├── tools/                     # Build scripts and interactive harness
 │   ├── build-deb.sh           # Debian binary package builder (.deb)
 │   ├── build-shaders.sh       # Shader compilation script (qsb)

@@ -1,0 +1,24 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "info@regel.org",
+                "Name": "Regel Contributors"
+            }
+        ],
+        "Category": "Multimedia",
+        "Description": "Interactive audio-reactive visualizer widget embedding 7 physics-driven shader archetypes",
+        "Icon": "multimedia-audio-player",
+        "Id": "org.regel.widget",
+        "License": "GPLv2+",
+        "Name": "Regel Audio Visualizer",
+        "Version": "0.1.0",
+        "Website": "https://github.com/regelatwork/regel_screensaver"
+    },
+    "Keywords": "audio;visualizer;plasma;widget;cymatics;fluid;shader;music;spectrum;reactive;",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-Provides": [
+        "org.kde.plasma.multimedia"
+    ]
+}
