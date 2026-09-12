@@ -1,0 +1,63 @@
+#!/usr/bin/make -f
+include /usr/share/dpkg/architecture.mk
+
+export DH_VERBOSE = 1
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	./tools/build-shaders.sh
+	cargo build --release --workspace
+
+override_dh_auto_test:
+	cargo test --workspace
+
+override_dh_auto_install:
+	install -d debian/regel-screensaver/usr/bin
+	install -d debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)
+	install -d debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/qt6/qml/org/regel/engine/shaders
+	install -d debian/regel-screensaver/usr/lib/systemd/user
+	install -d debian/regel-screensaver/usr/share/applications
+	install -d debian/regel-screensaver/usr/share/icons/hicolor/scalable/apps
+	install -d debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/ui
+	install -d debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/engine/shaders
+	install -d debian/regel-screensaver/usr/share/plasma/look-and-feel/org.regel.lockscreen/contents/lockscreen
+	install -d debian/regel-screensaver/usr/share/plasma/look-and-feel/org.regel.lockscreen/contents/engine
+	install -d debian/regel-screensaver/usr/share/regel/harness
+	install -d debian/regel-screensaver/usr/share/doc/regel-screensaver/docs
+
+	install -m 755 target/release/regel-daemon debian/regel-screensaver/usr/bin/regel-daemon
+	install -m 644 target/release/libregel_engine.so debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/libregel_engine.so
+
+	install -m 755 tools/run-harness.sh debian/regel-screensaver/usr/bin/regel-harness
+
+	install -m 644 engine/*.qml debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/qt6/qml/org/regel/engine/
+	install -m 644 engine/qmldir debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/qt6/qml/org/regel/engine/
+	install -m 644 engine/shaders/*.qsb debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/qt6/qml/org/regel/engine/shaders/
+
+	install -m 644 wallpaper/metadata.json debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/metadata.json
+	install -m 644 wallpaper/contents/ui/main.qml debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/ui/main.qml
+	install -m 644 engine/*.qml debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/engine/
+	install -m 644 engine/qmldir debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/engine/
+	install -m 644 engine/shaders/*.qsb debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/engine/shaders/
+
+	install -m 644 lockscreen/metadata.json debian/regel-screensaver/usr/share/plasma/look-and-feel/org.regel.lockscreen/metadata.json
+	install -m 644 lockscreen/contents/lockscreen/LockScreenUi.qml debian/regel-screensaver/usr/share/plasma/look-and-feel/org.regel.lockscreen/contents/lockscreen/LockScreenUi.qml
+	rm -rf debian/regel-screensaver/usr/share/plasma/look-and-feel/org.regel.lockscreen/contents/engine
+	ln -s ../../../wallpapers/org.regel.wallpaper/contents/engine debian/regel-screensaver/usr/share/plasma/look-and-feel/org.regel.lockscreen/contents/engine
+
+	install -m 755 tools/harness/runner.py debian/regel-screensaver/usr/share/regel/harness/runner.py
+	install -m 644 tools/harness/harness.qml debian/regel-screensaver/usr/share/regel/harness/harness.qml
+	ln -s ../../plasma/wallpapers/org.regel.wallpaper/contents/engine debian/regel-screensaver/usr/share/regel/harness/engine
+
+	install -m 644 assets/regel-daemon.service debian/regel-screensaver/usr/lib/systemd/user/regel-daemon.service
+	install -m 644 assets/org.regel.harness.desktop debian/regel-screensaver/usr/share/applications/org.regel.harness.desktop
+	install -m 644 assets/icons/regel-screensaver.svg debian/regel-screensaver/usr/share/icons/hicolor/scalable/apps/regel-screensaver.svg
+	install -m 644 README.md debian/regel-screensaver/usr/share/doc/regel-screensaver/README.md
+	install -m 644 docs/*.md debian/regel-screensaver/usr/share/doc/regel-screensaver/docs/
+
+override_dh_auto_clean:
+	cargo clean || true
+	rm -rf dist build target
+	rm -f engine/shaders/*.qsb

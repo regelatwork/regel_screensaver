@@ -1,0 +1,47 @@
+Source: regel-screensaver
+Section: kde
+Maintainer: Regel Project Contributors <info@regel.org>
+Build-Depends:
+ debhelper-compat (= 14),
+ cargo,
+ rustc,
+ qt6-shader-baker | qt6-shadertools,
+ libpipewire-0.3-dev,
+ pkgconf
+Standards-Version: 4.7.4
+Homepage: https://github.com/rchandia/regel_screensaver
+Vcs-Git: https://github.com/rchandia/regel_screensaver.git
+Vcs-Browser: https://github.com/rchandia/regel_screensaver
+
+Package: regel-screensaver
+Architecture: any
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+ pipewire (>= 0.3.65) | pipewire-audio-client-libraries,
+ python3 (>= 3.10),
+ python3-pyqt6,
+ qml6-module-qtquick,
+ qml6-module-qtquick-controls,
+ plasma-workspace (>= 6.0.0)
+Recommends:
+ kscreenlocker,
+ wireplumber,
+ libplasma7 | libplasma6
+Suggests:
+ pulseaudio-utils
+Description: Audio-reactive interactive wallpapers and screensavers for KDE Plasma 6
+ Regel is an audio-reactive, physics-driven desktop canvas and screensaver
+ suite running natively on modern Linux desktops using KDE Plasma 6 on Wayland.
+ .
+ Features 7 high-performance procedural archetypes:
+  * Liquid Neon Abyss: Navier-Stokes fluid dynamics and chromatic cymatics
+  * The Living Petri Dish: Continuous artificial life (Lenia) solitons
+  * The Tranquil Sanctuary: Caustic koi pond, depth refraction & boid flocking
+  * Cosmic Gravitational Sandbox: Relativistic black hole lensing & dust jets
+  * Synthwave Megacity: 3D raymarched cyberpunk skyline with rain acoustics
+  * Real-Time Ephemeris Biome: Real solar/lunar ephemeris & weather terrarium
+  * Kinetic Spiderweb & Resonance Harp: Mass-spring transverse wave harmonics
+ .
+ Ships with a low-latency PipeWire audio FFT engine, lockscreen authentication
+ security reactivity, and an interactive developer testing harness.

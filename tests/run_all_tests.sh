@@ -85,6 +85,16 @@ else
     echo "    dpkg-deb not available, skipping packaging verification."
 fi
 
+echo "--> 7. Validating Debian Source Package & Lintian Conformance..."
+if command -v dpkg-source &>/dev/null && command -v lintian &>/dev/null; then
+    ./tools/package-src.sh
+    test -f "dist/source/regel-screensaver_0.1.0.orig.tar.gz"
+    test -f "dist/source/regel-screensaver_0.1.0-1.dsc"
+    echo "    Debian source package built and passed Lintian verification successfully."
+else
+    echo "    dpkg-source or lintian not available, skipping source package verification."
+fi
+
 echo "================================================="
 echo "  ALL TESTS PASSED SUCCESSFULLY!                 "
 echo "================================================="

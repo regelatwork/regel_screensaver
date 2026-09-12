@@ -1,0 +1,9 @@
+regel-screensaver (0.1.0-1) unstable; urgency=medium
+
+  * Initial Debian release.
+  * 7 procedural audio-reactive visual archetypes.
+  * Safe Rust PipeWire audio analyzer and physics engine.
+  * Native Qt 6 RHI SPIR-V shader pipeline.
+  * Plasma 6 wallpaper containment and kscreenlocker integration.
+
+ -- Regel Project Contributors <info@regel.org>  Fri, 11 Sep 2026 22:30:00 -0400
