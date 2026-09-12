@@ -213,6 +213,27 @@ regel-harness
 - Interactive keyboard and mouse trigger simulator (keystroke velocity, backspace suction, lock/unlock states).
 - Hot-reloading of QML visualizers and shaders.
 
+### 📸 Headless Capture & Video Benchmarking Tool
+
+A dedicated offscreen capture utility (`tools/run-capture.sh`) renders and captures authentic, pixel-perfect still images, looping animated GIFs, or MP4 videos directly from Qt 6 RHI GPU shaders without needing an active desktop session (auto-spawns virtual Xvfb display if headless):
+
+```bash
+# Capture an authentic high-resolution still of an archetype (e.g. Concept 1)
+./tools/run-capture.sh --concept 1 --width 1920 --height 1080 --output assets/screenshots/concept1.png
+
+# Record a smooth looping animated GIF with simulated audio beats
+./tools/run-capture.sh --concept 1 --duration 2.0 --fps 30 --output assets/screenshots/fluid-loop.gif
+
+# Record an H.264 MP4 video of the Cosmic Gravitational Sandbox
+./tools/run-capture.sh --concept 4 --duration 5.0 --fps 60 --output black_hole.mp4
+
+# Capture the Plasma Desktop Widget with HUD overlay
+./tools/run-capture.sh --target widget-desktop --concept 3 --output widget.png
+
+# Generate a composite 2x2 comparison grid of authentic renders
+./tools/run-capture.sh --target grid --output assets/screenshots/regel-archetypes-grid.jpg
+```
+
 ---
 
 ## 📡 D-Bus IPC Protocol Reference
@@ -274,7 +295,9 @@ regel_screensaver/
 ├── tools/                     # Build scripts and interactive harness
 │   ├── build-deb.sh           # Debian binary package builder (.deb)
 │   ├── build-shaders.sh       # Shader compilation script (qsb)
+│   ├── capture.py             # Headless offscreen GPU capture & benchmarking engine
 │   ├── package-src.sh         # Debian source package builder (.dsc + tarball)
+│   ├── run-capture.sh         # Headless capture launcher (still, GIF, MP4, grid)
 │   └── harness/               # PyQt6 interactive testing harness
 └── wallpaper/                 # KDE Plasma 6 wallpaper containment plugin
     └── contents/

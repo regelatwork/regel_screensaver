@@ -252,7 +252,7 @@ Item {
                     id: audioStatusLabel
                     anchors.centerIn: parent
                     text: fullRep.plasmoidItem.isAudioLive ? "● LIVE" : "○ IDLE"
-                    font.pixelSize: Kirigami.Units.fontMetrics.font.pixelSize * 0.75
+                    font.pixelSize: Math.round(Kirigami.Theme.defaultFont.pixelSize * 0.8)
                     font.weight: Font.Bold
                     color: fullRep.plasmoidItem.isAudioLive ? "#00ffd5" : "#aaaaaa"
                 }
