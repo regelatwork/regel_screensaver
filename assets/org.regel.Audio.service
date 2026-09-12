@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.regel.Audio
+Exec=/usr/bin/regel-daemon
+SystemdService=regel-daemon.service

@@ -14,6 +14,18 @@
       <label>Simulation Flow Speed</label>
       <default>0.8</default>
     </entry>
+    <entry name="audioReactive" type="Bool">
+      <label>Enable Audio Reactivity</label>
+      <default>true</default>
+    </entry>
+    <entry name="audioSource" type="String">
+      <label>Audio Input Source</label>
+      <default>monitor</default>
+    </entry>
+    <entry name="audioGain" type="Double">
+      <label>Audio Sensitivity Gain</label>
+      <default>3.5</default>
+    </entry>
   </group>
 
 </kcfg>

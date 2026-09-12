@@ -1,5 +1,6 @@
 import QtQuick
 import org.kde.plasma.plasmoid
+import org.kde.plasma.workspace.dbus as PlasmaDBus
 import "../engine"
 
 WallpaperItem {
@@ -13,12 +14,73 @@ WallpaperItem {
         z: -1
     }
 
+    // D-Bus IPC connection to regel-daemon
+    PlasmaDBus.Properties {
+        id: audioProps
+        service: "org.regel.Audio"
+        path: "/org/regel/Audio"
+        iface: "org.regel.Audio"
+        busType: PlasmaDBus.BusType.Session
+    }
+
     property real simTime: 0.0
-    property real bass: 0.08
-    property real mids: 0.05
-    property real treble: 0.05
     property point pointerPos: Qt.point(0.5, 0.5)
     property point pointerVel: Qt.point(0.0, 0.0)
+
+    // Configuration bindings
+    property int activeConcept: (wallpaperRoot.configuration && wallpaperRoot.configuration.activeConcept) ? wallpaperRoot.configuration.activeConcept : 1
+    property real globalVortexSpeed: (wallpaperRoot.configuration && wallpaperRoot.configuration.vortexSpeed) ? wallpaperRoot.configuration.vortexSpeed : 0.8
+    property bool audioReactive: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.audioReactive !== "undefined") ? wallpaperRoot.configuration.audioReactive : true
+    property string configuredAudioSource: (wallpaperRoot.configuration && wallpaperRoot.configuration.audioSource) ? wallpaperRoot.configuration.audioSource : "monitor"
+    property real configuredAudioGain: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.audioGain !== "undefined") ? wallpaperRoot.configuration.audioGain : 3.5
+
+    // Live audio properties from D-Bus
+    property bool isAudioLive: audioProps.properties && typeof audioProps.properties.bass === "number"
+    property real liveBass: isAudioLive ? audioProps.properties.bass : 0.08
+    property real liveMids: isAudioLive ? audioProps.properties.mids : 0.05
+    property real liveTreble: isAudioLive ? audioProps.properties.treble : 0.05
+
+    // Active audio levels fed into visualizers
+    property real bass: (audioReactive && isAudioLive) ? liveBass : 0.08
+    property real mids: (audioReactive && isAudioLive) ? liveMids : 0.05
+    property real treble: (audioReactive && isAudioLive) ? liveTreble : 0.05
+
+    function syncDaemonSettings() {
+        try {
+            PlasmaDBus.SessionBus.asyncCall({
+                service: "org.regel.Audio",
+                path: "/org/regel/Audio",
+                iface: "org.regel.Audio",
+                member: "SetSource",
+                arguments: [wallpaperRoot.configuredAudioSource]
+            }, function() {}, function() {});
+
+            PlasmaDBus.SessionBus.asyncCall({
+                service: "org.regel.Audio",
+                path: "/org/regel/Audio",
+                iface: "org.regel.Audio",
+                member: "SetGain",
+                arguments: [wallpaperRoot.configuredAudioGain]
+            }, function() {}, function() {});
+        } catch (e) {
+            // Daemon will pick up default or active config upon connection
+        }
+    }
+
+    onConfiguredAudioSourceChanged: syncDaemonSettings()
+    onConfiguredAudioGainChanged: syncDaemonSettings()
+
+    Component.onCompleted: {
+        syncDaemonSettings();
+    }
+
+    Timer {
+        id: syncRetryTimer
+        interval: 1000
+        repeat: false
+        running: true
+        onTriggered: wallpaperRoot.syncDaemonSettings()
+    }
 
     // Simulation frame timer
     Timer {
@@ -27,9 +89,6 @@ WallpaperItem {
         repeat: true
         onTriggered: wallpaperRoot.simTime += 0.016
     }
-
-    property int activeConcept: (wallpaperRoot.configuration && wallpaperRoot.configuration.activeConcept) ? wallpaperRoot.configuration.activeConcept : 1
-    property real globalVortexSpeed: (wallpaperRoot.configuration && wallpaperRoot.configuration.vortexSpeed) ? wallpaperRoot.configuration.vortexSpeed : 0.8
 
     // Concept 1: Liquid Neon Abyss GPU Shader Visualizer
     LiquidNeonAbyss {

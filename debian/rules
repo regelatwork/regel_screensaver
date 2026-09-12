@@ -55,10 +55,15 @@ override_dh_auto_install:
 	ln -s ../../plasma/wallpapers/org.regel.wallpaper/contents/engine debian/regel-screensaver/usr/share/regel/harness/engine
 
 	install -m 644 assets/regel-daemon.service debian/regel-screensaver/usr/lib/systemd/user/regel-daemon.service
+	install -d debian/regel-screensaver/usr/share/dbus-1/services
+	install -m 644 assets/org.regel.Audio.service debian/regel-screensaver/usr/share/dbus-1/services/org.regel.Audio.service
 	install -m 644 assets/org.regel.harness.desktop debian/regel-screensaver/usr/share/applications/org.regel.harness.desktop
 	install -m 644 assets/icons/regel-screensaver.svg debian/regel-screensaver/usr/share/icons/hicolor/scalable/apps/regel-screensaver.svg
 	install -m 644 README.md debian/regel-screensaver/usr/share/doc/regel-screensaver/README.md
 	install -m 644 docs/*.md debian/regel-screensaver/usr/share/doc/regel-screensaver/docs/
+
+override_dh_installsystemduser:
+	dh_installsystemduser --name=regel-daemon
 
 override_dh_auto_clean:
 	cargo clean || true

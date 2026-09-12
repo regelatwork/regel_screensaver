@@ -10,6 +10,9 @@ Kirigami.FormLayout {
     property alias formLayout: root
     property int cfg_activeConcept: 1
     property alias cfg_vortexSpeed: speedSlider.value
+    property alias cfg_audioReactive: audioReactiveCheckBox.checked
+    property string cfg_audioSource: "monitor"
+    property alias cfg_audioGain: gainSlider.value
 
     QQC2.ComboBox {
         id: conceptComboBox
@@ -36,5 +39,36 @@ Kirigami.FormLayout {
         to: 2.0
         stepSize: 0.1
         value: 0.8
+    }
+
+    QQC2.CheckBox {
+        id: audioReactiveCheckBox
+        Kirigami.FormData.label: "Audio Reactivity:"
+        text: "React to System Audio (PipeWire FFT)"
+        checked: true
+    }
+
+    QQC2.ComboBox {
+        id: audioSourceComboBox
+        Kirigami.FormData.label: "Audio Input Source:"
+        enabled: audioReactiveCheckBox.checked
+        model: [
+            "System Audio (Desktop Output)",
+            "Microphone (Voice & Claps)"
+        ]
+        currentIndex: (root.cfg_audioSource === "mic") ? 1 : 0
+        onActivated: (index) => {
+            root.cfg_audioSource = (index === 1) ? "mic" : "monitor"
+        }
+    }
+
+    QQC2.Slider {
+        id: gainSlider
+        Kirigami.FormData.label: "Audio Sensitivity Gain:"
+        enabled: audioReactiveCheckBox.checked
+        from: 1.0
+        to: 10.0
+        stepSize: 0.5
+        value: 3.5
     }
 }

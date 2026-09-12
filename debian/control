@@ -7,6 +7,7 @@ Build-Depends:
  rustc,
  qt6-shader-baker | qt6-shadertools,
  libpipewire-0.3-dev,
+ libdbus-1-dev,
  pkgconf
 Standards-Version: 4.7.4
 Homepage: https://github.com/rchandia/regel_screensaver
