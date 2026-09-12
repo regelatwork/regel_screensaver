@@ -12,8 +12,8 @@
         "Icon": "preferences-desktop-screensaver",
         "Id": "org.regel.lockscreen",
         "License": "GPLv2+",
-        "Name": "Regel Interactive Screensaver",
-        "Version": "0.1.0",
+        "Name": "Regel Kinetic Lock Screen",
+        "Version": "0.2.0",
         "Website": "https://github.com/regelatwork/regel_screensaver"
     },
     "Keywords": "screensaver;lockscreen;audio;reactive;"

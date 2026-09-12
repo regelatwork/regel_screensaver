@@ -3,15 +3,23 @@
 > **Next-Generation Audio-Reactive Interactive Wallpapers & Screensavers for KDE Plasma 6**  
 > Running natively on modern Linux (Wayland, PipeWire, Qt 6 RHI, and Safe Rust).
 
+<div align="center">
+  <img src="assets/screenshots/regel-hero-banner.jpg" alt="Regel Screensaver & Audio Visualizer on KDE Plasma 6" width="100%">
+</div>
+
 ---
 
 ## 🌟 Overview
 
-`regel_screensaver` transforms standard, static desktop backgrounds into living, responsive canvases operating across two distinct domains:
+`regel_screensaver` transforms standard, static desktop backgrounds into living, responsive canvases operating across three distinct domains:
 
 1. **Passive Ambient Desktop Wallpaper**: Runs unobtrusively beneath desktop icons, reacting to cursor sweeps, background music/audio spectrums, microphone transients, and system telemetry.
 2. **Interactive Screensaver & Lock Screen**: Takes command of the screen upon idle/lock, unlocking micro-interactions across every step of the authentication lifecycle: typing rhythms, backspace deletions, authentication failure shockwaves, and unlock transitions.
 3. **Desktop & Panel Plasma Widget (`org.regel.widget`)**: Can be placed as a resizable visualizer directly on the desktop canvas (for users with static photo wallpapers) or pinned to the Plasma panel as an animated compact audio spectrum meter with an expandable popup.
+
+<div align="center">
+  <img src="assets/screenshots/regel-widget-preview.jpg" alt="Regel Desktop Widget and Taskbar Panel Applet" width="100%">
+</div>
 
 ---
 
@@ -27,6 +35,10 @@
   - Real-time SIMD FFT spectral decomposition into 6 frequency bands (`sub_bass`, `bass`, `mids`, `treble`, `rms`, `transient`).
   - Automatic Gain Control (AGC) with dynamic headroom normalization.
   - Zero terminal setup required: auto-starts on login via systemd user service and features D-Bus on-demand auto-activation.
+
+<div align="center">
+  <img src="assets/screenshots/regel-live-equalizer.gif" alt="Real-time PipeWire Audio Reactivity Equalizer" width="90%">
+</div>
 - **Native KDE Plasma 6 Integration**:
   - Pure Qt 6 QML / QtQuick with Vulkan / OpenGL Qt RHI shaders (SPIR-V compiled via `qsb`).
   - Native `org.kde.plasma.workspace.dbus` integration without third-party C++ QML plugins.
@@ -76,6 +88,10 @@ flowchart TD
 
 ## 🎨 The 7 Aesthetic Archetypes
 
+<div align="center">
+  <img src="assets/screenshots/regel-archetypes-grid.jpg" alt="Regel Aesthetic Archetypes Showcase (Liquid Abyss, Koi Sanctuary, Cosmic Sandbox, Synthwave Megacity)" width="100%">
+</div>
+
 | # | Archetype | Aesthetic Theme | Specialized Controls & Color Palettes |
 | :-: | :--- | :--- | :--- |
 | **01** | [**Liquid Neon Abyss**](docs/01-liquid-neon-abyss.md) | Fluid Dynamics & Cymatics | **Themes**: *Cyber Neon, Bioluminescent Abyssal, Solar Flare / Magma, Quicksilver Metal, Nordic Aurora*.<br/>Navier-Stokes fluid with reactive cymatic wave rings. |
@@ -100,7 +116,7 @@ flowchart TD
 
 1. **Install the package**:
    ```bash
-   sudo dpkg -i dist/regel-screensaver_0.1.0-1_amd64.deb
+   sudo dpkg -i dist/regel-screensaver_0.2.0-1_amd64.deb
    sudo apt-get install -f   # Resolves any missing runtime dependencies automatically
    ```
 
@@ -172,9 +188,9 @@ To build only the pristine Debian source package:
 ```
 
 All build artifacts will be placed in the `dist/` directory:
-- `dist/regel-screensaver_0.1.0-1_amd64.deb`
-- `dist/source/regel-screensaver_0.1.0-1.dsc`
-- `dist/source/regel-screensaver_0.1.0.orig.tar.gz`
+- `dist/regel-screensaver_0.2.0-1_amd64.deb`
+- `dist/source/regel-screensaver_0.2.0-1.dsc`
+- `dist/source/regel-screensaver_0.2.0.orig.tar.gz`
 
 ---
 

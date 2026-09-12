@@ -1,3 +1,14 @@
+regel-screensaver (0.2.0-1) unstable; urgency=medium
+
+  * Release v0.2.0: Native KDE Plasma 6 Desktop & Panel Audio Visualizer.
+  * New Plasmoid 'org.regel.widget' compliant with Plasma/Applet standard.
+  * Resizable planar desktop containment and compact animated panel equalizer.
+  * Interactive on-hover HUD with archetype cycling and live audio telemetry.
+  * Dedicated KCM.SimpleKCM widget configuration dialog (ConfigGeneral.qml).
+  * High-resolution showcase banners, widget previews, and animated GIFs.
+
+ -- Regel Project Contributors <info@regel.org>  Sat, 12 Sep 2026 03:30:00 -0400
+
 regel-screensaver (0.1.0-1) unstable; urgency=medium
 
   * Initial Debian release. (Closes: #1000000)
