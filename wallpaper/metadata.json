@@ -14,7 +14,7 @@
         "License": "GPLv2+",
         "Name": "Regel Interactive Canvas",
         "Version": "0.1.0",
-        "Website": "https://github.com/rchandia/regel_screensaver"
+        "Website": "https://github.com/regelatwork/regel_screensaver"
     },
     "Keywords": "wallpaper;canvas;audio;reactive;screensaver;",
     "X-KDE-ParentApp": "org.kde.plasmashell"

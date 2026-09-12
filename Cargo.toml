@@ -11,7 +11,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Regel Project Contributors"]
 license = "GPL-2.0-or-later"
-repository = "https://github.com/rchandia/regel_screensaver"
+repository = "https://github.com/regelatwork/regel_screensaver"
 
 [workspace.dependencies]
 # Audio and DSP

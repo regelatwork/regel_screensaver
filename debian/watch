@@ -1,4 +1,4 @@
 version=5
 opts="mode=git,gitmode=shallow" \
-https://github.com/rchandia/regel_screensaver.git \
+https://github.com/regelatwork/regel_screensaver.git \
 refs/tags/v?@ANY_VERSION@

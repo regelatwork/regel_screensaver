@@ -10,9 +10,9 @@ Build-Depends:
  libdbus-1-dev,
  pkgconf
 Standards-Version: 4.7.4
-Homepage: https://github.com/rchandia/regel_screensaver
-Vcs-Git: https://github.com/rchandia/regel_screensaver.git
-Vcs-Browser: https://github.com/rchandia/regel_screensaver
+Homepage: https://github.com/regelatwork/regel_screensaver
+Vcs-Git: https://github.com/regelatwork/regel_screensaver.git
+Vcs-Browser: https://github.com/regelatwork/regel_screensaver
 
 Package: regel-screensaver
 Architecture: any

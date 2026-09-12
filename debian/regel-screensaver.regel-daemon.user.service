@@ -1,6 +1,6 @@
 [Unit]
 Description=Regel Screensaver & Wallpaper Audio Reactive Daemon
-Documentation=https://github.com/rchandia/regel_screensaver
+Documentation=https://github.com/regelatwork/regel_screensaver
 PartOf=graphical-session.target
 After=pipewire.service wireplumber.service
 

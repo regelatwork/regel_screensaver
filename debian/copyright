@@ -1,7 +1,7 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: regel-screensaver
 Upstream-Contact: Regel Project Contributors <info@regel.org>
-Source: https://github.com/rchandia/regel_screensaver
+Source: https://github.com/regelatwork/regel_screensaver
 
 Files: *
 Copyright: 2026 Regel Project Contributors <info@regel.org>
