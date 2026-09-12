@@ -22,6 +22,7 @@ Item {
     }
 
     property int activeConcept: (typeof plasmoid !== "undefined" && plasmoid.configuration && plasmoid.configuration.activeConcept) ? plasmoid.configuration.activeConcept : 1
+    property real globalVortexSpeed: (typeof plasmoid !== "undefined" && plasmoid.configuration && plasmoid.configuration.vortexSpeed) ? plasmoid.configuration.vortexSpeed : 0.8
 
     // Concept 1: Liquid Neon Abyss GPU Shader Visualizer
     LiquidNeonAbyss {
@@ -33,7 +34,7 @@ Item {
         treble: wallpaperRoot.treble
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: 0.8
+        vortexSpeed: wallpaperRoot.globalVortexSpeed
     }
 
     // Concept 2: The Living Petri Dish (Lenia Continuous Artificial Life)
@@ -46,7 +47,7 @@ Item {
         treble: wallpaperRoot.treble
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: 0.8
+        vortexSpeed: wallpaperRoot.globalVortexSpeed
         apertureMode: 0.0
     }
 
@@ -60,7 +61,7 @@ Item {
         treble: wallpaperRoot.treble
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: 0.8
+        vortexSpeed: wallpaperRoot.globalVortexSpeed
     }
 
     // Concept 4: Cosmic Gravitational Sandbox (Black Hole & Relativistic Jets)
@@ -73,7 +74,7 @@ Item {
         treble: wallpaperRoot.treble
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: 0.8
+        vortexSpeed: wallpaperRoot.globalVortexSpeed
     }
 
     // Concept 5: Procedural Synthwave Megacity (Cyberpunk Skyline & Raymarched Highway)
@@ -86,7 +87,7 @@ Item {
         treble: wallpaperRoot.treble
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: 0.8
+        vortexSpeed: wallpaperRoot.globalVortexSpeed
     }
 
     // Concept 6: Real-Time Ephemeris Biome (Ghibli Weather Terrarium)
@@ -99,7 +100,7 @@ Item {
         treble: wallpaperRoot.treble
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: 0.8
+        vortexSpeed: wallpaperRoot.globalVortexSpeed
     }
 
     // Concept 7: Kinetic Spiderweb & Resonance Harp (Tactile Elastic Lattice)
@@ -112,7 +113,7 @@ Item {
         treble: wallpaperRoot.treble
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: 0.8
+        vortexSpeed: wallpaperRoot.globalVortexSpeed
     }
 
     // Pointer tracker when cursor hovers over exposed desktop

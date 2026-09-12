@@ -38,6 +38,9 @@ override_dh_auto_install:
 
 	install -m 644 wallpaper/metadata.json debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/metadata.json
 	install -m 644 wallpaper/contents/ui/main.qml debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/ui/main.qml
+	install -d debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/config
+	install -m 644 wallpaper/contents/config/main.xml debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/config/main.xml
+	install -m 644 wallpaper/contents/ui/config.qml debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/ui/config.qml
 	install -m 644 engine/*.qml debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/engine/
 	install -m 644 engine/qmldir debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/engine/
 	install -m 644 engine/shaders/*.qsb debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/engine/shaders/

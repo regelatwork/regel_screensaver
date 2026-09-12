@@ -65,6 +65,7 @@ if command -v qmllint &>/dev/null; then
     qmllint engine/KineticSpiderwebHarp.qml
     qmllint tools/harness/harness.qml
     qmllint wallpaper/contents/ui/main.qml
+    qmllint wallpaper/contents/ui/config.qml
     qmllint lockscreen/contents/lockscreen/LockScreenUi.qml
     echo "    All QML files passed qmllint without errors."
 else
