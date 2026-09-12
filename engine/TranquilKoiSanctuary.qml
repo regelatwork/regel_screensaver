@@ -37,31 +37,51 @@ Item {
     property real vocalEnergy: 0.0
     property bool transientHit: false
 
-    // Water ripple expansion on downbeat
+    // Forward-only integrated time (strictly forward progression, no backwards temporal oscillation)
+    property real koiTime: 0.0
+    property real prevSimTime: 0.0
+    onSimTimeChanged: {
+        var dt = root.simTime - prevSimTime;
+        if (dt < 0.0 || dt > 0.25) {
+            dt = 0.016;
+        }
+        prevSimTime = root.simTime;
+
+        // Influence speed ONLY forwards and ONLY so slightly (0.0 to +4% gentle forward impulse during stroke)
+        var forwardImpulse = 0.0;
+        if (root.beat) {
+            forwardImpulse = 0.04;
+        } else if (root.beatPhase > 0.0 && root.beatPhase < 0.5) {
+            forwardImpulse = 0.025 * Math.sin(root.beatPhase * 2.0 * Math.PI);
+        }
+        koiTime += dt * (1.0 + Math.max(0.0, forwardImpulse));
+    }
+
+    // Gentle, soft water ripple on downbeat
     property real downbeatRipple: 0.0
     onDownbeatChanged: {
         if (downbeat) {
-            downbeatRipple = 1.0
+            downbeatAnim.restart();
         }
     }
 
-    NumberAnimation on downbeatRipple {
-        running: root.downbeatRipple > 0.0
-        from: root.downbeatRipple
+    NumberAnimation {
+        id: downbeatAnim
+        target: root
+        property: "downbeatRipple"
+        from: 1.0
         to: 0.0
-        duration: 320
-        easing.type: Easing.OutQuad
+        duration: 480
+        easing.type: Easing.OutCubic
     }
 
     ShaderEffect {
         id: koiShader
         anchors.fill: parent
 
-        // Neural audio aquatic choreography
-        readonly property real strokeMod: 1.0 + 0.25 * Math.sin(Math.PI * 2.0 * root.beatPhase)
-        readonly property real effectiveShockwave: Math.max(root.shockwaveIntensity, root.downbeatRipple * 0.75)
-        readonly property real vocalShimmer: root.isVocal ? root.vocalEnergy * 0.35 : 0.0
-        readonly property real effectiveClarity: root.waterClarity * (1.0 + vocalShimmer * 0.25)
+        // Neural audio aquatic choreography - muted, subtle and serene
+        readonly property real vocalShimmer: root.isVocal ? root.vocalEnergy * 0.08 : 0.0
+        readonly property real effectiveClarity: root.waterClarity * (1.0 + vocalShimmer * 0.04)
 
         // Uniforms matching GLSL std140 uniform block in koi.frag
         property vector2d u_resolution: Qt.vector2d(Math.max(1.0, root.width), Math.max(1.0, root.height))
@@ -70,18 +90,18 @@ Item {
         property vector2d u_keystroke_pos: Qt.vector2d(root.keystrokePos.x, root.keystrokePos.y)
         property vector2d u_keystroke_dir: Qt.vector2d(root.keystrokeDir.x, root.keystrokeDir.y)
         property vector2d u_beat_center: Qt.vector2d(root.beatCenter.x, root.beatCenter.y)
-        property vector2d u_ambient_drift: Qt.vector2d(root.ambientDrift.x * strokeMod, root.ambientDrift.y * strokeMod)
+        property vector2d u_ambient_drift: Qt.vector2d(root.ambientDrift.x, root.ambientDrift.y)
         property color u_color_water: root.colorWater
         property color u_color_pebbles: root.colorPebbles
-        property color u_color_caustics: Qt.rgba(Math.min(1.0, root.colorCaustics.r + vocalShimmer * 0.2), Math.min(1.0, root.colorCaustics.g + vocalShimmer * 0.3), Math.min(1.0, root.colorCaustics.b + vocalShimmer * 0.4), 1.0)
+        property color u_color_caustics: Qt.rgba(Math.min(1.0, root.colorCaustics.r + vocalShimmer * 0.05), Math.min(1.0, root.colorCaustics.g + vocalShimmer * 0.07), Math.min(1.0, root.colorCaustics.b + vocalShimmer * 0.08), 1.0)
         property color u_color_accent: root.colorAccent
-        property real u_time: root.simTime
-        property real u_keystroke_energy: root.keystrokeEnergy
-        property real u_shockwave_intensity: effectiveShockwave
-        property real u_vortex_speed: root.vortexSpeed * strokeMod
-        property real u_bass: root.bass
-        property real u_mids: root.mids + vocalShimmer * 0.2
-        property real u_treble: root.treble + (root.transientHit ? 0.2 : 0.0)
+        property real u_time: root.koiTime
+        property real u_keystroke_energy: root.keystrokeEnergy * 0.6
+        property real u_shockwave_intensity: root.shockwaveIntensity * 0.3
+        property real u_vortex_speed: root.vortexSpeed * 0.70
+        property real u_bass: Math.min(0.20, root.bass * 0.30 + root.downbeatRipple * 0.03)
+        property real u_mids: root.mids * 0.35 + vocalShimmer * 0.04
+        property real u_treble: root.treble * 0.30
         property real u_water_clarity: effectiveClarity
 
         vertexShader: Qt.resolvedUrl("shaders/koi.vert.qsb")

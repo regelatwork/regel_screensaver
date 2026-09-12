@@ -116,8 +116,8 @@ float evaluateKoi(
 
     float u = s / fishLength; // Normalized spine progression [0.0 = snout, 1.0 = caudal peduncle]
 
-    // Procedural multi-segment spine undulation wave
-    float swimCadence = t * 7.5 + audioFlick * 4.0;
+    // Procedural multi-segment spine undulation wave (serene, natural tail stroke)
+    float swimCadence = t * 4.2 + audioFlick * 0.4;
     float spineWave = sin(u * 6.5 - swimCadence);
     float lateralSway = 0.022 * u * u * spineWave;
     float localV = v - lateralSway;
@@ -263,38 +263,38 @@ void main() {
 
     float t = u_time * u_vortex_speed;
     float mouseSpeed = length(u_pointer_vel);
-    float predatorPanic = smoothstep(0.12, 0.50, mouseSpeed);
+    float predatorPanic = smoothstep(0.18, 0.60, mouseSpeed);
     float feedAttract = smoothstep(0.04, 0.70, u_keystroke_energy);
 
     // ------------------------------------------------------------------------
-    // 1. Water Surface Wave Dynamics
+    // 1. Water Surface Wave Dynamics (Tranquil & Glassy)
     // ------------------------------------------------------------------------
     // Ambient gentle surface ripples
     vec2 rippleUV = p * 16.0 + u_ambient_drift * 2.0;
     float wave1 = sin(rippleUV.x * 1.8 + t * 2.2) * cos(rippleUV.y * 1.5 - t * 1.8);
     float wave2 = cos(rippleUV.x * 2.8 - t * 2.8) * sin(rippleUV.y * 2.4 + t * 2.2);
-    float waveHeight = (wave1 + wave2 * 0.6) * 0.006;
+    float waveHeight = (wave1 + wave2 * 0.6) * 0.0035;
 
-    // Keystroke concentric raindrop ripples
+    // Keystroke concentric raindrop ripples (gentle droplets)
     if (u_keystroke_energy > 0.01) {
         float rDist = length(p - keystrokeP);
-        float rainWave = sin(rDist * 42.0 - t * 14.0) * exp(-rDist * 8.0) * u_keystroke_energy * 0.016;
+        float rainWave = sin(rDist * 36.0 - t * 10.0) * exp(-rDist * 7.0) * u_keystroke_energy * 0.008;
         waveHeight += rainWave;
     }
 
     // Pointer movement water wake
     float mouseDist = length(p - pointerP);
-    float mouseWake = sin(mouseDist * 32.0 - t * 10.0) * exp(-mouseDist * 9.0) * mouseSpeed * 0.02;
+    float mouseWake = sin(mouseDist * 28.0 - t * 8.0) * exp(-mouseDist * 8.0) * mouseSpeed * 0.008;
     waveHeight += mouseWake;
 
-    // Audio Sub-bass cymatic surface waves
+    // Audio Sub-bass cymatic surface waves (subtle and soft)
     float beatDist = length(p - beatCenterP);
-    float bassWave = sin(beatDist * 28.0 - t * 8.0) * exp(-beatDist * 4.0) * u_bass * 0.012;
+    float bassWave = sin(beatDist * 22.0 - t * 6.0) * exp(-beatDist * 5.0) * u_bass * 0.005;
     waveHeight += bassWave;
 
-    // Auth Failed thunderstorm squall
+    // Auth Failed squall (muted)
     if (u_shockwave_intensity > 0.01) {
-        float squall = sin(p.x * 55.0 + t * 20.0) * cos(p.y * 48.0 - t * 18.0) * u_shockwave_intensity * 0.025;
+        float squall = sin(p.x * 40.0 + t * 12.0) * cos(p.y * 36.0 - t * 10.0) * u_shockwave_intensity * 0.012;
         waveHeight += squall;
     }
 
@@ -329,8 +329,8 @@ void main() {
     float pebbleBevel = smoothstep(0.04, 0.15, pebbleDist);
     bedColor *= (0.65 + 0.35 * pebbleBevel);
 
-    // Sunlight Caustics Network dancing across riverbed
-    float caustics = evaluateCaustics(refrUV, t) * (0.8 + u_treble * 1.6);
+    // Sunlight Caustics Network dancing across riverbed (calm, gentle refraction)
+    float caustics = evaluateCaustics(refrUV, t) * (0.85 + u_treble * 0.35);
     bedColor += u_color_caustics.rgb * caustics * 0.75;
 
     // ------------------------------------------------------------------------
@@ -341,21 +341,21 @@ void main() {
     vec3 totalFishColor = vec3(0.0);
 
     // Autonomous trajectories with flocking, predator avoidance & food seeking
-    float audioFlick = u_bass * 1.4;
+    float audioFlick = u_bass * 0.20;
 
     for (int i = 0; i < 5; ++i) {
         float fi = float(i);
-        float orbitAngle = t * (0.22 + fi * 0.04) + fi * 1.25;
+        float orbitAngle = t * (0.15 + fi * 0.025) + fi * 1.25;
         float orbitRadiusX = (0.24 + fi * 0.05) * aspect;
         float orbitRadiusY = 0.16 + fi * 0.03;
 
         vec2 basePos = centerP + vec2(cos(orbitAngle) * orbitRadiusX, sin(orbitAngle * 1.2) * orbitRadiusY);
         vec2 heading = vec2(-sin(orbitAngle) * orbitRadiusX, cos(orbitAngle * 1.2) * orbitRadiusY * 1.2);
 
-        // Predator Avoidance (fast cursor causes fish to scatter away)
+        // Predator Avoidance (gentle avoidance, glide away without frantic panic)
         vec2 toPointer = basePos - pointerP;
         vec2 panicDir = normalize(toPointer + vec2(0.001));
-        basePos += panicDir * predatorPanic * (0.22 + fi * 0.05);
+        basePos += panicDir * predatorPanic * (0.10 + fi * 0.03);
 
         // Chemotaxis Food Seeking (swim toward keystroke nutrient pellets)
         vec2 feedDir = normalize(keystrokeP - basePos + vec2(0.001));
@@ -363,7 +363,7 @@ void main() {
 
         // Dynamically steer fish heading along real locomotion trajectory
         vec2 dynamicHeading = heading;
-        dynamicHeading += panicDir * predatorPanic * 2.5;
+        dynamicHeading += panicDir * predatorPanic * 1.0;
         dynamicHeading = mix(dynamicHeading, feedDir, feedAttract * 0.75);
         heading = normalize(dynamicHeading + vec2(0.0001));
 
