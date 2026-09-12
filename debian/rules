@@ -15,7 +15,7 @@ override_dh_auto_test:
 
 override_dh_auto_install:
 	install -d debian/regel-screensaver/usr/bin
-	install -d debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)
+	install -d debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/regel
 	install -d debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/qt6/qml/org/regel/engine/shaders
 	install -d debian/regel-screensaver/usr/lib/systemd/user
 	install -d debian/regel-screensaver/usr/share/applications
@@ -28,7 +28,7 @@ override_dh_auto_install:
 	install -d debian/regel-screensaver/usr/share/doc/regel-screensaver/docs
 
 	install -m 755 target/release/regel-daemon debian/regel-screensaver/usr/bin/regel-daemon
-	install -m 644 target/release/libregel_engine.so debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/libregel_engine.so
+	install -m 644 target/release/libregel_engine.so debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/regel/libregel_engine.so
 
 	install -m 755 tools/run-harness.sh debian/regel-screensaver/usr/bin/regel-harness
 

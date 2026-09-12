@@ -430,8 +430,11 @@ def main():
     search_lib_paths = [
         os.path.join(workspace_dir, "target/debug/libregel_engine.so"),
         os.path.join(workspace_dir, "target/release/libregel_engine.so"),
+        f"/usr/lib/{arch}-linux-gnu/regel/libregel_engine.so",
         f"/usr/lib/{arch}-linux-gnu/libregel_engine.so",
+        "/usr/lib/x86_64-linux-gnu/regel/libregel_engine.so",
         "/usr/lib/x86_64-linux-gnu/libregel_engine.so",
+        "/usr/lib/regel/libregel_engine.so",
         "/usr/lib/libregel_engine.so",
         "/usr/local/lib/libregel_engine.so",
     ]

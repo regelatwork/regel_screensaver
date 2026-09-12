@@ -1,6 +1,6 @@
 regel-screensaver (0.1.0-1) unstable; urgency=medium
 
-  * Initial Debian release.
+  * Initial Debian release. (Closes: #1000000)
   * 7 procedural audio-reactive visual archetypes.
   * Safe Rust PipeWire audio analyzer and physics engine.
   * Native Qt 6 RHI SPIR-V shader pipeline.

@@ -1,0 +1,28 @@
+.TH REGEL-DAEMON 1 "September 2026" "regel-screensaver 0.1.0" "User Commands"
+.SH NAME
+regel-daemon \- Audio analysis and PipeWire background tap daemon for Regel screensaver
+.SH SYNOPSIS
+.B regel-daemon
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+\fBregel-daemon\fR is the background audio and physics processing daemon for the
+Regel wallpaper and screensaver suite on KDE Plasma 6. It captures audio streams
+from PipeWire or PulseAudio, computes SIMD-accelerated FFT frequency spectrums
+(sub-bass, bass, mids, treble, transients), and coordinates simulation state.
+.SH OPTIONS
+.TP
+\fB\-\-source\fR \fIsource\fR
+Audio source to capture. Values: \fBmonitor\fR (default, desktop audio output) or \fBmic\fR (default microphone).
+.TP
+\fB\-\-gain\fR \fIvalue\fR
+Software gain multiplier for FFT sensitivity (default: 1.5).
+.TP
+\fB\-\-gamma\fR \fIvalue\fR
+Dynamic range compression exponent (default: 1.2).
+.TP
+\fB\-\-auto-gain\fR
+Enable adaptive dynamic range automatic gain control.
+.SH AUTHOR
+Written by the Regel Project Contributors <info@regel.org>.
+.SH COPYRIGHT
+Copyright \(co 2026 Regel Project Contributors. Licensed under GPLv2+.
