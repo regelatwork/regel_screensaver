@@ -10,6 +10,8 @@ Kirigami.FormLayout {
 
     property alias formLayout: root
 
+    signal configurationChanged()
+
     // General
     property int cfg_activeConcept: 1
     property alias cfg_vortexSpeed: speedSlider.value
