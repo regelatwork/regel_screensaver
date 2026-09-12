@@ -35,6 +35,48 @@ WallpaperItem {
     property bool configuredAudioAutoGain: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.audioAutoGain !== "undefined") ? wallpaperRoot.configuration.audioAutoGain : true
     property real configuredAudioGain: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.audioGain !== "undefined") ? wallpaperRoot.configuration.audioGain : 3.5
 
+    Palettes {
+        id: palettes
+    }
+
+    // --- Concept 1 Parameters ---
+    property int concept1PaletteIdx: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.concept1Palette === "number") ? wallpaperRoot.configuration.concept1Palette : 0
+    readonly property var currentFluidPalette: palettes.fluidPalettes[concept1PaletteIdx % palettes.fluidPalettes.length]
+
+    // --- Concept 2 Parameters ---
+    property int concept2PaletteIdx: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.concept2Palette === "number") ? wallpaperRoot.configuration.concept2Palette : 0
+    readonly property var currentPetriPalette: palettes.petriPalettes[concept2PaletteIdx % palettes.petriPalettes.length]
+    property bool petriAperture: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.petriAperture === "boolean") ? wallpaperRoot.configuration.petriAperture : false
+
+    // --- Concept 3 Parameters ---
+    property int concept3PaletteIdx: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.concept3Palette === "number") ? wallpaperRoot.configuration.concept3Palette : 0
+    readonly property var currentKoiPalette: palettes.koiPalettes[concept3PaletteIdx % palettes.koiPalettes.length]
+    property real koiWaterClarity: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.koiWaterClarity === "number") ? wallpaperRoot.configuration.koiWaterClarity : 1.0
+
+    // --- Concept 4 Parameters ---
+    property int concept4PaletteIdx: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.concept4Palette === "number") ? wallpaperRoot.configuration.concept4Palette : 0
+    readonly property var currentCosmicPalette: palettes.cosmicPalettes[concept4PaletteIdx % palettes.cosmicPalettes.length]
+    property real cosmicLensStrength: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.cosmicLensStrength === "number") ? wallpaperRoot.configuration.cosmicLensStrength : 1.0
+    property bool cosmicAutoCycle: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.cosmicAutoCycle === "boolean") ? wallpaperRoot.configuration.cosmicAutoCycle : true
+
+    // --- Concept 5 Parameters ---
+    property int concept5PaletteIdx: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.concept5Palette === "number") ? wallpaperRoot.configuration.concept5Palette : 0
+    readonly property var currentCityPalette: palettes.cityPalettes[concept5PaletteIdx % palettes.cityPalettes.length]
+    property real cityRainDensity: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.cityRainDensity === "number") ? wallpaperRoot.configuration.cityRainDensity : 0.65
+    property real cityFogDensity: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.cityFogDensity === "number") ? wallpaperRoot.configuration.cityFogDensity : 0.85
+
+    // --- Concept 6 Parameters ---
+    property int concept6PaletteIdx: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.concept6Palette === "number") ? wallpaperRoot.configuration.concept6Palette : 0
+    readonly property var currentBiomePalette: palettes.biomePalettes[concept6PaletteIdx % palettes.biomePalettes.length]
+    property real biomeWeatherMode: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.biomeWeatherMode === "number") ? wallpaperRoot.configuration.biomeWeatherMode : 0.0
+    property bool biomeSyncClock: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.biomeSyncClock === "boolean") ? wallpaperRoot.configuration.biomeSyncClock : true
+
+    // --- Concept 7 Parameters ---
+    property int concept7PaletteIdx: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.concept7Palette === "number") ? wallpaperRoot.configuration.concept7Palette : 0
+    readonly property var currentHarpPalette: palettes.harpPalettes[concept7PaletteIdx % palettes.harpPalettes.length]
+    property real harpDewDensity: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.harpDewDensity === "number") ? wallpaperRoot.configuration.harpDewDensity : 0.75
+    property real harpTension: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.harpTension === "number") ? wallpaperRoot.configuration.harpTension : 1.0
+
     // Live audio properties from D-Bus
     property bool isAudioLive: audioProps.properties && typeof audioProps.properties.bass === "number"
     property real liveBass: isAudioLive ? audioProps.properties.bass : 0.08
@@ -111,6 +153,10 @@ WallpaperItem {
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
+        colorBg: wallpaperRoot.currentFluidPalette.bg
+        colorDye1: wallpaperRoot.currentFluidPalette.dye1
+        colorDye2: wallpaperRoot.currentFluidPalette.dye2
+        colorDye3: wallpaperRoot.currentFluidPalette.dye3
     }
 
     // Concept 2: The Living Petri Dish (Lenia Continuous Artificial Life)
@@ -124,7 +170,11 @@ WallpaperItem {
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
-        apertureMode: 0.0
+        apertureMode: wallpaperRoot.petriAperture ? 1.0 : 0.0
+        colorBg: wallpaperRoot.currentPetriPalette.bg
+        colorMembrane: wallpaperRoot.currentPetriPalette.membrane
+        colorOrganelle: wallpaperRoot.currentPetriPalette.organelle
+        colorGlow: wallpaperRoot.currentPetriPalette.glow
     }
 
     // Concept 3: The Tranquil Sanctuary (Caustic Koi Pond & Boid Ecosystem)
@@ -138,6 +188,11 @@ WallpaperItem {
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
+        waterClarity: wallpaperRoot.koiWaterClarity
+        colorWater: wallpaperRoot.currentKoiPalette.water
+        colorPebbles: wallpaperRoot.currentKoiPalette.pebbles
+        colorCaustics: wallpaperRoot.currentKoiPalette.caustics
+        colorAccent: wallpaperRoot.currentKoiPalette.accent
     }
 
     // Concept 4: Cosmic Gravitational Sandbox (Black Hole & Relativistic Jets)
@@ -151,6 +206,12 @@ WallpaperItem {
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
+        lensStrength: wallpaperRoot.cosmicLensStrength
+        autoHyperspace: wallpaperRoot.cosmicAutoCycle
+        colorCore: wallpaperRoot.currentCosmicPalette.core
+        colorDisk: wallpaperRoot.currentCosmicPalette.disk
+        colorJets: wallpaperRoot.currentCosmicPalette.jets
+        colorNebula: wallpaperRoot.currentCosmicPalette.nebula
     }
 
     // Concept 5: Procedural Synthwave Megacity (Cyberpunk Skyline & Raymarched Highway)
@@ -164,6 +225,12 @@ WallpaperItem {
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
+        rainDensity: wallpaperRoot.cityRainDensity
+        fogDensity: wallpaperRoot.cityFogDensity
+        colorSky: wallpaperRoot.currentCityPalette.sky
+        colorNeon1: wallpaperRoot.currentCityPalette.neon1
+        colorNeon2: wallpaperRoot.currentCityPalette.neon2
+        colorGrid: wallpaperRoot.currentCityPalette.grid
     }
 
     // Concept 6: Real-Time Ephemeris Biome (Ghibli Weather Terrarium)
@@ -177,6 +244,12 @@ WallpaperItem {
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
+        weatherMode: wallpaperRoot.biomeWeatherMode
+        syncToSystemClock: wallpaperRoot.biomeSyncClock
+        colorSky: wallpaperRoot.currentBiomePalette.sky
+        colorFoliage: wallpaperRoot.currentBiomePalette.foliage
+        colorSunMoon: wallpaperRoot.currentBiomePalette.sunMoon
+        colorWisp: wallpaperRoot.currentBiomePalette.wisp
     }
 
     // Concept 7: Kinetic Spiderweb & Resonance Harp (Tactile Elastic Lattice)
@@ -190,6 +263,12 @@ WallpaperItem {
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
+        dewDensity: wallpaperRoot.harpDewDensity
+        tension: wallpaperRoot.harpTension
+        colorSilk: wallpaperRoot.currentHarpPalette.silk
+        colorDew: wallpaperRoot.currentHarpPalette.dew
+        colorResonance: wallpaperRoot.currentHarpPalette.resonance
+        colorVoid: wallpaperRoot.currentHarpPalette.voidColor
     }
 
     // Pointer tracker when cursor hovers over exposed desktop
