@@ -20,8 +20,6 @@ for p in ["/usr/lib/python3/dist-packages", "/usr/local/lib/python3/dist-package
 
 def ensure_display():
     """Ensures a valid X11, Wayland, or Qt offscreen platform exists."""
-    # No functional display; use native offscreen platform
-    os.environ["QT_QPA_PLATFORM"] = "offscreen"
     os.environ["PULSE_SERVER"] = "/dev/null"
     os.environ["CANBERRA_DRIVER"] = "null"
     os.environ["XDG_CONFIG_HOME"] = "/tmp/regel_config"
@@ -30,8 +28,9 @@ def ensure_display():
     os.makedirs("/tmp/regel_config", exist_ok=True)
     os.makedirs("/tmp/regel_data", exist_ok=True)
     os.makedirs("/tmp/regel_cache", exist_ok=True)
-    os.environ.pop("DISPLAY", None)
-    os.environ.pop("WAYLAND_DISPLAY", None)
+
+    if "WAYLAND_DISPLAY" not in os.environ and "DISPLAY" not in os.environ:
+        os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 ensure_display()
 
@@ -51,11 +50,9 @@ CONCEPTS = {
         "snippet": """LiquidNeonAbyss {
             anchors.fill: parent
             simTime: parent.simTime
-            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
-            rms: parent.rms
             bpm: parent.bpm
             beat: parent.beat
             downbeat: parent.downbeat
@@ -75,11 +72,9 @@ CONCEPTS = {
         "snippet": """LivingPetriDish {
             anchors.fill: parent
             simTime: parent.simTime
-            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
-            rms: parent.rms
             bpm: parent.bpm
             beat: parent.beat
             downbeat: parent.downbeat
@@ -100,11 +95,9 @@ CONCEPTS = {
         "snippet": """TranquilKoiSanctuary {
             anchors.fill: parent
             simTime: parent.simTime
-            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
-            rms: parent.rms
             bpm: parent.bpm
             beat: parent.beat
             downbeat: parent.downbeat
@@ -125,11 +118,9 @@ CONCEPTS = {
         "snippet": """CosmicGravitationalSandbox {
             anchors.fill: parent
             simTime: parent.simTime
-            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
-            rms: parent.rms
             bpm: parent.bpm
             beat: parent.beat
             downbeat: parent.downbeat
@@ -151,11 +142,9 @@ CONCEPTS = {
         "snippet": """SynthwaveMegacity {
             anchors.fill: parent
             simTime: parent.simTime
-            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
-            rms: parent.rms
             bpm: parent.bpm
             beat: parent.beat
             downbeat: parent.downbeat
@@ -177,11 +166,9 @@ CONCEPTS = {
         "snippet": """RealtimeEphemerisBiome {
             anchors.fill: parent
             simTime: parent.simTime
-            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
-            rms: parent.rms
             bpm: parent.bpm
             beat: parent.beat
             downbeat: parent.downbeat
@@ -203,11 +190,9 @@ CONCEPTS = {
         "snippet": """KineticSpiderwebHarp {
             anchors.fill: parent
             simTime: parent.simTime
-            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
-            rms: parent.rms
             bpm: parent.bpm
             beat: parent.beat
             downbeat: parent.downbeat

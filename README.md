@@ -89,7 +89,7 @@ flowchart TD
 ## 🎨 The 8 Aesthetic Archetypes
 
 <div align="center">
-  <img src="assets/screenshots/regel-archetypes-grid.jpg" alt="Regel Aesthetic Archetypes Showcase (Liquid Abyss, Koi Sanctuary, Cosmic Sandbox, Synthwave Megacity)" width="100%">
+  <img src="assets/screenshots/regel-archetypes-grid.jpg" alt="Regel Aesthetic Archetypes Showcase: All 8 Archetypes (Liquid Abyss, Petri Dish, Koi Sanctuary, Cosmic Sandbox, Synthwave Megacity, Ephemeris Biome, Resonance Harp, Analog Console)" width="100%">
 </div>
 
 | # | Archetype | Aesthetic Theme | Specialized Controls & Color Palettes |
