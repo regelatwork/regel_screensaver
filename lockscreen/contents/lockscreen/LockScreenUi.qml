@@ -15,6 +15,7 @@ Item {
     property real bass: 0.08
     property real mids: 0.05
     property real treble: 0.05
+    property real beatPhase: (lockScreenRoot.simTime * 2.0) % 1.0
     property point pointerPos: Qt.point(0.5, 0.5)
     property point pointerVel: Qt.point(0.0, 0.0)
 
@@ -44,6 +45,7 @@ Item {
         bass: lockScreenRoot.bass
         mids: lockScreenRoot.mids
         treble: lockScreenRoot.treble
+        beatPhase: lockScreenRoot.beatPhase
         pointerPos: lockScreenRoot.pointerPos
         pointerVel: lockScreenRoot.pointerVel
     }
@@ -59,6 +61,7 @@ Item {
         bass: lockScreenRoot.bass
         mids: lockScreenRoot.mids
         treble: lockScreenRoot.treble
+        beatPhase: lockScreenRoot.beatPhase
         pointerPos: lockScreenRoot.pointerPos
         pointerVel: lockScreenRoot.pointerVel
         apertureMode: 1.0
@@ -75,6 +78,7 @@ Item {
         bass: lockScreenRoot.bass
         mids: lockScreenRoot.mids
         treble: lockScreenRoot.treble
+        beatPhase: lockScreenRoot.beatPhase
         pointerPos: lockScreenRoot.pointerPos
         pointerVel: lockScreenRoot.pointerVel
     }
@@ -90,6 +94,7 @@ Item {
         bass: lockScreenRoot.bass
         mids: lockScreenRoot.mids
         treble: lockScreenRoot.treble
+        beatPhase: lockScreenRoot.beatPhase
         pointerPos: lockScreenRoot.pointerPos
         pointerVel: lockScreenRoot.pointerVel
     }
@@ -105,6 +110,7 @@ Item {
         bass: lockScreenRoot.bass
         mids: lockScreenRoot.mids
         treble: lockScreenRoot.treble
+        beatPhase: lockScreenRoot.beatPhase
         pointerPos: lockScreenRoot.pointerPos
         pointerVel: lockScreenRoot.pointerVel
     }
@@ -120,6 +126,7 @@ Item {
         bass: lockScreenRoot.bass
         mids: lockScreenRoot.mids
         treble: lockScreenRoot.treble
+        beatPhase: lockScreenRoot.beatPhase
         pointerPos: lockScreenRoot.pointerPos
         pointerVel: lockScreenRoot.pointerVel
     }
@@ -135,6 +142,7 @@ Item {
         bass: lockScreenRoot.bass
         mids: lockScreenRoot.mids
         treble: lockScreenRoot.treble
+        beatPhase: lockScreenRoot.beatPhase
         pointerPos: lockScreenRoot.pointerPos
         pointerVel: lockScreenRoot.pointerVel
     }
@@ -150,6 +158,7 @@ Item {
         bass: lockScreenRoot.bass
         mids: lockScreenRoot.mids
         treble: lockScreenRoot.treble
+        beatPhase: lockScreenRoot.beatPhase
         pointerPos: lockScreenRoot.pointerPos
         pointerVel: lockScreenRoot.pointerVel
     }

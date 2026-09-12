@@ -28,6 +28,31 @@ Item {
     property real gridScroll: 0.0
     property real fogDensity: 0.85
 
+    // Neural audio rhythm & vocal choreography
+    property real beatPhase: 0.0
+    property bool beat: false
+    property bool downbeat: false
+    property real bpm: 120.0
+    property bool isVocal: false
+    property real vocalEnergy: 0.0
+    property bool transientHit: false
+
+    // Searchlight strobe & skyline lightning on downbeat
+    property real searchlightPulse: 0.0
+    onDownbeatChanged: {
+        if (downbeat) {
+            searchlightPulse = 1.0
+        }
+    }
+
+    NumberAnimation on searchlightPulse {
+        running: root.searchlightPulse > 0.0
+        from: root.searchlightPulse
+        to: 0.0
+        duration: 250
+        easing.type: Easing.OutQuad
+    }
+
     // Cyberpunk Color Palettes
     property color colorSky: "#180c2e"      // Deep violet zenith & night smog
     property color colorNeon1: "#06b6d4"    // Primary cyber cyan / headlights
@@ -88,6 +113,13 @@ Item {
         id: cityShader
         anchors.fill: parent
 
+        // Neural audio cyberpunk choreography
+        readonly property real tempoRate: root.bpm / 120.0
+        readonly property real waveMod: 1.0 + 0.28 * Math.sin(Math.PI * 2.0 * root.beatPhase)
+        readonly property real vocalPenthouse: root.isVocal ? root.vocalEnergy * 0.4 : 0.0
+        readonly property real effectiveFog: Math.max(0.2, root.fogDensity * (1.0 - vocalPenthouse * 0.35))
+        readonly property real effectiveSearchlight: root.searchlightPower * (1.0 + root.searchlightPulse * 1.6 + (root.transientHit ? 0.75 : 0.0))
+
         // Uniforms matching GLSL std140 uniform block in city.frag
         property vector2d u_resolution: Qt.vector2d(Math.max(1.0, root.width), Math.max(1.0, root.height))
         property vector2d u_pointer: Qt.vector2d(root.pointerPos.x, root.pointerPos.y)
@@ -96,22 +128,22 @@ Item {
         property vector2d u_keystroke_dir: Qt.vector2d(root.keystrokeDir.x, root.keystrokeDir.y)
         property vector2d u_beat_center: Qt.vector2d(root.beatCenter.x, root.beatCenter.y)
         property vector2d u_ambient_drift: Qt.vector2d(root.ambientDrift.x, root.ambientDrift.y)
-        property color u_color_sky: root.colorSky
+        property color u_color_sky: Qt.rgba(Math.min(1.0, root.colorSky.r + root.searchlightPulse * 0.15), Math.min(1.0, root.colorSky.g + root.searchlightPulse * 0.1), Math.min(1.0, root.colorSky.b + root.searchlightPulse * 0.2), 1.0)
         property color u_color_neon1: root.colorNeon1
-        property color u_color_neon2: root.colorNeon2
+        property color u_color_neon2: Qt.rgba(Math.min(1.0, root.colorNeon2.r + vocalPenthouse * 0.3), Math.min(1.0, root.colorNeon2.g + vocalPenthouse * 0.4), Math.min(1.0, root.colorNeon2.b + vocalPenthouse * 0.2), 1.0)
         property color u_color_grid: root.colorGrid
-        property real u_time: root.simTime
+        property real u_time: root.simTime * tempoRate
         property real u_keystroke_energy: root.keystrokeEnergy
         property real u_shockwave_intensity: root.shockwaveIntensity
-        property real u_vortex_speed: root.vortexSpeed
-        property real u_bass: root.bass
-        property real u_mids: root.mids
-        property real u_treble: root.treble
-        property real u_searchlight_power: root.searchlightPower
+        property real u_vortex_speed: root.vortexSpeed * waveMod
+        property real u_bass: root.bass + root.searchlightPulse * 0.25
+        property real u_mids: root.mids + vocalPenthouse * 0.25
+        property real u_treble: root.treble + (root.transientHit ? 0.3 : 0.0)
+        property real u_searchlight_power: effectiveSearchlight
         property vector2d u_camera_tilt: Qt.vector2d(root.cameraTilt.x, root.cameraTilt.y)
         property real u_rain_density: root.rainDensity
         property real u_grid_scroll: root.gridScroll
-        property real u_fog_density: root.fogDensity
+        property real u_fog_density: effectiveFog
         property real u_pad0: 0.0
         property real u_pad1: 0.0
         property real u_pad2: 0.0

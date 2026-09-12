@@ -36,6 +36,13 @@ Item {
         bass: fullRep.plasmoidItem.bass
         mids: fullRep.plasmoidItem.mids
         treble: fullRep.plasmoidItem.treble
+        bpm: fullRep.plasmoidItem.bpm
+        beat: fullRep.plasmoidItem.beat
+        downbeat: fullRep.plasmoidItem.downbeat
+        beatPhase: fullRep.plasmoidItem.beatPhase
+        isVocal: fullRep.plasmoidItem.isVocal
+        vocalEnergy: fullRep.plasmoidItem.vocalEnergy
+        transientHit: fullRep.plasmoidItem.transientHit
         pointerPos: fullRep.pointerPos
         pointerVel: fullRep.pointerVel
         vortexSpeed: fullRep.plasmoidItem.globalVortexSpeed
@@ -53,6 +60,13 @@ Item {
         bass: fullRep.plasmoidItem.bass
         mids: fullRep.plasmoidItem.mids
         treble: fullRep.plasmoidItem.treble
+        bpm: fullRep.plasmoidItem.bpm
+        beat: fullRep.plasmoidItem.beat
+        downbeat: fullRep.plasmoidItem.downbeat
+        beatPhase: fullRep.plasmoidItem.beatPhase
+        isVocal: fullRep.plasmoidItem.isVocal
+        vocalEnergy: fullRep.plasmoidItem.vocalEnergy
+        transientHit: fullRep.plasmoidItem.transientHit
         pointerPos: fullRep.pointerPos
         pointerVel: fullRep.pointerVel
         vortexSpeed: fullRep.plasmoidItem.globalVortexSpeed
@@ -71,6 +85,13 @@ Item {
         bass: fullRep.plasmoidItem.bass
         mids: fullRep.plasmoidItem.mids
         treble: fullRep.plasmoidItem.treble
+        bpm: fullRep.plasmoidItem.bpm
+        beat: fullRep.plasmoidItem.beat
+        downbeat: fullRep.plasmoidItem.downbeat
+        beatPhase: fullRep.plasmoidItem.beatPhase
+        isVocal: fullRep.plasmoidItem.isVocal
+        vocalEnergy: fullRep.plasmoidItem.vocalEnergy
+        transientHit: fullRep.plasmoidItem.transientHit
         pointerPos: fullRep.pointerPos
         pointerVel: fullRep.pointerVel
         vortexSpeed: fullRep.plasmoidItem.globalVortexSpeed
@@ -89,6 +110,13 @@ Item {
         bass: fullRep.plasmoidItem.bass
         mids: fullRep.plasmoidItem.mids
         treble: fullRep.plasmoidItem.treble
+        bpm: fullRep.plasmoidItem.bpm
+        beat: fullRep.plasmoidItem.beat
+        downbeat: fullRep.plasmoidItem.downbeat
+        beatPhase: fullRep.plasmoidItem.beatPhase
+        isVocal: fullRep.plasmoidItem.isVocal
+        vocalEnergy: fullRep.plasmoidItem.vocalEnergy
+        transientHit: fullRep.plasmoidItem.transientHit
         pointerPos: fullRep.pointerPos
         pointerVel: fullRep.pointerVel
         vortexSpeed: fullRep.plasmoidItem.globalVortexSpeed
@@ -108,6 +136,13 @@ Item {
         bass: fullRep.plasmoidItem.bass
         mids: fullRep.plasmoidItem.mids
         treble: fullRep.plasmoidItem.treble
+        bpm: fullRep.plasmoidItem.bpm
+        beat: fullRep.plasmoidItem.beat
+        downbeat: fullRep.plasmoidItem.downbeat
+        beatPhase: fullRep.plasmoidItem.beatPhase
+        isVocal: fullRep.plasmoidItem.isVocal
+        vocalEnergy: fullRep.plasmoidItem.vocalEnergy
+        transientHit: fullRep.plasmoidItem.transientHit
         pointerPos: fullRep.pointerPos
         pointerVel: fullRep.pointerVel
         vortexSpeed: fullRep.plasmoidItem.globalVortexSpeed
@@ -127,6 +162,13 @@ Item {
         bass: fullRep.plasmoidItem.bass
         mids: fullRep.plasmoidItem.mids
         treble: fullRep.plasmoidItem.treble
+        bpm: fullRep.plasmoidItem.bpm
+        beat: fullRep.plasmoidItem.beat
+        downbeat: fullRep.plasmoidItem.downbeat
+        beatPhase: fullRep.plasmoidItem.beatPhase
+        isVocal: fullRep.plasmoidItem.isVocal
+        vocalEnergy: fullRep.plasmoidItem.vocalEnergy
+        transientHit: fullRep.plasmoidItem.transientHit
         pointerPos: fullRep.pointerPos
         pointerVel: fullRep.pointerVel
         vortexSpeed: fullRep.plasmoidItem.globalVortexSpeed
@@ -146,6 +188,13 @@ Item {
         bass: fullRep.plasmoidItem.bass
         mids: fullRep.plasmoidItem.mids
         treble: fullRep.plasmoidItem.treble
+        bpm: fullRep.plasmoidItem.bpm
+        beat: fullRep.plasmoidItem.beat
+        downbeat: fullRep.plasmoidItem.downbeat
+        beatPhase: fullRep.plasmoidItem.beatPhase
+        isVocal: fullRep.plasmoidItem.isVocal
+        vocalEnergy: fullRep.plasmoidItem.vocalEnergy
+        transientHit: fullRep.plasmoidItem.transientHit
         pointerPos: fullRep.pointerPos
         pointerVel: fullRep.pointerVel
         vortexSpeed: fullRep.plasmoidItem.globalVortexSpeed
@@ -170,6 +219,7 @@ Item {
         bpm: fullRep.plasmoidItem.bpm
         beat: fullRep.plasmoidItem.beat
         downbeat: fullRep.plasmoidItem.downbeat
+        beatPhase: fullRep.plasmoidItem.beatPhase
         isVocal: fullRep.plasmoidItem.isVocal
         vocalEnergy: fullRep.plasmoidItem.vocalEnergy
         transientHit: fullRep.plasmoidItem.transientHit

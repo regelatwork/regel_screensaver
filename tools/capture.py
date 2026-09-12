@@ -51,9 +51,18 @@ CONCEPTS = {
         "snippet": """LiquidNeonAbyss {
             anchors.fill: parent
             simTime: parent.simTime
+            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
+            rms: parent.rms
+            bpm: parent.bpm
+            beat: parent.beat
+            downbeat: parent.downbeat
+            beatPhase: parent.beatPhase
+            isVocal: parent.isVocal
+            vocalEnergy: parent.vocalEnergy
+            transientHit: parent.transientHit
             colorBg: "#050811"
             colorDye1: "#00ffd5"
             colorDye2: "#ff007f"
@@ -66,9 +75,18 @@ CONCEPTS = {
         "snippet": """LivingPetriDish {
             anchors.fill: parent
             simTime: parent.simTime
+            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
+            rms: parent.rms
+            bpm: parent.bpm
+            beat: parent.beat
+            downbeat: parent.downbeat
+            beatPhase: parent.beatPhase
+            isVocal: parent.isVocal
+            vocalEnergy: parent.vocalEnergy
+            transientHit: parent.transientHit
             apertureMode: 0.0
             colorBg: "#02040a"
             colorMembrane: "#00e5ff"
@@ -82,9 +100,18 @@ CONCEPTS = {
         "snippet": """TranquilKoiSanctuary {
             anchors.fill: parent
             simTime: parent.simTime
+            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
+            rms: parent.rms
+            bpm: parent.bpm
+            beat: parent.beat
+            downbeat: parent.downbeat
+            beatPhase: parent.beatPhase
+            isVocal: parent.isVocal
+            vocalEnergy: parent.vocalEnergy
+            transientHit: parent.transientHit
             waterClarity: 1.2
             colorWater: "#0b233a"
             colorPebbles: "#050d18"
@@ -98,9 +125,18 @@ CONCEPTS = {
         "snippet": """CosmicGravitationalSandbox {
             anchors.fill: parent
             simTime: parent.simTime
+            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
+            rms: parent.rms
+            bpm: parent.bpm
+            beat: parent.beat
+            downbeat: parent.downbeat
+            beatPhase: parent.beatPhase
+            isVocal: parent.isVocal
+            vocalEnergy: parent.vocalEnergy
+            transientHit: parent.transientHit
             lensStrength: 1.2
             autoHyperspace: true
             colorCore: "#000000"
@@ -115,9 +151,18 @@ CONCEPTS = {
         "snippet": """SynthwaveMegacity {
             anchors.fill: parent
             simTime: parent.simTime
+            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
+            rms: parent.rms
+            bpm: parent.bpm
+            beat: parent.beat
+            downbeat: parent.downbeat
+            beatPhase: parent.beatPhase
+            isVocal: parent.isVocal
+            vocalEnergy: parent.vocalEnergy
+            transientHit: parent.transientHit
             rainDensity: 0.7
             fogDensity: 0.85
             colorSky: "#1a052e"
@@ -132,9 +177,18 @@ CONCEPTS = {
         "snippet": """RealtimeEphemerisBiome {
             anchors.fill: parent
             simTime: parent.simTime
+            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
+            rms: parent.rms
+            bpm: parent.bpm
+            beat: parent.beat
+            downbeat: parent.downbeat
+            beatPhase: parent.beatPhase
+            isVocal: parent.isVocal
+            vocalEnergy: parent.vocalEnergy
+            transientHit: parent.transientHit
             weatherMode: 0.0
             syncToSystemClock: false
             colorSky: "#1b2838"
@@ -149,9 +203,18 @@ CONCEPTS = {
         "snippet": """KineticSpiderwebHarp {
             anchors.fill: parent
             simTime: parent.simTime
+            subBass: parent.subBass
             bass: parent.bass
             mids: parent.mids
             treble: parent.treble
+            rms: parent.rms
+            bpm: parent.bpm
+            beat: parent.beat
+            downbeat: parent.downbeat
+            beatPhase: parent.beatPhase
+            isVocal: parent.isVocal
+            vocalEnergy: parent.vocalEnergy
+            transientHit: parent.transientHit
             dewDensity: 0.8
             tension: 1.1
             colorSilk: "#c0d8ff"
@@ -166,17 +229,18 @@ CONCEPTS = {
         "snippet": """AnalogTelemetryConsole {
             anchors.fill: parent
             simTime: parent.simTime
-            subBass: 0.85
-            bass: 0.72
-            mids: 0.58
-            treble: 0.45
-            rms: 0.65
-            bpm: 124.0
-            beat: true
-            downbeat: true
-            isVocal: true
-            vocalEnergy: 0.68
-            transientHit: false
+            subBass: parent.subBass
+            bass: parent.bass
+            mids: parent.mids
+            treble: parent.treble
+            rms: parent.rms
+            bpm: parent.bpm
+            beat: parent.beat
+            downbeat: parent.downbeat
+            beatPhase: parent.beatPhase
+            isVocal: parent.isVocal
+            vocalEnergy: parent.vocalEnergy
+            transientHit: parent.transientHit
             colorChassis: "#18191e"
             colorDial: "#f5f0e6"
             colorBezel: "#252730"
@@ -253,6 +317,13 @@ class CaptureEngine:
                 root.setProperty("bass", b)
                 root.setProperty("mids", m)
                 root.setProperty("treble", tr)
+                root.setProperty("rms", max(b, m, tr) * 0.85)
+                root.setProperty("beatPhase", (cur_sim * 2.0) % 1.0)
+                root.setProperty("beat", ((cur_sim * 2.0) % 1.0) < 0.15)
+                root.setProperty("downbeat", ((cur_sim * 0.5) % 1.0) < 0.15)
+                root.setProperty("vocalEnergy", m * 0.9)
+                root.setProperty("isVocal", m > 0.4)
+                root.setProperty("transientHit", b > 0.8)
 
             self.wait(int(1000 / fps))
             frame_img = self.grab_current_frame()
@@ -280,6 +351,14 @@ Item {{
     property real bass: {bass}
     property real mids: {mids}
     property real treble: {treble}
+    property real rms: {max(bass, mids, treble) * 0.9}
+    property real bpm: 124.0
+    property bool beat: true
+    property bool downbeat: true
+    property real beatPhase: 0.5
+    property bool isVocal: true
+    property real vocalEnergy: 0.65
+    property bool transientHit: false
 
     Rectangle {{
         anchors.fill: parent
@@ -428,12 +507,16 @@ def save_animation_file(frames, output_path, fps=30):
     print(f"Saved authentic animation -> {output_path} ({size_kb} KB)")
 
 def generate_authentic_grid(engine, output="assets/screenshots/regel-archetypes-grid.jpg"):
-    print("\n--- Generating Authentic 2x2 Showcase Grid ---")
+    print("\n--- Generating Authentic 4x2 Showcase Grid (8 Archetypes) ---")
     specs = [
-        (1, "Liquid Neon Abyss"),
-        (3, "The Tranquil Sanctuary"),
-        (4, "Cosmic Gravitational Sandbox"),
-        (5, "Synthwave Megacity"),
+        (1, "01. Liquid Neon Abyss"),
+        (2, "02. The Living Petri Dish"),
+        (3, "03. The Tranquil Sanctuary"),
+        (4, "04. Cosmic Gravitational Sandbox"),
+        (5, "05. Procedural Synthwave Megacity"),
+        (6, "06. Real-Time Ephemeris Biome"),
+        (7, "07. Kinetic Spiderweb Harp"),
+        (8, "08. Analog Telemetry Console"),
     ]
     captured = []
     for cid, title in specs:
@@ -450,20 +533,22 @@ def generate_authentic_grid(engine, output="assets/screenshots/regel-archetypes-
         draw.text((32, 28), title.upper(), fill=(255, 255, 255, 230))
         captured.append(img)
 
-    grid = Image.new("RGB", (1920, 1080), (5, 8, 17))
-    grid.paste(captured[0], (0, 0))
-    grid.paste(captured[1], (960, 0))
-    grid.paste(captured[2], (0, 540))
-    grid.paste(captured[3], (960, 540))
+    tile_w, tile_h = 960, 540
+    grid = Image.new("RGB", (tile_w * 4, tile_h * 2), (5, 8, 17))
+    for idx, img in enumerate(captured):
+        col = idx % 4
+        row = idx // 4
+        grid.paste(img, (col * tile_w, row * tile_h))
 
     # Grid divider borders
     draw_grid = ImageDraw.Draw(grid)
-    draw_grid.line([(960, 0), (960, 1080)], fill=(30, 45, 70), width=2)
-    draw_grid.line([(0, 540), (1920, 540)], fill=(30, 45, 70), width=2)
+    for c in range(1, 4):
+        draw_grid.line([(c * tile_w, 0), (c * tile_w, tile_h * 2)], fill=(30, 45, 70), width=2)
+    draw_grid.line([(0, tile_h), (tile_w * 4, tile_h)], fill=(30, 45, 70), width=2)
 
     os.makedirs(os.path.dirname(os.path.abspath(output)), exist_ok=True)
     grid.save(output, quality=92)
-    print(f"Successfully generated authentic 2x2 grid -> {output} ({os.path.getsize(output) // 1024} KB)")
+    print(f"Successfully generated authentic 4x2 grid -> {output} ({os.path.getsize(output) // 1024} KB)")
 
 def generate_all_showcase(engine):
     print("\n=======================================================")

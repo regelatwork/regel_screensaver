@@ -30,6 +30,31 @@ Item {
     property real fogDensity: 0.5
     property real frostAmount: 0.0
 
+    // Neural audio rhythm & vocal choreography
+    property real beatPhase: 0.0
+    property bool beat: false
+    property bool downbeat: false
+    property real bpm: 120.0
+    property bool isVocal: false
+    property real vocalEnergy: 0.0
+    property bool transientHit: false
+
+    // Spore burst & wind flutter on downbeats
+    property real sporePulse: 0.0
+    onDownbeatChanged: {
+        if (downbeat) {
+            sporePulse = 1.0
+        }
+    }
+
+    NumberAnimation on sporePulse {
+        running: root.sporePulse > 0.0
+        from: root.sporePulse
+        to: 0.0
+        duration: 280
+        easing.type: Easing.OutQuad
+    }
+
     // Studio Ghibli Painterly Biome Palettes
     property color colorSky: "#0f172a"
     property color colorFoliage: "#15803d"
@@ -105,6 +130,12 @@ Item {
         id: ephemerisShader
         anchors.fill: parent
 
+        // Neural audio ephemeris & biome choreography
+        readonly property real vocalFireflies: root.isVocal ? root.vocalEnergy * 0.45 : 0.0
+        readonly property real windGustX: root.windVector.x * (1.0 + 0.45 * Math.sin(Math.PI * 2.0 * root.beatPhase))
+        readonly property real windGustY: root.windVector.y * (1.0 + 0.35 * Math.cos(Math.PI * 2.0 * root.beatPhase))
+        readonly property real effectiveShockwave: Math.max(root.shockwaveIntensity, root.sporePulse * 0.6)
+
         // Uniforms matching GLSL std140 uniform block in ephemeris.frag
         property vector2d u_resolution: Qt.vector2d(Math.max(1.0, root.width), Math.max(1.0, root.height))
         property vector2d u_pointer: Qt.vector2d(root.pointerPos.x, root.pointerPos.y)
@@ -114,18 +145,18 @@ Item {
         property vector2d u_beat_center: Qt.vector2d(root.beatCenter.x, root.beatCenter.y)
         property vector2d u_ambient_drift: Qt.vector2d(root.ambientDrift.x, root.ambientDrift.y)
         property color u_color_sky: root.colorSky
-        property color u_color_foliage: root.colorFoliage
+        property color u_color_foliage: Qt.rgba(root.colorFoliage.r, Math.min(1.0, root.colorFoliage.g + vocalFireflies * 0.2), root.colorFoliage.b, 1.0)
         property color u_color_sun_moon: root.colorSunMoon
-        property color u_color_wisp: root.colorWisp
+        property color u_color_wisp: Qt.rgba(Math.min(1.0, root.colorWisp.r + vocalFireflies * 0.4), Math.min(1.0, root.colorWisp.g + vocalFireflies * 0.5), Math.min(1.0, root.colorWisp.b + vocalFireflies * 0.2), 1.0)
         property real u_time: root.simTime
         property real u_keystroke_energy: root.keystrokeEnergy
-        property real u_shockwave_intensity: root.shockwaveIntensity
+        property real u_shockwave_intensity: effectiveShockwave
         property real u_vortex_speed: root.vortexSpeed
-        property real u_bass: root.bass
-        property real u_mids: root.mids
-        property real u_treble: root.treble
+        property real u_bass: root.bass + root.sporePulse * 0.2
+        property real u_mids: root.mids + vocalFireflies * 0.25
+        property real u_treble: root.treble + (root.transientHit ? 0.25 : 0.0)
         property real u_solar_time: root.solarTime
-        property vector2d u_wind_vector: Qt.vector2d(root.windVector.x, root.windVector.y)
+        property vector2d u_wind_vector: Qt.vector2d(windGustX, windGustY)
         property real u_weather_mode: root.weatherMode
         property real u_lunar_phase: root.lunarPhase
         property real u_fog_density: root.fogDensity

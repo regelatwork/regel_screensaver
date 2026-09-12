@@ -22,6 +22,31 @@ Item {
     property point ambientDrift: Qt.point(0.0, 0.0)
     property real lensStrength: 1.0
 
+    // Neural audio rhythm & vocal choreography
+    property real beatPhase: 0.0
+    property bool beat: false
+    property bool downbeat: false
+    property real bpm: 120.0
+    property bool isVocal: false
+    property real vocalEnergy: 0.0
+    property bool transientHit: false
+
+    // Relativistic synchrotron jet flare on downbeats
+    property real jetFlare: 0.0
+    onDownbeatChanged: {
+        if (downbeat) {
+            jetFlare = 1.0
+        }
+    }
+
+    NumberAnimation on jetFlare {
+        running: root.jetFlare > 0.0
+        from: root.jetFlare
+        to: 0.0
+        duration: 240
+        easing.type: Easing.OutQuad
+    }
+
     // Palette Colors (Astrophysical Accretion & Relativistic Jets)
     property color colorCore: "#38bdf8"    // Relativistic hot blue-white core
     property color colorDisk: "#f97316"    // Incandescent orange-red accretion plasma
@@ -197,6 +222,11 @@ Item {
         id: cosmicShader
         anchors.fill: parent
 
+        // Neural audio astrophysical choreography
+        readonly property real effectiveLens: root.lensStrength * (1.0 + 0.22 * Math.sin(Math.PI * 2.0 * root.beatPhase))
+        readonly property real effectiveAccretion: root.accretionRate * (1.0 + 0.2 * Math.cos(Math.PI * 2.0 * root.beatPhase))
+        readonly property real vocalPlasma: root.isVocal ? root.vocalEnergy * 0.4 : 0.0
+
         // Uniforms matching GLSL std140 uniform block in cosmic.frag
         property vector2d u_resolution: Qt.vector2d(Math.max(1.0, root.width), Math.max(1.0, root.height))
         property vector2d u_pointer: Qt.vector2d(root.pointerPos.x, root.pointerPos.y)
@@ -206,23 +236,23 @@ Item {
         property vector2d u_beat_center: Qt.vector2d(root.beatCenter.x, root.beatCenter.y)
         property vector2d u_ambient_drift: Qt.vector2d(root.ambientDrift.x, root.ambientDrift.y)
         property color u_color_core: root.colorCore
-        property color u_color_disk: root.colorDisk
-        property color u_color_jets: root.colorJets
+        property color u_color_disk: Qt.rgba(Math.min(1.0, root.colorDisk.r + vocalPlasma * 0.4), Math.min(1.0, root.colorDisk.g + vocalPlasma * 0.2), root.colorDisk.b, 1.0)
+        property color u_color_jets: Qt.rgba(Math.min(1.0, root.colorJets.r + root.jetFlare * 0.4 + vocalPlasma * 0.3), Math.min(1.0, root.colorJets.g + root.jetFlare * 0.4), Math.min(1.0, root.colorJets.b + root.jetFlare * 0.6 + vocalPlasma * 0.5), 1.0)
         property color u_color_nebula: root.colorNebula
         property real u_time: root.simTime
         property real u_keystroke_energy: root.keystrokeEnergy
         property real u_shockwave_intensity: root.shockwaveIntensity
         property real u_vortex_speed: root.vortexSpeed
-        property real u_bass: root.bass
-        property real u_mids: root.mids
-        property real u_treble: root.treble
-        property real u_lens_strength: root.lensStrength
+        property real u_bass: root.bass + root.jetFlare * 0.35
+        property real u_mids: root.mids + vocalPlasma * 0.25
+        property real u_treble: root.treble + (root.transientHit ? 0.25 : 0.0)
+        property real u_lens_strength: effectiveLens
         property vector2d u_camera_offset: Qt.vector2d(root.cameraOffset.x, root.cameraOffset.y)
         property real u_disk_tilt: root.diskTilt
         property real u_disk_inclination: root.diskInclination
         property real u_hole_scale: root.holeScale
         property real u_hyperspace_phase: root.hyperspacePhase
-        property real u_accretion_rate: root.accretionRate
+        property real u_accretion_rate: effectiveAccretion
         property real u_pad: 0.0
 
         vertexShader: Qt.resolvedUrl("shaders/cosmic.vert.qsb")

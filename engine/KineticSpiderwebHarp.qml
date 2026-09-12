@@ -29,6 +29,27 @@ Item {
     property real chromaticDispersion: 0.85
     property real shatterProgress: 0.0
 
+    // Neural audio rhythm & vocal choreography
+    property real beatPhase: 0.0
+    property bool beat: false
+    property bool downbeat: false
+    property real bpm: 120.0
+    property bool isVocal: false
+    property real vocalEnergy: 0.0
+    property bool transientHit: false
+
+    onDownbeatChanged: {
+        if (downbeat) {
+            root.pluck(0.5, 0.5, 0.9)
+        }
+    }
+
+    onTransientHitChanged: {
+        if (transientHit) {
+            root.pluck(0.2 + 0.6 * Math.random(), 0.2 + 0.6 * Math.random(), 0.6)
+        }
+    }
+
     // Palette Colors (Silk, Dew, Resonance, Void)
     property color colorSilk: "#e2e8f0"
     property color colorDew: "#67e8f9"
@@ -107,6 +128,11 @@ Item {
         id: harpShader
         anchors.fill: parent
 
+        // Neural audio resonance harp choreography
+        readonly property real vocalStandingWave: root.isVocal ? root.vocalEnergy * 0.45 : 0.0
+        readonly property real effectiveTension: root.tension * (1.0 + 0.28 * Math.cos(Math.PI * 2.0 * root.beatPhase))
+        readonly property real effectivePluck: Math.max(root.pluckAmplitude, vocalStandingWave)
+
         // Uniforms matching GLSL std140 uniform block in harp.frag
         property vector2d u_resolution: Qt.vector2d(Math.max(1.0, root.width), Math.max(1.0, root.height))
         property vector2d u_pointer: Qt.vector2d(root.pointerPos.x, root.pointerPos.y)
@@ -117,18 +143,18 @@ Item {
         property vector2d u_ambient_drift: Qt.vector2d(root.ambientDrift.x, root.ambientDrift.y)
         property color u_color_silk: root.colorSilk
         property color u_color_dew: root.colorDew
-        property color u_color_resonance: root.colorResonance
+        property color u_color_resonance: Qt.rgba(Math.min(1.0, root.colorResonance.r + vocalStandingWave * 0.3), Math.min(1.0, root.colorResonance.g + vocalStandingWave * 0.4), Math.min(1.0, root.colorResonance.b + vocalStandingWave * 0.5), 1.0)
         property color u_color_void: root.colorVoid
         property real u_time: root.simTime
         property real u_keystroke_energy: root.keystrokeEnergy
         property real u_shockwave_intensity: root.shockwaveIntensity
         property real u_vortex_speed: root.vortexSpeed
         property real u_bass: root.bass
-        property real u_mids: root.mids
-        property real u_treble: root.treble
-        property real u_tension: root.tension
+        property real u_mids: root.mids + vocalStandingWave * 0.2
+        property real u_treble: root.treble + (root.transientHit ? 0.3 : 0.0)
+        property real u_tension: effectiveTension
         property vector2d u_pluck_point: Qt.vector2d(root.pluckPoint.x, root.pluckPoint.y)
-        property real u_pluck_amplitude: root.pluckAmplitude
+        property real u_pluck_amplitude: effectivePluck
         property real u_dew_density: root.dewDensity
         property real u_chromatic_dispersion: root.chromaticDispersion
         property real u_shatter_progress: root.shatterProgress

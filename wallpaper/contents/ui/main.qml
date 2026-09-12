@@ -94,6 +94,7 @@ WallpaperItem {
     property bool liveIsVocal: isAudioLive && typeof audioProps.properties.is_vocal === "boolean" ? audioProps.properties.is_vocal : false
     property real liveVocalEnergy: isAudioLive && typeof audioProps.properties.vocal_energy === "number" ? audioProps.properties.vocal_energy : 0.0
     property bool liveTransient: isAudioLive && typeof audioProps.properties.transient === "boolean" ? audioProps.properties.transient : false
+    property real liveBeatPhase: isAudioLive && typeof audioProps.properties.beat_phase === "number" ? audioProps.properties.beat_phase : 0.0
 
     // Active audio levels fed into visualizers
     property real subBass: (audioReactive && isAudioLive) ? liveSubBass : 0.05
@@ -104,6 +105,7 @@ WallpaperItem {
     property real bpm: (audioReactive && isAudioLive) ? liveBpm : 120.0
     property bool beat: (audioReactive && isAudioLive) ? liveBeat : false
     property bool downbeat: (audioReactive && isAudioLive) ? liveDownbeat : false
+    property real beatPhase: (audioReactive && isAudioLive) ? liveBeatPhase : ((wallpaperRoot.simTime * (bpm / 60.0)) % 1.0)
     property bool isVocal: (audioReactive && isAudioLive) ? liveIsVocal : false
     property real vocalEnergy: (audioReactive && isAudioLive) ? liveVocalEnergy : 0.0
     property bool transientHit: (audioReactive && isAudioLive) ? liveTransient : false
@@ -170,6 +172,13 @@ WallpaperItem {
         bass: wallpaperRoot.bass
         mids: wallpaperRoot.mids
         treble: wallpaperRoot.treble
+        bpm: wallpaperRoot.bpm
+        beat: wallpaperRoot.beat
+        downbeat: wallpaperRoot.downbeat
+        beatPhase: wallpaperRoot.beatPhase
+        isVocal: wallpaperRoot.isVocal
+        vocalEnergy: wallpaperRoot.vocalEnergy
+        transientHit: wallpaperRoot.transientHit
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
@@ -187,6 +196,13 @@ WallpaperItem {
         bass: wallpaperRoot.bass
         mids: wallpaperRoot.mids
         treble: wallpaperRoot.treble
+        bpm: wallpaperRoot.bpm
+        beat: wallpaperRoot.beat
+        downbeat: wallpaperRoot.downbeat
+        beatPhase: wallpaperRoot.beatPhase
+        isVocal: wallpaperRoot.isVocal
+        vocalEnergy: wallpaperRoot.vocalEnergy
+        transientHit: wallpaperRoot.transientHit
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
@@ -205,6 +221,13 @@ WallpaperItem {
         bass: wallpaperRoot.bass
         mids: wallpaperRoot.mids
         treble: wallpaperRoot.treble
+        bpm: wallpaperRoot.bpm
+        beat: wallpaperRoot.beat
+        downbeat: wallpaperRoot.downbeat
+        beatPhase: wallpaperRoot.beatPhase
+        isVocal: wallpaperRoot.isVocal
+        vocalEnergy: wallpaperRoot.vocalEnergy
+        transientHit: wallpaperRoot.transientHit
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
@@ -223,6 +246,13 @@ WallpaperItem {
         bass: wallpaperRoot.bass
         mids: wallpaperRoot.mids
         treble: wallpaperRoot.treble
+        bpm: wallpaperRoot.bpm
+        beat: wallpaperRoot.beat
+        downbeat: wallpaperRoot.downbeat
+        beatPhase: wallpaperRoot.beatPhase
+        isVocal: wallpaperRoot.isVocal
+        vocalEnergy: wallpaperRoot.vocalEnergy
+        transientHit: wallpaperRoot.transientHit
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
@@ -242,6 +272,13 @@ WallpaperItem {
         bass: wallpaperRoot.bass
         mids: wallpaperRoot.mids
         treble: wallpaperRoot.treble
+        bpm: wallpaperRoot.bpm
+        beat: wallpaperRoot.beat
+        downbeat: wallpaperRoot.downbeat
+        beatPhase: wallpaperRoot.beatPhase
+        isVocal: wallpaperRoot.isVocal
+        vocalEnergy: wallpaperRoot.vocalEnergy
+        transientHit: wallpaperRoot.transientHit
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
@@ -261,6 +298,13 @@ WallpaperItem {
         bass: wallpaperRoot.bass
         mids: wallpaperRoot.mids
         treble: wallpaperRoot.treble
+        bpm: wallpaperRoot.bpm
+        beat: wallpaperRoot.beat
+        downbeat: wallpaperRoot.downbeat
+        beatPhase: wallpaperRoot.beatPhase
+        isVocal: wallpaperRoot.isVocal
+        vocalEnergy: wallpaperRoot.vocalEnergy
+        transientHit: wallpaperRoot.transientHit
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
@@ -280,6 +324,13 @@ WallpaperItem {
         bass: wallpaperRoot.bass
         mids: wallpaperRoot.mids
         treble: wallpaperRoot.treble
+        bpm: wallpaperRoot.bpm
+        beat: wallpaperRoot.beat
+        downbeat: wallpaperRoot.downbeat
+        beatPhase: wallpaperRoot.beatPhase
+        isVocal: wallpaperRoot.isVocal
+        vocalEnergy: wallpaperRoot.vocalEnergy
+        transientHit: wallpaperRoot.transientHit
         pointerPos: wallpaperRoot.pointerPos
         pointerVel: wallpaperRoot.pointerVel
         vortexSpeed: wallpaperRoot.globalVortexSpeed
@@ -304,6 +355,7 @@ WallpaperItem {
         bpm: wallpaperRoot.bpm
         beat: wallpaperRoot.beat
         downbeat: wallpaperRoot.downbeat
+        beatPhase: wallpaperRoot.beatPhase
         isVocal: wallpaperRoot.isVocal
         vocalEnergy: wallpaperRoot.vocalEnergy
         transientHit: wallpaperRoot.transientHit

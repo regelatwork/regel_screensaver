@@ -116,6 +116,15 @@ ApplicationWindow {
     property color activeDye3: currentPalettes[selectedPalette % currentPalettes.length].dye3
     property bool petriCircularAperture: true
 
+    // Neural audio rhythm & vocal choreography
+    property real bpm: (typeof sldBpm !== "undefined") ? sldBpm.value : 124.0
+    property bool beat: (typeof chkBeat !== "undefined") ? chkBeat.checked : (root.bass > 0.6)
+    property bool downbeat: (typeof chkDownbeat !== "undefined") ? chkDownbeat.checked : (root.subBass > 0.7)
+    property real beatPhase: (root.simTime * (root.bpm / 60.0)) % 1.0
+    property bool isVocal: (typeof chkVocal !== "undefined") ? chkVocal.checked : (root.mids > 0.45)
+    property real vocalEnergy: (typeof sldVocalEnergy !== "undefined") ? sldVocalEnergy.value : (root.mids * 0.8)
+    property bool transientHit: root.shockwaveIntensity > 0.4
+
     function updateAudioParams() {
         if (typeof liveAudio !== "undefined" && typeof liveAudio.setSensitivity === "function") {
             let gain = (typeof sldGain !== "undefined") ? sldGain.value : 4.0
@@ -187,6 +196,13 @@ ApplicationWindow {
             bass: root.bass
             mids: root.mids
             treble: root.treble
+            bpm: root.bpm
+            beat: root.beat
+            downbeat: root.downbeat
+            beatPhase: root.beatPhase
+            isVocal: root.isVocal
+            vocalEnergy: root.vocalEnergy
+            transientHit: root.transientHit
             pointerPos: root.pointerPos
             pointerVel: root.pointerVel
             keystrokePos: root.keystrokePos
@@ -210,6 +226,13 @@ ApplicationWindow {
             bass: root.bass
             mids: root.mids
             treble: root.treble
+            bpm: root.bpm
+            beat: root.beat
+            downbeat: root.downbeat
+            beatPhase: root.beatPhase
+            isVocal: root.isVocal
+            vocalEnergy: root.vocalEnergy
+            transientHit: root.transientHit
             pointerPos: root.pointerPos
             pointerVel: root.pointerVel
             keystrokePos: root.keystrokePos
@@ -234,6 +257,13 @@ ApplicationWindow {
             bass: root.bass
             mids: root.mids
             treble: root.treble
+            bpm: root.bpm
+            beat: root.beat
+            downbeat: root.downbeat
+            beatPhase: root.beatPhase
+            isVocal: root.isVocal
+            vocalEnergy: root.vocalEnergy
+            transientHit: root.transientHit
             pointerPos: root.pointerPos
             pointerVel: root.pointerVel
             keystrokePos: root.keystrokePos
@@ -259,6 +289,13 @@ ApplicationWindow {
             bass: root.bass
             mids: root.mids
             treble: root.treble
+            bpm: root.bpm
+            beat: root.beat
+            downbeat: root.downbeat
+            beatPhase: root.beatPhase
+            isVocal: root.isVocal
+            vocalEnergy: root.vocalEnergy
+            transientHit: root.transientHit
             pointerPos: root.pointerPos
             pointerVel: root.pointerVel
             keystrokePos: root.keystrokePos
@@ -286,6 +323,13 @@ ApplicationWindow {
             bass: root.bass
             mids: root.mids
             treble: root.treble
+            bpm: root.bpm
+            beat: root.beat
+            downbeat: root.downbeat
+            beatPhase: root.beatPhase
+            isVocal: root.isVocal
+            vocalEnergy: root.vocalEnergy
+            transientHit: root.transientHit
             pointerPos: root.pointerPos
             pointerVel: root.pointerVel
             keystrokePos: root.keystrokePos
@@ -313,6 +357,13 @@ ApplicationWindow {
             bass: root.bass
             mids: root.mids
             treble: root.treble
+            bpm: root.bpm
+            beat: root.beat
+            downbeat: root.downbeat
+            beatPhase: root.beatPhase
+            isVocal: root.isVocal
+            vocalEnergy: root.vocalEnergy
+            transientHit: root.transientHit
             pointerPos: root.pointerPos
             pointerVel: root.pointerVel
             keystrokePos: root.keystrokePos
@@ -342,6 +393,13 @@ ApplicationWindow {
             bass: root.bass
             mids: root.mids
             treble: root.treble
+            bpm: root.bpm
+            beat: root.beat
+            downbeat: root.downbeat
+            beatPhase: root.beatPhase
+            isVocal: root.isVocal
+            vocalEnergy: root.vocalEnergy
+            transientHit: root.transientHit
             pointerPos: root.pointerPos
             pointerVel: root.pointerVel
             keystrokePos: root.keystrokePos
@@ -370,12 +428,13 @@ ApplicationWindow {
             mids: root.mids
             treble: root.treble
             rms: Math.max(root.bass, Math.max(root.mids, root.treble)) * 0.9
-            bpm: (typeof sldBpm !== "undefined") ? sldBpm.value : 124.0
-            beat: (typeof chkBeat !== "undefined") ? chkBeat.checked : (root.bass > 0.6)
-            downbeat: (typeof chkDownbeat !== "undefined") ? chkDownbeat.checked : (root.subBass > 0.7)
-            isVocal: (typeof chkVocal !== "undefined") ? chkVocal.checked : (root.mids > 0.45)
-            vocalEnergy: (typeof sldVocalEnergy !== "undefined") ? sldVocalEnergy.value : (root.mids * 0.8)
-            transientHit: root.shockwaveIntensity > 0.4
+            bpm: root.bpm
+            beat: root.beat
+            downbeat: root.downbeat
+            beatPhase: root.beatPhase
+            isVocal: root.isVocal
+            vocalEnergy: root.vocalEnergy
+            transientHit: root.transientHit
             pointerPos: root.pointerPos
             pointerVel: root.pointerVel
             colorChassis: root.activeBg
