@@ -38,6 +38,12 @@ class CAudioSpectrum(ctypes.Structure):
         ("treble", ctypes.c_float),
         ("rms", ctypes.c_float),
         ("transient", ctypes.c_bool),
+        ("bpm", ctypes.c_float),
+        ("beat", ctypes.c_bool),
+        ("downbeat", ctypes.c_bool),
+        ("beat_phase", ctypes.c_float),
+        ("is_vocal", ctypes.c_bool),
+        ("vocal_energy", ctypes.c_float),
     ]
 
 class CUniformState(ctypes.Structure):
@@ -111,6 +117,12 @@ class EngineBridge(QObject):
             ctypes.c_float,
             ctypes.c_bool
         ]
+        if hasattr(self._lib, "regel_engine_set_audio_ex"):
+            self._lib.regel_engine_set_audio_ex.argtypes = [
+                ctypes.c_void_p,
+                ctypes.c_float, ctypes.c_float, ctypes.c_float, ctypes.c_float, ctypes.c_float, ctypes.c_bool,
+                ctypes.c_float, ctypes.c_bool, ctypes.c_bool, ctypes.c_float, ctypes.c_bool, ctypes.c_float
+            ]
         self._lib.regel_engine_get_state.argtypes = [ctypes.c_void_p, ctypes.POINTER(CUniformState)]
 
     def _read_state(self):
@@ -183,6 +195,17 @@ class EngineBridge(QObject):
             transient
         )
 
+    @pyqtSlot(float, float, float, float, float, bool, float, bool, bool, float, bool, float)
+    def setAudioEx(self, sub_bass, bass, mids, treble, rms, transient, bpm, beat, downbeat, beat_phase, is_vocal, vocal_energy):
+        if hasattr(self._lib, "regel_engine_set_audio_ex"):
+            self._lib.regel_engine_set_audio_ex(
+                self._core,
+                sub_bass, bass, mids, treble, rms, transient,
+                bpm, beat, downbeat, beat_phase, is_vocal, vocal_energy
+            )
+        else:
+            self.setAudio(sub_bass, bass, mids, treble, rms, transient)
+
     # Exposed QML Properties
     @pyqtProperty(float, notify=stateChanged)
     def simTime(self):
@@ -251,6 +274,34 @@ class EngineBridge(QObject):
     @pyqtProperty(float, notify=stateChanged)
     def rms(self):
         return self._state.audio.rms
+
+    @pyqtProperty(float, notify=stateChanged)
+    def bpm(self):
+        return self._state.audio.bpm
+
+    @pyqtProperty(bool, notify=stateChanged)
+    def beat(self):
+        return self._state.audio.beat
+
+    @pyqtProperty(bool, notify=stateChanged)
+    def downbeat(self):
+        return self._state.audio.downbeat
+
+    @pyqtProperty(float, notify=stateChanged)
+    def beatPhase(self):
+        return self._state.audio.beat_phase
+
+    @pyqtProperty(bool, notify=stateChanged)
+    def isVocal(self):
+        return self._state.audio.is_vocal
+
+    @pyqtProperty(float, notify=stateChanged)
+    def vocalEnergy(self):
+        return self._state.audio.vocal_energy
+
+    @pyqtProperty(bool, notify=stateChanged)
+    def transient(self):
+        return self._state.audio.transient
 
     def close(self):
         if hasattr(self, "_core") and self._core is not None:
@@ -427,7 +478,10 @@ def main():
 
     # Locate libregel_engine.so
     arch = os.uname().machine
+    cargo_target_dir = os.environ.get("CARGO_TARGET_DIR", "")
     search_lib_paths = [
+        *( [os.path.join(cargo_target_dir, "debug/libregel_engine.so"),
+            os.path.join(cargo_target_dir, "release/libregel_engine.so")] if cargo_target_dir else [] ),
         os.path.join(workspace_dir, "target/debug/libregel_engine.so"),
         os.path.join(workspace_dir, "target/release/libregel_engine.so"),
         f"/usr/lib/{arch}-linux-gnu/regel/libregel_engine.so",
@@ -445,6 +499,8 @@ def main():
         sys.exit(1)
 
     search_daemon_paths = [
+        *( [os.path.join(cargo_target_dir, "debug/regel-daemon"),
+            os.path.join(cargo_target_dir, "release/regel-daemon")] if cargo_target_dir else [] ),
         os.path.join(workspace_dir, "target/debug/regel-daemon"),
         os.path.join(workspace_dir, "target/release/regel-daemon"),
         "/usr/bin/regel-daemon",

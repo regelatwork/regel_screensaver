@@ -99,8 +99,17 @@ ApplicationWindow {
         { name: "Frost Crystal Web (Ice Blue & Rime)",      bg: "#021220", dye1: "#f0f9ff", dye2: "#bae6fd", dye3: "#7dd3fc" }
     ]
 
+    // Concept 8 Palettes (The Analog Telemetry Console)
+    readonly property var consolePalettes: [
+        { name: "Vintage Laboratory (Warm Cream)",          bg: "#18191e", dye1: "#f5f0e6", dye2: "#252730", dye3: "#0f2814" },
+        { name: "Tektronix Phosphor 1974 (Classic CRT)",    bg: "#14171a", dye1: "#e2e8f0", dye2: "#1e293b", dye3: "#051f0d" },
+        { name: "Nagra IV-S (Brushed Aluminium & Dark)",    bg: "#0d0e12", dye1: "#cbd5e1", dye2: "#334155", dye3: "#1e1b4b" },
+        { name: "Soviet Cold-War Bunker (Hammered Sage)",   bg: "#1b211d", dye1: "#e8ecd7", dye2: "#2d382e", dye3: "#0f2010" },
+        { name: "Cyberpunk Deck (Obsidian & Amber)",        bg: "#0a0a0f", dye1: "#fed7aa", dye2: "#1f1d2b", dye3: "#261304" }
+    ]
+
     property int selectedPalette: 0
-    readonly property var currentPalettes: selectedConcept === 7 ? harpPalettes : (selectedConcept === 6 ? biomePalettes : (selectedConcept === 5 ? cityPalettes : (selectedConcept === 4 ? cosmicPalettes : (selectedConcept === 3 ? koiPalettes : (selectedConcept === 2 ? petriPalettes : fluidPalettes)))))
+    readonly property var currentPalettes: selectedConcept === 8 ? consolePalettes : (selectedConcept === 7 ? harpPalettes : (selectedConcept === 6 ? biomePalettes : (selectedConcept === 5 ? cityPalettes : (selectedConcept === 4 ? cosmicPalettes : (selectedConcept === 3 ? koiPalettes : (selectedConcept === 2 ? petriPalettes : fluidPalettes))))))
     property color activeBg: currentPalettes[selectedPalette % currentPalettes.length].bg
     property color activeDye1: currentPalettes[selectedPalette % currentPalettes.length].dye1
     property color activeDye2: currentPalettes[selectedPalette % currentPalettes.length].dye2
@@ -348,6 +357,35 @@ ApplicationWindow {
             chromaticDispersion: (typeof sldDispersion !== "undefined") ? sldDispersion.value : 0.85
         }
 
+        // Concept 8: The Analog Telemetry Console (Ballistic Galvanometers & Phosphor CRT)
+        AnalogTelemetryConsole {
+            id: consoleSandbox
+            anchors.fill: parent
+            visible: root.selectedConcept === 8
+            simTime: root.simTime
+            keystrokeEnergy: root.keystrokeEnergy
+            shockwaveIntensity: root.shockwaveIntensity
+            vortexSpeed: root.vortexSpeed
+            bass: root.bass
+            mids: root.mids
+            treble: root.treble
+            rms: Math.max(root.bass, Math.max(root.mids, root.treble)) * 0.9
+            bpm: (typeof sldBpm !== "undefined") ? sldBpm.value : 124.0
+            beat: (typeof chkBeat !== "undefined") ? chkBeat.checked : (root.bass > 0.6)
+            downbeat: (typeof chkDownbeat !== "undefined") ? chkDownbeat.checked : (root.subBass > 0.7)
+            isVocal: (typeof chkVocal !== "undefined") ? chkVocal.checked : (root.mids > 0.45)
+            vocalEnergy: (typeof sldVocalEnergy !== "undefined") ? sldVocalEnergy.value : (root.mids * 0.8)
+            transientHit: root.shockwaveIntensity > 0.4
+            pointerPos: root.pointerPos
+            pointerVel: root.pointerVel
+            colorChassis: root.activeBg
+            colorDial: root.activeDye1
+            colorBezel: root.activeDye2
+            colorScope: root.activeDye3
+            colorNeedle: "#d9381e"
+            colorAccent: "#38bdf8"
+        }
+
         // Pointer Reactive Cursor Halo
         Rectangle {
             x: root.pointerPos.x * canvasArea.width - width / 2
@@ -443,7 +481,8 @@ ApplicationWindow {
                             "4: Cosmic Gravitational Sandbox (Black Hole)",
                             "5: Procedural Synthwave Megacity (Cyberpunk Skyline)",
                             "6: Real-Time Ephemeris Biome (Ghibli Weather Terrarium)",
-                            "7: Kinetic Spiderweb Harp (Elastic Lattice & Dewdrops)"
+                            "7: Kinetic Spiderweb Harp (Elastic Lattice & Dewdrops)",
+                            "8: The Analog Telemetry Console (Ballistic VU & CRT)"
                         ]
                         currentIndex: root.selectedConcept - 1
                         onActivated: (idx) => {
@@ -739,6 +778,66 @@ ApplicationWindow {
                                     harpSandbox.pluck(0.5 + (Math.random() * 0.4 - 0.2), 0.5 + (Math.random() * 0.4 - 0.2), 1.0)
                                 }
                             }
+                        }
+                    }
+                }
+
+                // Concept 8 Parameters (The Analog Telemetry Console)
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: root.selectedConcept === 8
+                    spacing: 8
+
+                    Text { text: "Concept 8 Parameters (Analog Console)"; color: "#38bdf8"; font.bold: true }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "BPM Readout: " + sldBpm.value.toFixed(0); color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldBpm
+                            from: 60
+                            to: 200
+                            value: 124
+                            stepSize: 1
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Vocal Energy: " + (sldVocalEnergy.value * 100).toFixed(0) + "%"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldVocalEnergy
+                            from: 0.0
+                            to: 1.0
+                            value: 0.65
+                            stepSize: 0.05
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        CheckBox {
+                            id: chkBeat
+                            text: "Simulate Beat"
+                            checked: true
+                        }
+                        CheckBox {
+                            id: chkDownbeat
+                            text: "Downbeat (Bar)"
+                            checked: false
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        CheckBox {
+                            id: chkVocal
+                            text: "Singing Vocal Active"
+                            checked: true
                         }
                     }
                 }

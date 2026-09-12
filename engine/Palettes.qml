@@ -60,6 +60,14 @@ QtObject {
         { name: "Frost Crystal Web (Ice Blue & Rime)",      silk: "#f0f9ff", dew: "#bae6fd", resonance: "#7dd3fc", voidColor: "#021220" }
     ]
 
+    readonly property var consolePalettes: [
+        { name: "Tektronix 1974 (Classic Brushed Dark Aluminum & P1 Green)", chassis: "#18191e", dial: "#f5f0e6", bezel: "#252730", scope: "#0f2814", needle: "#d9381e", accent: "#38bdf8" },
+        { name: "Apollo Mission Control (Battleship Gray & Amber Nixie)",      chassis: "#272a30", dial: "#eae5d8", bezel: "#3a3e47", scope: "#1c221a", needle: "#e11d48", accent: "#f59e0b" },
+        { name: "Military Field Spec (Olive Drab & Night Phosphor)",          chassis: "#1a1f18", dial: "#0d1810", bezel: "#283025", scope: "#071c0d", needle: "#eab308", accent: "#22c55e" },
+        { name: "Vacuum Tube Audio Desk (Smoked Walnut & Warm Tungsten)",     chassis: "#1e1614", dial: "#fef3c7", bezel: "#382924", scope: "#241912", needle: "#ef4444", accent: "#ea580c" },
+        { name: "Cyber-Laboratory 2088 (Dark Titanium & Cyan Oscilloscope)",   chassis: "#0d1117", dial: "#161b22", bezel: "#21262d", scope: "#051e28", needle: "#06b6d4", accent: "#ec4899" }
+    ]
+
     function getNames(paletteList) {
         let list = [];
         for (let i = 0; i < paletteList.length; ++i) {

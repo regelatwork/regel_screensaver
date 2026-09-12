@@ -11,6 +11,7 @@ Item {
     property real keystrokeEnergy: 0.0
     property real shockwaveIntensity: 0.0
     property real vortexSpeed: 0.5
+    property real subBass: 0.05
     property real bass: 0.08
     property real mids: 0.05
     property real treble: 0.05
@@ -131,6 +132,21 @@ Item {
         keystrokeEnergy: lockScreenRoot.keystrokeEnergy
         shockwaveIntensity: lockScreenRoot.shockwaveIntensity
         vortexSpeed: lockScreenRoot.vortexSpeed
+        bass: lockScreenRoot.bass
+        mids: lockScreenRoot.mids
+        treble: lockScreenRoot.treble
+        pointerPos: lockScreenRoot.pointerPos
+        pointerVel: lockScreenRoot.pointerVel
+    }
+
+    // Concept 8: The Analog Telemetry Console (Dual Ballistic Galvanometers & Phosphor CRT)
+    AnalogTelemetryConsole {
+        anchors.fill: parent
+        visible: lockScreenRoot.activeConcept === 8
+        simTime: lockScreenRoot.simTime
+        keystrokeEnergy: lockScreenRoot.keystrokeEnergy
+        shockwaveIntensity: lockScreenRoot.shockwaveIntensity
+        subBass: lockScreenRoot.subBass
         bass: lockScreenRoot.bass
         mids: lockScreenRoot.mids
         treble: lockScreenRoot.treble

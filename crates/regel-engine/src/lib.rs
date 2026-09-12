@@ -491,6 +491,41 @@ pub unsafe extern "C" fn regel_engine_set_audio(
             treble,
             rms,
             transient,
+            ..AudioSpectrum::default()
+        }));
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn regel_engine_set_audio_ex(
+    core: *mut EngineCore,
+    sub_bass: f32,
+    bass: f32,
+    mids: f32,
+    treble: f32,
+    rms: f32,
+    transient: bool,
+    bpm: f32,
+    beat: bool,
+    downbeat: bool,
+    beat_phase: f32,
+    is_vocal: bool,
+    vocal_energy: f32,
+) {
+    if let Some(engine) = core.as_mut() {
+        engine.handle_event(EngineEvent::AudioUpdate(AudioSpectrum {
+            sub_bass,
+            bass,
+            mids,
+            treble,
+            rms,
+            transient,
+            bpm,
+            beat,
+            downbeat,
+            beat_phase,
+            is_vocal,
+            vocal_energy,
         }));
     }
 }
@@ -695,5 +730,14 @@ mod tests {
 
             regel_engine_destroy(core);
         }
+    }
+
+    #[test]
+    fn test_struct_layout() {
+        assert_eq!(std::mem::size_of::<AudioSpectrum>(), 44);
+        assert_eq!(std::mem::size_of::<UniformState>(), 128);
+        assert_eq!(std::mem::offset_of!(UniformState, audio), 76);
+        assert_eq!(std::mem::offset_of!(UniformState, session_state), 120);
+        assert_eq!(std::mem::offset_of!(UniformState, is_obscured), 124);
     }
 }

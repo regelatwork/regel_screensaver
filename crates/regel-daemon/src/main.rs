@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 
 extern "C" {
     fn regel_dbus_init() -> c_int;
+    #[allow(dead_code)]
     fn regel_dbus_emit_spectrum(
         sub_bass: f64,
         bass: f64,
@@ -17,6 +18,20 @@ extern "C" {
         treble: f64,
         rms: f64,
         transient: c_int,
+    );
+    fn regel_dbus_emit_spectrum_ex(
+        sub_bass: f64,
+        bass: f64,
+        mids: f64,
+        treble: f64,
+        rms: f64,
+        transient: c_int,
+        bpm: f64,
+        beat: c_int,
+        downbeat: c_int,
+        beat_phase: f64,
+        is_vocal: c_int,
+        vocal_energy: f64,
     );
     fn regel_dbus_process_messages();
     fn regel_dbus_check_source_change(out_source: *mut c_char, max_len: usize) -> c_int;
@@ -180,13 +195,19 @@ fn run_audio_daemon(
                 }
 
                 // Broadcast spectrum over D-Bus PropertiesChanged signal
-                regel_dbus_emit_spectrum(
+                regel_dbus_emit_spectrum_ex(
                     spectrum.sub_bass as f64,
                     spectrum.bass as f64,
                     spectrum.mids as f64,
                     spectrum.treble as f64,
                     spectrum.rms as f64,
                     if spectrum.transient { 1 } else { 0 },
+                    spectrum.bpm as f64,
+                    if spectrum.beat { 1 } else { 0 },
+                    if spectrum.downbeat { 1 } else { 0 },
+                    spectrum.beat_phase as f64,
+                    if spectrum.is_vocal { 1 } else { 0 },
+                    spectrum.vocal_energy as f64,
                 );
             }
         }

@@ -112,6 +112,11 @@
       <label>Silk Lattice Elastic Tension</label>
       <default>1.0</default>
     </entry>
+    <!-- Archetype 8: Analog Telemetry Console -->
+    <entry name="concept8Palette" type="Int">
+      <label>Analog Console Finish &amp; Dial Palette</label>
+      <default>0</default>
+    </entry>
   </group>
 
 </kcfg>

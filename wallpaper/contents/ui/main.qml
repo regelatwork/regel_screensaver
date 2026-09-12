@@ -77,16 +77,36 @@ WallpaperItem {
     property real harpDewDensity: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.harpDewDensity === "number") ? wallpaperRoot.configuration.harpDewDensity : 0.75
     property real harpTension: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.harpTension === "number") ? wallpaperRoot.configuration.harpTension : 1.0
 
+    // --- Concept 8 Parameters ---
+    property int concept8PaletteIdx: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.concept8Palette === "number") ? wallpaperRoot.configuration.concept8Palette : 0
+    readonly property var currentConsolePalette: palettes.consolePalettes[concept8PaletteIdx % palettes.consolePalettes.length]
+
     // Live audio properties from D-Bus
     property bool isAudioLive: audioProps.properties && typeof audioProps.properties.bass === "number"
+    property real liveSubBass: isAudioLive && typeof audioProps.properties.sub_bass === "number" ? audioProps.properties.sub_bass : 0.05
     property real liveBass: isAudioLive ? audioProps.properties.bass : 0.08
     property real liveMids: isAudioLive ? audioProps.properties.mids : 0.05
     property real liveTreble: isAudioLive ? audioProps.properties.treble : 0.05
+    property real liveRms: isAudioLive && typeof audioProps.properties.rms === "number" ? audioProps.properties.rms : 0.05
+    property real liveBpm: isAudioLive && typeof audioProps.properties.bpm === "number" ? audioProps.properties.bpm : 120.0
+    property bool liveBeat: isAudioLive && typeof audioProps.properties.beat === "boolean" ? audioProps.properties.beat : false
+    property bool liveDownbeat: isAudioLive && typeof audioProps.properties.downbeat === "boolean" ? audioProps.properties.downbeat : false
+    property bool liveIsVocal: isAudioLive && typeof audioProps.properties.is_vocal === "boolean" ? audioProps.properties.is_vocal : false
+    property real liveVocalEnergy: isAudioLive && typeof audioProps.properties.vocal_energy === "number" ? audioProps.properties.vocal_energy : 0.0
+    property bool liveTransient: isAudioLive && typeof audioProps.properties.transient === "boolean" ? audioProps.properties.transient : false
 
     // Active audio levels fed into visualizers
+    property real subBass: (audioReactive && isAudioLive) ? liveSubBass : 0.05
     property real bass: (audioReactive && isAudioLive) ? liveBass : 0.08
     property real mids: (audioReactive && isAudioLive) ? liveMids : 0.05
     property real treble: (audioReactive && isAudioLive) ? liveTreble : 0.05
+    property real rms: (audioReactive && isAudioLive) ? liveRms : 0.05
+    property real bpm: (audioReactive && isAudioLive) ? liveBpm : 120.0
+    property bool beat: (audioReactive && isAudioLive) ? liveBeat : false
+    property bool downbeat: (audioReactive && isAudioLive) ? liveDownbeat : false
+    property bool isVocal: (audioReactive && isAudioLive) ? liveIsVocal : false
+    property real vocalEnergy: (audioReactive && isAudioLive) ? liveVocalEnergy : 0.0
+    property bool transientHit: (audioReactive && isAudioLive) ? liveTransient : false
 
     function syncDaemonSettings() {
         try {
@@ -269,6 +289,32 @@ WallpaperItem {
         colorDew: wallpaperRoot.currentHarpPalette.dew
         colorResonance: wallpaperRoot.currentHarpPalette.resonance
         colorVoid: wallpaperRoot.currentHarpPalette.voidColor
+    }
+
+    // Concept 8: The Analog Telemetry Console (Ballistic Galvanometers & P1 Phosphor CRT)
+    AnalogTelemetryConsole {
+        anchors.fill: parent
+        visible: wallpaperRoot.activeConcept === 8
+        simTime: wallpaperRoot.simTime
+        subBass: wallpaperRoot.subBass
+        bass: wallpaperRoot.bass
+        mids: wallpaperRoot.mids
+        treble: wallpaperRoot.treble
+        rms: wallpaperRoot.rms
+        bpm: wallpaperRoot.bpm
+        beat: wallpaperRoot.beat
+        downbeat: wallpaperRoot.downbeat
+        isVocal: wallpaperRoot.isVocal
+        vocalEnergy: wallpaperRoot.vocalEnergy
+        transientHit: wallpaperRoot.transientHit
+        pointerPos: wallpaperRoot.pointerPos
+        pointerVel: wallpaperRoot.pointerVel
+        colorChassis: wallpaperRoot.currentConsolePalette.chassis
+        colorDial: wallpaperRoot.currentConsolePalette.dial
+        colorBezel: wallpaperRoot.currentConsolePalette.bezel
+        colorScope: wallpaperRoot.currentConsolePalette.scope
+        colorNeedle: wallpaperRoot.currentConsolePalette.needle
+        colorAccent: wallpaperRoot.currentConsolePalette.accent
     }
 
     // Pointer tracker when cursor hovers over exposed desktop

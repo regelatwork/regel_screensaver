@@ -157,6 +157,32 @@ Item {
         colorVoid: fullRep.plasmoidItem.currentHarpPalette.voidColor
     }
 
+    // Concept 8: The Analog Telemetry Console (Ballistic Galvanometers & P1 Phosphor CRT)
+    AnalogTelemetryConsole {
+        anchors.fill: parent
+        visible: fullRep.plasmoidItem.activeConcept === 8
+        simTime: fullRep.plasmoidItem.simTime
+        subBass: fullRep.plasmoidItem.subBass
+        bass: fullRep.plasmoidItem.bass
+        mids: fullRep.plasmoidItem.mids
+        treble: fullRep.plasmoidItem.treble
+        rms: fullRep.plasmoidItem.rms
+        bpm: fullRep.plasmoidItem.bpm
+        beat: fullRep.plasmoidItem.beat
+        downbeat: fullRep.plasmoidItem.downbeat
+        isVocal: fullRep.plasmoidItem.isVocal
+        vocalEnergy: fullRep.plasmoidItem.vocalEnergy
+        transientHit: fullRep.plasmoidItem.transientHit
+        pointerPos: fullRep.pointerPos
+        pointerVel: fullRep.pointerVel
+        colorChassis: fullRep.plasmoidItem.currentConsolePalette.chassis
+        colorDial: fullRep.plasmoidItem.currentConsolePalette.dial
+        colorBezel: fullRep.plasmoidItem.currentConsolePalette.bezel
+        colorScope: fullRep.plasmoidItem.currentConsolePalette.scope
+        colorNeedle: fullRep.plasmoidItem.currentConsolePalette.needle
+        colorAccent: fullRep.plasmoidItem.currentConsolePalette.accent
+    }
+
     // Pointer tracker when cursor hovers over widget
     MouseArea {
         id: surfaceMouseArea
@@ -186,7 +212,7 @@ Item {
         repeat: false
     }
 
-    readonly property bool isPlanar: fullRep.plasmoidItem.Plasmoid.formFactor === PlasmaCore.Types.Planar
+    readonly property bool isPlanar: fullRep.plasmoidItem && fullRep.plasmoidItem.Plasmoid ? (fullRep.plasmoidItem.Plasmoid.formFactor === PlasmaCore.Types.Planar) : true
     readonly property bool hudVisible: !isPlanar || surfaceMouseArea.containsMouse || hudMouseArea.containsMouse || hudHideTimer.running
 
     // Interactive Floating HUD Controls
@@ -263,7 +289,7 @@ Item {
                 QQC2.ToolTip.text: i18n("Configure Visualizer…")
                 QQC2.ToolTip.visible: hovered
                 onClicked: {
-                    if (fullRep.plasmoidItem.Plasmoid.internalAction("configure")) {
+                    if (fullRep.plasmoidItem && fullRep.plasmoidItem.Plasmoid && fullRep.plasmoidItem.Plasmoid.internalAction && fullRep.plasmoidItem.Plasmoid.internalAction("configure")) {
                         fullRep.plasmoidItem.Plasmoid.internalAction("configure").trigger()
                     }
                 }

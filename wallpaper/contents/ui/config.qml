@@ -47,6 +47,9 @@ Kirigami.FormLayout {
     property alias cfg_harpDewDensity: harpDewSlider.value
     property alias cfg_harpTension: harpTensionSlider.value
 
+    // Archetype 8: The Analog Telemetry Console
+    property int cfg_concept8Palette: 0
+
     // Audio Reactivity
     property alias cfg_audioReactive: audioReactiveCheckBox.checked
     property string cfg_audioSource: "monitor"
@@ -70,7 +73,8 @@ Kirigami.FormLayout {
             "4. Cosmic Gravitational Sandbox (Relativistic Black Hole)",
             "5. Procedural Synthwave Megacity (Cyberpunk Skyline)",
             "6. Real-Time Ephemeris Biome (Painterly Terrarium)",
-            "7. Kinetic Spiderweb & Resonance Harp (Elastic Lattice)"
+            "7. Kinetic Spiderweb & Resonance Harp (Elastic Lattice)",
+            "8. The Analog Telemetry Console (Ballistic Galvanometers & CRT)"
         ]
         currentIndex: Math.max(0, Math.min(model.length - 1, root.cfg_activeConcept - 1))
         onActivated: (index) => {
@@ -261,6 +265,16 @@ Kirigami.FormLayout {
         to: 2.0
         stepSize: 0.1
         value: 1.0
+    }
+
+    // --- Concept 8: The Analog Telemetry Console ---
+    QQC2.ComboBox {
+        id: concept8Combo
+        Kirigami.FormData.label: "Console Theme:"
+        visible: root.cfg_activeConcept === 8
+        model: palettes.getNames(palettes.consolePalettes)
+        currentIndex: Math.max(0, Math.min(model.length - 1, root.cfg_concept8Palette))
+        onActivated: (index) => { root.cfg_concept8Palette = index }
     }
 
     // =========================================================================

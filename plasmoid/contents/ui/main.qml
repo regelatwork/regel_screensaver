@@ -35,7 +35,8 @@ PlasmoidItem {
         "4. Cosmic Gravitational Sandbox",
         "5. Procedural Synthwave Megacity",
         "6. Real-Time Ephemeris Biome",
-        "7. Kinetic Spiderweb & Resonance Harp"
+        "7. Kinetic Spiderweb & Resonance Harp",
+        "8. Analog Telemetry Console"
     ]
 
     // Configuration bindings
@@ -47,7 +48,7 @@ PlasmoidItem {
     property real configuredAudioGain: (Plasmoid.configuration && typeof Plasmoid.configuration.audioGain !== "undefined") ? Plasmoid.configuration.audioGain : 3.5
 
     function cycleConcept(delta) {
-        let count = 7
+        let count = 8
         let next = ((activeConcept - 1 + delta) % count + count) % count + 1
         activeConcept = next
         if (Plasmoid.configuration) {
@@ -97,16 +98,36 @@ PlasmoidItem {
     property real harpDewDensity: (Plasmoid.configuration && typeof Plasmoid.configuration.harpDewDensity === "number") ? Plasmoid.configuration.harpDewDensity : 0.75
     property real harpTension: (Plasmoid.configuration && typeof Plasmoid.configuration.harpTension === "number") ? Plasmoid.configuration.harpTension : 1.0
 
+    // --- Concept 8 Parameters ---
+    property int concept8PaletteIdx: (Plasmoid.configuration && typeof Plasmoid.configuration.concept8Palette === "number") ? Plasmoid.configuration.concept8Palette : 0
+    readonly property var currentConsolePalette: palettes.consolePalettes[concept8PaletteIdx % palettes.consolePalettes.length]
+
     // Live audio properties from D-Bus
     property bool isAudioLive: audioProps.properties && typeof audioProps.properties.bass === "number"
+    property real liveSubBass: isAudioLive && typeof audioProps.properties.sub_bass === "number" ? audioProps.properties.sub_bass : 0.05
     property real liveBass: isAudioLive ? audioProps.properties.bass : 0.08
     property real liveMids: isAudioLive ? audioProps.properties.mids : 0.05
     property real liveTreble: isAudioLive ? audioProps.properties.treble : 0.05
+    property real liveRms: isAudioLive && typeof audioProps.properties.rms === "number" ? audioProps.properties.rms : 0.05
+    property real liveBpm: isAudioLive && typeof audioProps.properties.bpm === "number" ? audioProps.properties.bpm : 120.0
+    property bool liveBeat: isAudioLive && typeof audioProps.properties.beat === "boolean" ? audioProps.properties.beat : false
+    property bool liveDownbeat: isAudioLive && typeof audioProps.properties.downbeat === "boolean" ? audioProps.properties.downbeat : false
+    property bool liveIsVocal: isAudioLive && typeof audioProps.properties.is_vocal === "boolean" ? audioProps.properties.is_vocal : false
+    property real liveVocalEnergy: isAudioLive && typeof audioProps.properties.vocal_energy === "number" ? audioProps.properties.vocal_energy : 0.0
+    property bool liveTransient: isAudioLive && typeof audioProps.properties.transient === "boolean" ? audioProps.properties.transient : false
 
     // Active audio levels fed into visualizers
+    property real subBass: (audioReactive && isAudioLive) ? liveSubBass : 0.05
     property real bass: (audioReactive && isAudioLive) ? liveBass : 0.08
     property real mids: (audioReactive && isAudioLive) ? liveMids : 0.05
     property real treble: (audioReactive && isAudioLive) ? liveTreble : 0.05
+    property real rms: (audioReactive && isAudioLive) ? liveRms : 0.05
+    property real bpm: (audioReactive && isAudioLive) ? liveBpm : 120.0
+    property bool beat: (audioReactive && isAudioLive) ? liveBeat : false
+    property bool downbeat: (audioReactive && isAudioLive) ? liveDownbeat : false
+    property bool isVocal: (audioReactive && isAudioLive) ? liveIsVocal : false
+    property real vocalEnergy: (audioReactive && isAudioLive) ? liveVocalEnergy : 0.0
+    property bool transientHit: (audioReactive && isAudioLive) ? liveTransient : false
 
     toolTipMainText: i18n("Regel Visualizer")
     toolTipSubText: isAudioLive

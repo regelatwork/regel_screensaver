@@ -25,7 +25,7 @@
 
 ## ✨ Key Features
 
-- **7 Procedural Aesthetic Archetypes**: From Navier-Stokes fluid dynamics and continuous artificial life (Lenia) to relativistic black hole gravitational lensing and cyberpunk raymarched skylines.
+- **8 Procedural Aesthetic Archetypes**: From Navier-Stokes fluid dynamics and continuous artificial life (Lenia) to relativistic black hole gravitational lensing and vintage analog telemetry consoles.
 - **Versatile Plasma 6 Integrations**:
   - **Wallpaper Containment Plugin (`org.regel.wallpaper`)**: Immersive, full-screen interactive background.
   - **Desktop & Panel Widget / Plasmoid (`org.regel.widget`)**: Freely resizable planar widget on the desktop or animated compact equalizer in the taskbar panel with interactive popup HUD.
@@ -86,7 +86,7 @@ flowchart TD
 
 ---
 
-## 🎨 The 7 Aesthetic Archetypes
+## 🎨 The 8 Aesthetic Archetypes
 
 <div align="center">
   <img src="assets/screenshots/regel-archetypes-grid.jpg" alt="Regel Aesthetic Archetypes Showcase (Liquid Abyss, Koi Sanctuary, Cosmic Sandbox, Synthwave Megacity)" width="100%">
@@ -101,6 +101,11 @@ flowchart TD
 | **05** | [**Synthwave Megacity**](docs/05-synthwave-megacity.md) | Procedural Cyberpunk Skyline | **Themes**: *Neo-Tokyo Outrun, Blade Runner 2049, Matrix Phosphor, Syndicate Blood, Retrowave Sunset*.<br/>**Options**: Neon rain downpour density, atmospheric smog density. |
 | **06** | [**Real-Time Ephemeris Biome**](docs/06-realtime-ephemeris-biome.md) | Painterly Ghibli Weather Terrarium | **Themes**: *Yakushima Ancient Forest, Sakura Spring Dawn, Autumn Koyo, Alpine Winter, Midnight Bioluminescence*.<br/>**Options**: Weather mode (Clear, Rain, Snow, Mist), real solar clock sync. |
 | **07** | [**Kinetic Spiderweb & Resonance Harp**](docs/07-kinetic-spiderweb-harp.md) | Tactile Elastic Lattice | **Themes**: *Moonlit Gossamer, Golden Laser Harp, Bioluminescent Abyssal, Electric Synapse, Frost Crystal Web*.<br/>**Options**: Dewdrop density slider, silk elastic tension slider. |
+| **08** | [**The Analog Telemetry Console**](docs/08-analog-telemetry-console.md) | Hex-Meter Ballistic Galvanometer Matrix & Phosphor Timebase | **Themes**: *Vintage Laboratory, Tektronix Phosphor 1974, Nagra IV-S Field Recorder, Soviet Cold-War Bunker, Cyberpunk Deck*.<br/>6 identical ballistic VU galvanometers (ANSI C16.5 2nd-order ODE), external chassis jewel pilot lamps with peak-hold pulse stretchers, P1 phosphor CRT oscilloscope, and Nixie BPM readout. |
+
+<div align="center">
+  <img src="assets/screenshots/concept-8-analog-console.jpg" alt="Concept 8: The Analog Telemetry Console with 6 Uniform Ballistic VU Galvanometers, External Chassis Pilot Lamps, Circular CRT Phosphor Oscilloscope, and Nixie BPM Readout" width="100%">
+</div>
 
 ---
 
@@ -207,7 +212,7 @@ regel-harness
 ```
 
 **Features in the Harness**:
-- Real-time concept switcher (1 through 7).
+- Real-time concept switcher (1 through 8).
 - Live spectrum analyzer visualizer (sub-bass, bass, mids, treble).
 - Sensitivity gain, gamma, and AGC sliders.
 - Interactive keyboard and mouse trigger simulator (keystroke velocity, backspace suction, lock/unlock states).
@@ -218,8 +223,8 @@ regel-harness
 A dedicated offscreen capture utility (`tools/run-capture.sh`) renders and captures authentic, pixel-perfect still images, looping animated GIFs, or MP4 videos directly from Qt 6 RHI GPU shaders without needing an active desktop session (auto-spawns virtual Xvfb display if headless):
 
 ```bash
-# Capture an authentic high-resolution still of an archetype (e.g. Concept 1)
-./tools/run-capture.sh --concept 1 --width 1920 --height 1080 --output assets/screenshots/concept1.png
+# Capture an authentic high-resolution still of an archetype (e.g. Concept 8)
+./tools/run-capture.sh --concept 8 --width 1920 --height 1080 --output assets/screenshots/concept8.png
 
 # Record a smooth looping animated GIF with simulated audio beats
 ./tools/run-capture.sh --concept 1 --duration 2.0 --fps 30 --output assets/screenshots/fluid-loop.gif
@@ -254,9 +259,21 @@ A dedicated offscreen capture utility (`tools/run-capture.sh`) renders and captu
 | `treble` | `double` | Read | Treble / High-hat energy (2 kHz – 16 kHz), normalized `0.0 – 1.0` |
 | `rms` | `double` | Read | Root-mean-square overall volume, normalized `0.0 – 1.0` |
 | `transient` | `bool` | Read | Detected sudden acoustic onset / drum hit / clap |
+| `bpm` | `double` | Read | Estimated tempo (BPM) from rhythm tracking |
+| `beat` | `bool` | Read | Beat event onset impulse flag |
+| `downbeat` | `bool` | Read | Measure downbeat impulse flag (measure bar start) |
+| `beat_phase` | `double` | Read | Continuous phase of current beat (`0.0 – 1.0`) |
+| `is_vocal` | `bool` | Read | Vocal activity / singing presence detected |
+| `vocal_energy` | `double` | Read | Normalized singing voice activity energy (`0.0 – 1.0`) |
 | `source` | `string` | Read | Active capture source (`"monitor"` or `"mic"`) |
 | `gain` | `double` | Read | Manual gain multiplier (`1.0 – 20.0`) |
 | `auto_gain` | `bool` | Read | Whether Automatic Gain Control (AGC) is active |
+
+### Signals
+
+| Signal | Arguments | Description |
+| :--- | :--- | :--- |
+| `Beat(uint64 timestamp_us, double bpm, uint32 beat_index, bool is_downbeat)` | `timestamp_us`, `bpm`, `beat_index`, `is_downbeat` | Dispatched synchronously with acoustic downbeats and beat onsets for sub-frame micro-choreography. |
 
 ### Methods
 
@@ -279,7 +296,10 @@ regel_screensaver/
 │   └── regel-engine/          # High-performance physics and state engine
 ├── debian/                    # Official Debian packaging rules, control, and metadata
 ├── docs/                      # Architectural specs & concept design blueprints
+│   ├── 08-analog-telemetry-console.md  # Concept 8: Analog Telemetry Console spec
+│   └── 09-neural-audio-subsystem.md    # Neural rhythm & singing voice subsystem spec
 ├── engine/                    # Shared QtQuick QML components & shaders
+│   ├── AnalogTelemetryConsole.qml     # Authentic ballistic VU & phosphor CRT console
 │   ├── Palettes.qml           # Centralized color theme palette definitions
 │   └── shaders/               # GLSL vertex/fragment shaders (.qsb SPIR-V binaries)
 ├── lockscreen/                # KDE Look-and-Feel lockscreen theme

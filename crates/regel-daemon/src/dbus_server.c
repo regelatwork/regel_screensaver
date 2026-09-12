@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <time.h>
 
 static DBusConnection *bus_conn = NULL;
 
@@ -15,6 +17,13 @@ static dbus_bool_t current_transient = FALSE;
 static char current_source[32] = "monitor";
 static double current_gain = 3.5;
 static dbus_bool_t current_auto_gain = TRUE;
+static double current_bpm = 120.0;
+static dbus_bool_t current_beat = FALSE;
+static dbus_bool_t current_downbeat = FALSE;
+static double current_beat_phase = 0.0;
+static dbus_bool_t current_is_vocal = FALSE;
+static double current_vocal_energy = 0.0;
+static uint32_t current_beat_counter = 0;
 static int source_change_requested = 0;
 static int gain_change_requested = 0;
 static int auto_gain_change_requested = 0;
@@ -54,6 +63,18 @@ static const char *introspection_xml =
     "    <property name=\"source\" type=\"s\" access=\"read\"/>\n"
     "    <property name=\"gain\" type=\"d\" access=\"read\"/>\n"
     "    <property name=\"auto_gain\" type=\"b\" access=\"read\"/>\n"
+    "    <property name=\"bpm\" type=\"d\" access=\"read\"/>\n"
+    "    <property name=\"beat\" type=\"b\" access=\"read\"/>\n"
+    "    <property name=\"downbeat\" type=\"b\" access=\"read\"/>\n"
+    "    <property name=\"beat_phase\" type=\"d\" access=\"read\"/>\n"
+    "    <property name=\"is_vocal\" type=\"b\" access=\"read\"/>\n"
+    "    <property name=\"vocal_energy\" type=\"d\" access=\"read\"/>\n"
+    "    <signal name=\"Beat\">\n"
+    "      <arg name=\"timestamp_us\" type=\"t\"/>\n"
+    "      <arg name=\"bpm\" type=\"d\"/>\n"
+    "      <arg name=\"beat_index\" type=\"u\"/>\n"
+    "      <arg name=\"is_downbeat\" type=\"b\"/>\n"
+    "    </signal>\n"
     "    <method name=\"SetSource\">\n"
     "      <arg name=\"source\" direction=\"in\" type=\"s\"/>\n"
     "    </method>\n"
@@ -106,6 +127,12 @@ static void build_all_properties_dict(DBusMessageIter *dict) {
     append_dict_entry_string(dict, "source", current_source);
     append_dict_entry_double(dict, "gain", current_gain);
     append_dict_entry_bool(dict, "auto_gain", current_auto_gain);
+    append_dict_entry_double(dict, "bpm", current_bpm);
+    append_dict_entry_bool(dict, "beat", current_beat);
+    append_dict_entry_bool(dict, "downbeat", current_downbeat);
+    append_dict_entry_double(dict, "beat_phase", current_beat_phase);
+    append_dict_entry_bool(dict, "is_vocal", current_is_vocal);
+    append_dict_entry_double(dict, "vocal_energy", current_vocal_energy);
 }
 
 static void handle_message(DBusConnection *conn, DBusMessage *msg) {
@@ -142,25 +169,120 @@ static void handle_message(DBusConnection *conn, DBusMessage *msg) {
                 dbus_message_iter_next(&args);
                 if (dbus_message_iter_get_arg_type(&args) == DBUS_TYPE_STRING) {
                     dbus_message_iter_get_basic(&args, &prop_name);
-                    reply = dbus_message_new_method_return(msg);
-                    DBusMessageIter iter, var;
-                    dbus_message_iter_init_append(reply, &iter);
-                    if (strcmp(prop_name, "bass") == 0) {
+                    if (prop_name && strcmp(prop_name, "bass") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
                         dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "d", &var);
                         dbus_message_iter_append_basic(&var, DBUS_TYPE_DOUBLE, &current_bass);
                         dbus_message_iter_close_container(&iter, &var);
-                    } else if (strcmp(prop_name, "mids") == 0) {
+                    } else if (prop_name && strcmp(prop_name, "mids") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
                         dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "d", &var);
                         dbus_message_iter_append_basic(&var, DBUS_TYPE_DOUBLE, &current_mids);
                         dbus_message_iter_close_container(&iter, &var);
-                    } else if (strcmp(prop_name, "treble") == 0) {
+                    } else if (prop_name && strcmp(prop_name, "treble") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
                         dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "d", &var);
                         dbus_message_iter_append_basic(&var, DBUS_TYPE_DOUBLE, &current_treble);
                         dbus_message_iter_close_container(&iter, &var);
-                    } else {
+                    } else if (prop_name && strcmp(prop_name, "sub_bass") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
+                        dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "d", &var);
+                        dbus_message_iter_append_basic(&var, DBUS_TYPE_DOUBLE, &current_sub_bass);
+                        dbus_message_iter_close_container(&iter, &var);
+                    } else if (prop_name && strcmp(prop_name, "rms") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
                         dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "d", &var);
                         dbus_message_iter_append_basic(&var, DBUS_TYPE_DOUBLE, &current_rms);
                         dbus_message_iter_close_container(&iter, &var);
+                    } else if (prop_name && strcmp(prop_name, "transient") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
+                        dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "b", &var);
+                        dbus_message_iter_append_basic(&var, DBUS_TYPE_BOOLEAN, &current_transient);
+                        dbus_message_iter_close_container(&iter, &var);
+                    } else if (prop_name && strcmp(prop_name, "source") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        const char *src_ptr = current_source;
+                        dbus_message_iter_init_append(reply, &iter);
+                        dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "s", &var);
+                        dbus_message_iter_append_basic(&var, DBUS_TYPE_STRING, &src_ptr);
+                        dbus_message_iter_close_container(&iter, &var);
+                    } else if (prop_name && strcmp(prop_name, "gain") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
+                        dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "d", &var);
+                        dbus_message_iter_append_basic(&var, DBUS_TYPE_DOUBLE, &current_gain);
+                        dbus_message_iter_close_container(&iter, &var);
+                    } else if (prop_name && strcmp(prop_name, "auto_gain") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
+                        dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "b", &var);
+                        dbus_message_iter_append_basic(&var, DBUS_TYPE_BOOLEAN, &current_auto_gain);
+                        dbus_message_iter_close_container(&iter, &var);
+                    } else if (prop_name && strcmp(prop_name, "bpm") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
+                        dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "d", &var);
+                        dbus_message_iter_append_basic(&var, DBUS_TYPE_DOUBLE, &current_bpm);
+                        dbus_message_iter_close_container(&iter, &var);
+                    } else if (prop_name && strcmp(prop_name, "beat") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
+                        dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "b", &var);
+                        dbus_message_iter_append_basic(&var, DBUS_TYPE_BOOLEAN, &current_beat);
+                        dbus_message_iter_close_container(&iter, &var);
+                    } else if (prop_name && strcmp(prop_name, "downbeat") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
+                        dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "b", &var);
+                        dbus_message_iter_append_basic(&var, DBUS_TYPE_BOOLEAN, &current_downbeat);
+                        dbus_message_iter_close_container(&iter, &var);
+                    } else if (prop_name && strcmp(prop_name, "beat_phase") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
+                        dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "d", &var);
+                        dbus_message_iter_append_basic(&var, DBUS_TYPE_DOUBLE, &current_beat_phase);
+                        dbus_message_iter_close_container(&iter, &var);
+                    } else if (prop_name && strcmp(prop_name, "is_vocal") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
+                        dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "b", &var);
+                        dbus_message_iter_append_basic(&var, DBUS_TYPE_BOOLEAN, &current_is_vocal);
+                        dbus_message_iter_close_container(&iter, &var);
+                    } else if (prop_name && strcmp(prop_name, "vocal_energy") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        dbus_message_iter_init_append(reply, &iter);
+                        dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "d", &var);
+                        dbus_message_iter_append_basic(&var, DBUS_TYPE_DOUBLE, &current_vocal_energy);
+                        dbus_message_iter_close_container(&iter, &var);
+                    } else {
+                        reply = dbus_message_new_error_printf(
+                            msg,
+                            "org.freedesktop.DBus.Error.UnknownProperty",
+                            "Property '%s' does not exist on interface '%s'",
+                            prop_name ? prop_name : "null",
+                            prop_iface ? prop_iface : "null"
+                        );
                     }
                 }
             }
@@ -259,7 +381,45 @@ int regel_dbus_init(void) {
     return 0;
 }
 
-void regel_dbus_emit_spectrum(double sub_bass, double bass, double mids, double treble, double rms, int transient) {
+void regel_dbus_emit_beat(uint64_t timestamp_us, double bpm, uint32_t beat_index, int is_downbeat) {
+    if (!bus_conn) return;
+
+    DBusMessage *sig = dbus_message_new_signal(
+        "/org/regel/Audio",
+        "org.regel.Audio",
+        "Beat"
+    );
+    if (!sig) return;
+
+    DBusMessageIter iter;
+    dbus_message_iter_init_append(sig, &iter);
+    dbus_uint64_t ts = timestamp_us;
+    double b = bpm;
+    dbus_uint32_t idx = beat_index;
+    dbus_bool_t d = is_downbeat ? TRUE : FALSE;
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT64, &ts);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_DOUBLE, &b);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &idx);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_BOOLEAN, &d);
+
+    dbus_connection_send(bus_conn, sig, NULL);
+    dbus_message_unref(sig);
+}
+
+void regel_dbus_emit_spectrum_ex(
+    double sub_bass,
+    double bass,
+    double mids,
+    double treble,
+    double rms,
+    int transient,
+    double bpm,
+    int beat,
+    int downbeat,
+    double beat_phase,
+    int is_vocal,
+    double vocal_energy
+) {
     if (!bus_conn) return;
 
     current_sub_bass = sub_bass;
@@ -268,6 +428,20 @@ void regel_dbus_emit_spectrum(double sub_bass, double bass, double mids, double 
     current_treble = treble;
     current_rms = rms;
     current_transient = transient ? TRUE : FALSE;
+    current_bpm = bpm;
+    current_beat = beat ? TRUE : FALSE;
+    current_downbeat = downbeat ? TRUE : FALSE;
+    current_beat_phase = beat_phase;
+    current_is_vocal = is_vocal ? TRUE : FALSE;
+    current_vocal_energy = vocal_energy;
+
+    if (beat) {
+        current_beat_counter++;
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        uint64_t us = (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
+        regel_dbus_emit_beat(us, bpm, current_beat_counter, downbeat);
+    }
 
     DBusMessage *sig = dbus_message_new_signal(
         "/org/regel/Audio",
@@ -289,6 +463,12 @@ void regel_dbus_emit_spectrum(double sub_bass, double bass, double mids, double 
     append_dict_entry_double(&dict, "treble", treble);
     append_dict_entry_double(&dict, "rms", rms);
     append_dict_entry_bool(&dict, "transient", current_transient);
+    append_dict_entry_double(&dict, "bpm", current_bpm);
+    append_dict_entry_bool(&dict, "beat", current_beat);
+    append_dict_entry_bool(&dict, "downbeat", current_downbeat);
+    append_dict_entry_double(&dict, "beat_phase", current_beat_phase);
+    append_dict_entry_bool(&dict, "is_vocal", current_is_vocal);
+    append_dict_entry_double(&dict, "vocal_energy", current_vocal_energy);
     dbus_message_iter_close_container(&iter, &dict);
 
     // invalidated_properties as (element type is 's')
@@ -296,8 +476,11 @@ void regel_dbus_emit_spectrum(double sub_bass, double bass, double mids, double 
     dbus_message_iter_close_container(&iter, &empty_arr);
 
     dbus_connection_send(bus_conn, sig, NULL);
-    dbus_connection_flush(bus_conn);
     dbus_message_unref(sig);
+}
+
+void regel_dbus_emit_spectrum(double sub_bass, double bass, double mids, double treble, double rms, int transient) {
+    regel_dbus_emit_spectrum_ex(sub_bass, bass, mids, treble, rms, transient, current_bpm, 0, 0, current_beat_phase, current_is_vocal, current_vocal_energy);
 }
 
 void regel_dbus_process_messages(void) {

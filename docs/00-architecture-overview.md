@@ -21,7 +21,9 @@ regel_screensaver/
 │   ├── 04-cosmic-gravitational-sandbox.md # Concept 4: Black Hole & Accretion Dust
 │   ├── 05-synthwave-megacity.md        # Concept 5: Procedural Synthwave Megacity
 │   ├── 06-realtime-ephemeris-biome.md  # Concept 6: Real-Time Ephemeris Biome
-│   └── 07-kinetic-spiderweb-harp.md    # Concept 7: Kinetic Spiderweb & Resonance Harp
+│   ├── 07-kinetic-spiderweb-harp.md    # Concept 7: Kinetic Spiderweb & Resonance Harp
+│   ├── 08-analog-telemetry-console.md  # Concept 8: Analog Telemetry Console (VU & CRT)
+│   └── 09-neural-audio-subsystem.md    # Neural Audio: BeatNet, SVD & D-Bus Schema
 ├── engine/                             # Core Rendering & Simulation Engine
 │   ├── shaders/                        # High-performance GLSL / QSB shaders
 │   ├── simulation/                     # Physics, automata, and particle models
@@ -80,12 +82,17 @@ graph TD
    * `cursorVelocity`: Movement delta vector `(dx/dt, dy/dt)`.
    * `cursorDown / cursorUp`: Click and drag state.
 
-3. **Audio Spectrum Events (PipeWire Capture)**:
+3. **Audio Spectrum & Neural Intelligence Events (PipeWire Capture & ONNX Runtime)**:
    * `subBass` (20–60 Hz): Energy for massive shockwaves and gravity wells.
    * `bass` (60–250 Hz): Rhythm pulses, dye jets, and building height modulations.
-   * `mids` (250–4000 Hz): Vocal and melodic turbulence, organism speed.
+   * `mids` (250–4000 Hz): Melodic turbulence, harmonic drive, and organism speed.
    * `treble` (4000–20000 Hz): Sparkles, dew drops, laser flickers, rain mist.
-   * `transientAttack`: Sudden percussive burst detection (claps, snare drums).
+   * `transient`: Sudden percussive burst detection (claps, snare drums).
+   * `beat`: Neural quarter-note beat pulse from BeatNet.
+   * `downbeat`: Neural measure/bar accent pulse (beat 1 of measure) for macro transitions.
+   * `bpm`: Real-time tempo tracking for global velocity and clock synchronization.
+   * `beat_phase` ($0.0 \to 1.0$): Continuous cyclic phase ramp for predictive kinematic harmonic motion.
+   * `is_vocal` & `vocal_energy`: Singing voice detection for isolating vocal melodic lines.
 
 ---
 

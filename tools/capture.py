@@ -19,28 +19,19 @@ for p in ["/usr/lib/python3/dist-packages", "/usr/local/lib/python3/dist-package
         sys.path.insert(0, p)
 
 def ensure_display():
-    """Ensures a valid X11 or Wayland display exists. Spawns xvfb-run automatically if headless."""
-    if os.environ.get("IN_XVFB") == "1":
-        return
-    if os.environ.get("WAYLAND_DISPLAY"):
-        return
-    if os.environ.get("DISPLAY"):
-        try:
-            res = subprocess.run(["xdpyinfo"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            if res.returncode == 0:
-                return
-        except Exception:
-            pass
-
-    # No functional display; re-exec under xvfb-run
-    xvfb = shutil.which("xvfb-run")
-    if not xvfb:
-        print("Error: Headless capture requires 'xvfb-run' or an active display.", file=sys.stderr)
-        sys.exit(1)
-
-    os.environ["IN_XVFB"] = "1"
-    cmd = [xvfb, "-a", "-s", "-screen 0 1920x1080x24", "/usr/bin/python3"] + sys.argv
-    os.execvp(xvfb, cmd)
+    """Ensures a valid X11, Wayland, or Qt offscreen platform exists."""
+    # No functional display; use native offscreen platform
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    os.environ["PULSE_SERVER"] = "/dev/null"
+    os.environ["CANBERRA_DRIVER"] = "null"
+    os.environ["XDG_CONFIG_HOME"] = "/tmp/regel_config"
+    os.environ["XDG_DATA_HOME"] = "/tmp/regel_data"
+    os.environ["XDG_CACHE_HOME"] = "/tmp/regel_cache"
+    os.makedirs("/tmp/regel_config", exist_ok=True)
+    os.makedirs("/tmp/regel_data", exist_ok=True)
+    os.makedirs("/tmp/regel_cache", exist_ok=True)
+    os.environ.pop("DISPLAY", None)
+    os.environ.pop("WAYLAND_DISPLAY", None)
 
 ensure_display()
 
@@ -169,6 +160,31 @@ CONCEPTS = {
             colorVoid: "#050811"
         }"""
     },
+    8: {
+        "name": "analog_console",
+        "title": "The Analog Telemetry Console",
+        "snippet": """AnalogTelemetryConsole {
+            anchors.fill: parent
+            simTime: parent.simTime
+            subBass: 0.85
+            bass: 0.72
+            mids: 0.58
+            treble: 0.45
+            rms: 0.65
+            bpm: 124.0
+            beat: true
+            downbeat: true
+            isVocal: true
+            vocalEnergy: 0.68
+            transientHit: false
+            colorChassis: "#18191e"
+            colorDial: "#f5f0e6"
+            colorBezel: "#252730"
+            colorScope: "#0f2814"
+            colorNeedle: "#d9381e"
+            colorAccent: "#38bdf8"
+        }"""
+    },
 }
 
 def qimage_to_pil(qimg):
@@ -181,7 +197,7 @@ def qimage_to_pil(qimg):
 
 class CaptureEngine:
     def __init__(self):
-        self.app = QGuiApplication.instance() or QGuiApplication(sys.argv)
+        self.app = QGuiApplication.instance() or QGuiApplication(["regel_capture"])
         self.view = QQuickView()
         self.view.setResizeMode(QQuickView.ResizeMode.SizeRootObjectToView)
 
@@ -191,14 +207,9 @@ class CaptureEngine:
         loop.exec()
 
     def grab_current_frame(self):
-        root = self.view.rootObject()
-        if not root:
+        qimg = self.view.grabWindow()
+        if qimg.isNull():
             return None
-        loop = QEventLoop()
-        grab_res = root.grabToImage()
-        grab_res.ready.connect(loop.quit)
-        loop.exec()
-        qimg = grab_res.image()
         return qimage_to_pil(qimg)
 
     def capture_still(self, target="concept", concept_id=1, width=1280, height=720, warmup=3.0,
@@ -238,6 +249,7 @@ class CaptureEngine:
 
             if root:
                 root.setProperty("simTime", cur_sim)
+                root.setProperty("subBass", min(1.0, b * 1.05))
                 root.setProperty("bass", b)
                 root.setProperty("mids", m)
                 root.setProperty("treble", tr)
@@ -264,6 +276,7 @@ Item {{
     width: {width}
     height: {height}
     property real simTime: {sim_time}
+    property real subBass: {bass}
     property real bass: {bass}
     property real mids: {mids}
     property real treble: {treble}
@@ -278,6 +291,7 @@ Item {{
 """
         elif target == "widget-desktop":
             qml = f"""import QtQuick
+import org.kde.plasma.core as PlasmaCore
 import "file://{PLASMOID_DIR}"
 import "file://{ENGINE_DIR}"
 
@@ -289,9 +303,18 @@ Item {{
         id: mockPlasmoid
         property int activeConcept: {concept_id}
         property real simTime: {sim_time}
+        property real subBass: {bass * 1.05}
         property real bass: {bass}
         property real mids: {mids}
         property real treble: {treble}
+        property real rms: {max(bass, mids, treble) * 0.9}
+        property real bpm: 124.0
+        property bool beat: true
+        property bool downbeat: true
+        property real beatPhase: 0.5
+        property bool isVocal: true
+        property real vocalEnergy: 0.65
+        property bool transientHit: false
         property real globalVortexSpeed: 0.8
         property bool isAudioLive: true
         property var conceptNames: [
@@ -301,7 +324,8 @@ Item {{
             "4. Cosmic Gravitational Sandbox",
             "5. Procedural Synthwave Megacity",
             "6. Real-Time Ephemeris Biome",
-            "7. Kinetic Spiderweb & Resonance Harp"
+            "7. Kinetic Spiderweb & Resonance Harp",
+            "8. The Analog Telemetry Console"
         ]
         Palettes {{ id: palettes }}
         property var currentFluidPalette: palettes.fluidPalettes[0]
@@ -321,6 +345,7 @@ Item {{
         property var currentHarpPalette: palettes.harpPalettes[0]
         property real harpDewDensity: 0.75
         property real harpTension: 1.0
+        property var currentConsolePalette: palettes.consolePalettes[0]
         function cycleConcept(d) {{}}
     }}
 
@@ -467,13 +492,20 @@ def generate_all_showcase(engine):
     anim_frames = engine.capture_animation(target="concept", concept_id=1, width=720, height=405, duration=1.5, fps=30, warmup=3.0)
     save_animation_file(anim_frames, "assets/screenshots/regel-live-equalizer.gif", fps=30)
 
+    # 5. Authentic Concept 8 Analog Telemetry Console
+    print("\nCapturing Authentic Concept 8 Analog Telemetry Console...")
+    console_img = engine.capture_still(target="concept", concept_id=8, width=1280, height=720, warmup=2.5)
+    if console_img.size != (1280, 720):
+        console_img = console_img.resize((1280, 720), Image.Resampling.LANCZOS)
+    save_image_file(console_img, "assets/screenshots/concept-8-analog-console.jpg")
+
     print("\n✅ All authentic capture assets generated successfully!")
 
 def main():
     parser = argparse.ArgumentParser(description="Regel Headless Capture Engine & Benchmarker")
     parser.add_argument("--target", choices=["concept", "widget-desktop", "widget-panel", "grid", "all"], default="concept",
                         help="Target element to capture")
-    parser.add_argument("--concept", default="1", help="Concept ID (1-7)")
+    parser.add_argument("--concept", default="1", help="Concept ID (1-8)")
     parser.add_argument("--warmup", type=float, default=2.5, help="Simulation warmup time in seconds")
     parser.add_argument("--duration", type=float, default=0.0, help="Recording duration in seconds (0 for still image)")
     parser.add_argument("--fps", type=int, default=30, help="Frames per second for animation")
@@ -528,6 +560,8 @@ def main():
         )
         if img:
             save_image_file(img, out_file)
+
+    os._exit(0)
 
 if __name__ == "__main__":
     main()
