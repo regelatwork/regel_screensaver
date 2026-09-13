@@ -80,7 +80,7 @@ else
 fi
 
 echo "--> 6. Validating Debian Package Build..."
-VERSION="$(dpkg-parsechangelog -S Version -l debian/changelog 2>/dev/null || echo '0.3.0-1')"
+VERSION="$(dpkg-parsechangelog -S Version -l debian/changelog 2>/dev/null || echo '0.3.1-1')"
 UPSTREAM_VERSION="${VERSION%%-*}"
 ARCH="$(dpkg --print-architecture 2>/dev/null || uname -m)"
 case "${ARCH}" in
@@ -94,7 +94,7 @@ fi
 
 if [ -f "dist/regel-screensaver_${VERSION}_${ARCH}.deb" ]; then
     test -f "dist/regel-screensaver_${VERSION}_${ARCH}.deb"
-    if command -v lintian &>/dev/null; then
+    if command -v lintian &>/dev/null && perl -e "eval 'use Params::Util'; exit(\$@ ? 1 : 0)" 2>/dev/null; then
         lintian "dist/regel-screensaver_${VERSION}_${ARCH}.deb"
     fi
     echo "    Debian package dist/regel-screensaver_${VERSION}_${ARCH}.deb verified successfully."
@@ -103,14 +103,14 @@ else
 fi
 
 echo "--> 7. Validating Debian Source Package & Lintian Conformance..."
-if [ "${BUILD_PACKAGES:-0}" = "1" ] && command -v dpkg-source &>/dev/null && command -v lintian &>/dev/null; then
+if [ "${BUILD_PACKAGES:-0}" = "1" ] && command -v dpkg-source &>/dev/null && command -v lintian &>/dev/null && perl -e "eval 'use Params::Util'; exit(\$@ ? 1 : 0)" 2>/dev/null; then
     ./tools/package-src.sh
 fi
 
 if [ -f "dist/source/regel-screensaver_${VERSION}.dsc" ]; then
     test -f "dist/source/regel-screensaver_${UPSTREAM_VERSION}.orig.tar.gz"
     test -f "dist/source/regel-screensaver_${VERSION}.dsc"
-    if command -v lintian &>/dev/null; then
+    if command -v lintian &>/dev/null && perl -e "eval 'use Params::Util'; exit(\$@ ? 1 : 0)" 2>/dev/null; then
         lintian "dist/source/regel-screensaver_${VERSION}.dsc"
     fi
     echo "    Debian source package verified with Lintian successfully."

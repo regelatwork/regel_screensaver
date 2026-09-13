@@ -18,6 +18,7 @@ Item {
     property real beatPhase: (lockScreenRoot.simTime * 2.0) % 1.0
     property point pointerPos: Qt.point(0.5, 0.5)
     property point pointerVel: Qt.point(0.0, 0.0)
+    property bool pointerValid: false
 
     // Simulation frame & impulse decay loop
     Timer {
@@ -29,6 +30,15 @@ Item {
             lockScreenRoot.keystrokeEnergy = Math.max(0.0, lockScreenRoot.keystrokeEnergy * Math.exp(-2.5 * 0.016))
             lockScreenRoot.shockwaveIntensity = Math.max(0.0, lockScreenRoot.shockwaveIntensity * Math.exp(-3.0 * 0.016))
             lockScreenRoot.vortexSpeed += (1.0 - lockScreenRoot.vortexSpeed) * 2.0 * 0.016
+            if (lockScreenRoot.pointerVel.x !== 0.0 || lockScreenRoot.pointerVel.y !== 0.0) {
+                let vx = lockScreenRoot.pointerVel.x * 0.82
+                let vy = lockScreenRoot.pointerVel.y * 0.82
+                if (Math.abs(vx) < 0.0005 && Math.abs(vy) < 0.0005) {
+                    vx = 0.0
+                    vy = 0.0
+                }
+                lockScreenRoot.pointerVel = Qt.point(vx, vy)
+            }
         }
     }
 
@@ -190,10 +200,28 @@ Item {
     MouseArea {
         anchors.fill: parent
         hoverEnabled: true
+        onEntered: {
+            lockScreenRoot.pointerValid = false
+        }
+        onExited: {
+            lockScreenRoot.pointerValid = false
+            lockScreenRoot.pointerVel = Qt.point(0.0, 0.0)
+        }
         onPositionChanged: (mouse) => {
-            let curX = mouse.x / width
-            let curY = mouse.y / height
-            lockScreenRoot.pointerVel = Qt.point(curX - lockScreenRoot.pointerPos.x, curY - lockScreenRoot.pointerPos.y)
+            let curX = Math.max(0.0, Math.min(1.0, mouse.x / width))
+            let curY = Math.max(0.0, Math.min(1.0, mouse.y / height))
+            if (!lockScreenRoot.pointerValid) {
+                lockScreenRoot.pointerValid = true
+                lockScreenRoot.pointerPos = Qt.point(curX, curY)
+                lockScreenRoot.pointerVel = Qt.point(0.0, 0.0)
+                return
+            }
+            let rawDx = curX - lockScreenRoot.pointerPos.x
+            let rawDy = curY - lockScreenRoot.pointerPos.y
+            let refScale = Math.max(1.0, width / 1920.0)
+            let clDx = Math.max(-0.25, Math.min(0.25, rawDx * refScale))
+            let clDy = Math.max(-0.25, Math.min(0.25, rawDy * refScale))
+            lockScreenRoot.pointerVel = Qt.point(lockScreenRoot.pointerVel.x * 0.3 + clDx * 0.7, lockScreenRoot.pointerVel.y * 0.3 + clDy * 0.7)
             lockScreenRoot.pointerPos = Qt.point(curX, curY)
         }
     }

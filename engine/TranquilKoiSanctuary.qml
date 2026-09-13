@@ -98,7 +98,7 @@ Item {
         property real u_time: root.koiTime
         property real u_keystroke_energy: root.keystrokeEnergy * 0.6
         property real u_shockwave_intensity: root.shockwaveIntensity * 0.3
-        property real u_vortex_speed: root.vortexSpeed * 0.70
+        property real u_vortex_speed: root.vortexSpeed * 0.85
         property real u_bass: Math.min(0.20, root.bass * 0.30 + root.downbeatRipple * 0.03)
         property real u_mids: root.mids * 0.35 + vocalShimmer * 0.04
         property real u_treble: root.treble * 0.30

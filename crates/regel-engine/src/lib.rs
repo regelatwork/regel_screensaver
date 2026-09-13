@@ -318,6 +318,17 @@ impl EngineCore {
         self.state.pointer_momentum[0] *= momentum_decay;
         self.state.pointer_momentum[1] *= momentum_decay;
 
+        // Pointer velocity decay (smooth return to rest)
+        let vel_decay = (-8.0 * dt).exp();
+        self.state.pointer_velocity[0] *= vel_decay;
+        self.state.pointer_velocity[1] *= vel_decay;
+        if self.state.pointer_velocity[0].abs() < 1e-4 {
+            self.state.pointer_velocity[0] = 0.0;
+        }
+        if self.state.pointer_velocity[1].abs() < 1e-4 {
+            self.state.pointer_velocity[1] = 0.0;
+        }
+
         // 3. Wandering beat epicenter (Lissajous trajectory)
         if self.wander_beat_enabled {
             self.state.beat_center = [

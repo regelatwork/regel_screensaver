@@ -1,3 +1,18 @@
+regel-screensaver (0.3.1-1) unstable; urgency=medium
+
+  * Release v0.3.1: Hydrodynamic Stability & Interaction Pacing Fix.
+  * Concept 3 (The Tranquil Sanctuary): Stabilize water surface normal
+    refraction with central finite differences, calm high-frequency pointer
+    wake ripples, and soften predator boid panic steering.
+  * Concept 3: Balance swim cadence scaling at low vortex speeds to prevent
+    frozen animation on wallpaper containment.
+  * Shared Cursor Interaction: Add pointer velocity exponential decay across
+    plasmoid widget, desktop wallpaper, lockscreen, and Rust engine core.
+  * Eliminate cursor entry impulse spike and normalize velocity tracking
+    across standard and 4K display resolutions.
+
+ -- Regel Project Contributors <info@regel.org>  Sat, 12 Sep 2026 20:30:00 -0400
+
 regel-screensaver (0.3.0-1) unstable; urgency=medium
 
   * Release v0.3.0: Neural Audio Choreography & 8 Aesthetic Archetypes.

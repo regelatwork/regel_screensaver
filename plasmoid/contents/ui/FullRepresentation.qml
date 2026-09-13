@@ -20,6 +20,7 @@ Item {
 
     property point pointerPos: Qt.point(0.5, 0.5)
     property point pointerVel: Qt.point(0.0, 0.0)
+    property bool pointerValid: false
 
     // Base background layer
     Rectangle {
@@ -239,10 +240,29 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+        onEntered: {
+            fullRep.pointerValid = false
+        }
+        onExited: {
+            fullRep.pointerValid = false
+            fullRep.pointerVel = Qt.point(0.0, 0.0)
+        }
         onPositionChanged: (mouse) => {
-            let curX = mouse.x / width
-            let curY = mouse.y / height
-            fullRep.pointerVel = Qt.point(curX - fullRep.pointerPos.x, curY - fullRep.pointerPos.y)
+            let curX = Math.max(0.0, Math.min(1.0, mouse.x / width))
+            let curY = Math.max(0.0, Math.min(1.0, mouse.y / height))
+            if (!fullRep.pointerValid) {
+                fullRep.pointerValid = true
+                fullRep.pointerPos = Qt.point(curX, curY)
+                fullRep.pointerVel = Qt.point(0.0, 0.0)
+                hudHideTimer.restart()
+                return
+            }
+            let rawDx = curX - fullRep.pointerPos.x
+            let rawDy = curY - fullRep.pointerPos.y
+            // Clamp to prevent wild spikes on rapid movements across small widget bounds
+            let clDx = Math.max(-0.20, Math.min(0.20, rawDx))
+            let clDy = Math.max(-0.20, Math.min(0.20, rawDy))
+            fullRep.pointerVel = Qt.point(fullRep.pointerVel.x * 0.3 + clDx * 0.7, fullRep.pointerVel.y * 0.3 + clDy * 0.7)
             fullRep.pointerPos = Qt.point(curX, curY)
             hudHideTimer.restart()
         }
@@ -250,6 +270,25 @@ Item {
             if (mouse.button === Qt.MiddleButton) {
                 // Middle click cycles to next concept
                 fullRep.plasmoidItem.cycleConcept(1)
+            }
+        }
+    }
+
+    // Pointer velocity decay timer to return simulation to rest when cursor stops
+    Timer {
+        id: pointerDecayTimer
+        interval: 16
+        running: true
+        repeat: true
+        onTriggered: {
+            if (fullRep.pointerVel.x !== 0.0 || fullRep.pointerVel.y !== 0.0) {
+                let vx = fullRep.pointerVel.x * 0.82
+                let vy = fullRep.pointerVel.y * 0.82
+                if (Math.abs(vx) < 0.0005 && Math.abs(vy) < 0.0005) {
+                    vx = 0.0
+                    vy = 0.0
+                }
+                fullRep.pointerVel = Qt.point(vx, vy)
             }
         }
     }
