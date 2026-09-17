@@ -25,6 +25,32 @@ layout(std140, binding = 0) uniform buf {
     float u_mids;
     float u_treble;
     float u_water_clarity;
+
+    // 5 Animated Lily Pads (2 x vec4 per pad = 160B)
+    vec4 u_pad0_geo;
+    vec4 u_pad1_geo;
+    vec4 u_pad2_geo;
+    vec4 u_pad3_geo;
+    vec4 u_pad4_geo;
+
+    vec4 u_pad0_dyn;
+    vec4 u_pad1_dyn;
+    vec4 u_pad2_dyn;
+    vec4 u_pad3_dyn;
+    vec4 u_pad4_dyn;
+
+    // 5 Active Fish Agents (2 x vec4 per fish = 160B)
+    vec4 u_fish0_pos;
+    vec4 u_fish1_pos;
+    vec4 u_fish2_pos;
+    vec4 u_fish3_pos;
+    vec4 u_fish4_pos;
+
+    vec4 u_fish0_attr;
+    vec4 u_fish1_attr;
+    vec4 u_fish2_attr;
+    vec4 u_fish3_attr;
+    vec4 u_fish4_attr;
 };
 
 // --- Fast GPU Simplex Noise & Hash ---
@@ -87,14 +113,111 @@ float evaluateCaustics(vec2 p, float t) {
     return (c1 + c2) * 0.5;
 }
 
+// --- 12-Variety Authentic Nishikigoi Phenotypic Specification ---
+struct KoiPhenotype {
+    vec3 baseColor;
+    vec3 secondaryColor;
+    vec3 accentColor;
+    int patternMode;    // 0: Metallic, 1: Plates, 2: Tri-color, 3: Crown spot, 4: Reticulated net, 5: Doitsu zipper, 6: Shadow
+    float scaleShimmer;
+    float finMultiplier;
+};
+
+KoiPhenotype getKoiPhenotype(int variety) {
+    KoiPhenotype p;
+    p.scaleShimmer = 0.0;
+    p.finMultiplier = 1.0;
+
+    int v = variety % 12;
+    if (v == 0) {
+        // 1. Kohaku: Pure white body with bold scarlet Hi plates
+        p.baseColor = vec3(0.96, 0.95, 0.93);
+        p.secondaryColor = vec3(0.92, 0.12, 0.05);
+        p.accentColor = p.baseColor;
+        p.patternMode = 1;
+    } else if (v == 1) {
+        // 2. Taisho Sanke: White base + scarlet plates + sumi ink dots
+        p.baseColor = vec3(0.96, 0.95, 0.93);
+        p.secondaryColor = vec3(0.92, 0.12, 0.05);
+        p.accentColor = vec3(0.04, 0.05, 0.07);
+        p.patternMode = 2;
+    } else if (v == 2) {
+        // 3. Showa Sanshoku: Ink black base with wrapping scarlet and white marks
+        p.baseColor = vec3(0.04, 0.05, 0.07);
+        p.secondaryColor = vec3(0.92, 0.12, 0.05);
+        p.accentColor = vec3(0.96, 0.95, 0.93);
+        p.patternMode = 2;
+    } else if (v == 3) {
+        // 4. Yamabuki Ogon: Brilliant radiant metallic gold with scale shimmer
+        p.baseColor = vec3(1.0, 0.68, 0.08);
+        p.secondaryColor = vec3(1.0, 0.82, 0.35);
+        p.accentColor = vec3(0.85, 0.55, 0.04);
+        p.patternMode = 0;
+        p.scaleShimmer = 0.85;
+    } else if (v == 4) {
+        // 5. Tancho: Ethereal silver-white body with solitary crimson crown spot
+        p.baseColor = vec3(0.94, 0.96, 0.98);
+        p.secondaryColor = vec3(0.94, 0.10, 0.05);
+        p.accentColor = p.baseColor;
+        p.patternMode = 3;
+    } else if (v == 5) {
+        // 6. Asagi: Indigo-blue reticulated scale netting + vibrant orange flanks
+        p.baseColor = vec3(0.32, 0.42, 0.52);
+        p.secondaryColor = vec3(0.92, 0.38, 0.08);
+        p.accentColor = vec3(0.12, 0.18, 0.28);
+        p.patternMode = 4;
+    } else if (v == 6) {
+        // 7. Shusui: Doitsu sky-blue mirror skin + dorsal spine zipper scales
+        p.baseColor = vec3(0.55, 0.68, 0.78);
+        p.secondaryColor = vec3(0.92, 0.35, 0.08);
+        p.accentColor = vec3(0.08, 0.12, 0.22);
+        p.patternMode = 5;
+    } else if (v == 7) {
+        // 8. Ki Utsuri: Lacquer black body with bold amber-yellow markings
+        p.baseColor = vec3(0.04, 0.05, 0.06);
+        p.secondaryColor = vec3(0.98, 0.75, 0.05);
+        p.accentColor = p.baseColor;
+        p.patternMode = 1;
+    } else if (v == 8) {
+        // 9. Gin Matsuba: Metallic platinum silver with pinecone scale centers
+        p.baseColor = vec3(0.88, 0.90, 0.94);
+        p.secondaryColor = vec3(0.20, 0.22, 0.26);
+        p.accentColor = vec3(0.10, 0.12, 0.15);
+        p.patternMode = 4;
+        p.scaleShimmer = 0.75;
+    } else if (v == 9) {
+        // 10. Chagoi: Warm olive-brown monochrome with peaceful net scaling
+        p.baseColor = vec3(0.42, 0.35, 0.22);
+        p.secondaryColor = vec3(0.32, 0.26, 0.16);
+        p.accentColor = vec3(0.55, 0.46, 0.30);
+        p.patternMode = 4;
+    } else if (v == 10) {
+        // 11. Karasugoi: Crow-black shadow koi with subtle orange belly rim
+        p.baseColor = vec3(0.02, 0.02, 0.03);
+        p.secondaryColor = vec3(0.85, 0.30, 0.05);
+        p.accentColor = vec3(0.06, 0.07, 0.08);
+        p.patternMode = 6;
+    } else {
+        // 12. Butterfly / Hirenaga Koi: Flowing diaphanous fins & pearl luster
+        p.baseColor = vec3(0.95, 0.95, 0.98);
+        p.secondaryColor = vec3(1.0, 0.78, 0.25);
+        p.accentColor = vec3(0.98, 0.98, 1.0);
+        p.patternMode = 1;
+        p.scaleShimmer = 0.60;
+        p.finMultiplier = 2.2;
+    }
+    return p;
+}
+
 // Evaluates a single procedurally animated Nishikigoi (Koi) with undulating spine
 float evaluateKoi(
     vec2 p,
     vec2 headPos,
     vec2 swimHeading,
     float fishLength,
-    float t,
-    int morph,
+    float cadencePhase,
+    int variety,
+    float depth,
     float audioFlick,
     out float shadowMask,
     out vec3 bodyColor
@@ -103,12 +226,17 @@ float evaluateKoi(
     vec2 sideNorm = vec2(-heading.y, heading.x);
     vec2 rel = p - headPos;
 
-    // Project coordinate onto longitudinal and lateral spine axes
     float s = dot(rel, -heading);
     float v = dot(rel, sideNorm);
 
-    // Fast bounding box rejection
-    if (s < -0.04 || s > fishLength * 1.35 || abs(v) > fishLength * 0.45) {
+    KoiPhenotype pheno = getKoiPhenotype(variety);
+    float finMult = pheno.finMultiplier;
+
+    // Fast bounding box rejection (including sun shadow margin & butterfly fins)
+    vec2 sunOffset = vec2(0.022, -0.032);
+    float sShadMargin = length(sunOffset);
+
+    if (s < -0.05 - sShadMargin || s > fishLength * (1.35 + 0.45 * (finMult - 1.0)) || abs(v) > fishLength * (0.45 * finMult)) {
         shadowMask = 0.0;
         bodyColor = vec3(0.0);
         return 0.0;
@@ -116,10 +244,10 @@ float evaluateKoi(
 
     float u = s / fishLength; // Normalized spine progression [0.0 = snout, 1.0 = caudal peduncle]
 
-    // Procedural multi-segment spine undulation wave (serene, natural tail stroke)
-    float swimCadence = t * 5.0 + audioFlick * 0.4;
+    // Procedural multi-segment spine undulation wave
+    float swimCadence = cadencePhase + audioFlick * 0.4;
     float spineWave = sin(u * 6.5 - swimCadence);
-    float lateralSway = 0.022 * u * u * spineWave;
+    float lateralSway = 0.022 * u * u * spineWave / (1.0 + 0.35 * (finMult - 1.0));
     float localV = v - lateralSway;
 
     // Body half-width profile along spine
@@ -134,71 +262,90 @@ float evaluateKoi(
     float inBody = 1.0 - smoothstep(0.85, 1.0, bodyNormDist);
 
     // Pectoral Fins (flare on sides)
-    float pectDist = length(vec2((u - 0.32) * 1.5, abs(v) - halfWidth * 1.35));
-    float pectFin = (1.0 - smoothstep(0.015, 0.045, pectDist)) * smoothstep(0.18, 0.35, u) * 0.8;
+    float pectDist = length(vec2((u - 0.32) * 1.5, (abs(v) - halfWidth * 1.35) / max(1.0, finMult * 0.85)));
+    float pectFin = (1.0 - smoothstep(0.015 * finMult, 0.045 * finMult, pectDist)) * smoothstep(0.18, 0.35, u) * 0.8;
 
     // Caudal Tail Fin (translucent veil tail with rayed striations)
-    float tailDist = length(vec2((u - 1.05) * 1.2, abs(localV) * 0.9));
+    float tailDist = length(vec2((u - (1.05 + 0.12 * (finMult - 1.0))) / max(1.0, finMult * 0.9), abs(localV) * 0.9));
     float tailRays = sin(localV * 140.0) * 0.15;
-    float tailFin = (1.0 - smoothstep(0.02, 0.07, tailDist)) * smoothstep(0.85, 1.0, u) * (0.85 + tailRays);
+    float tailFin = (1.0 - smoothstep(0.02 * finMult, 0.07 * finMult, tailDist)) * smoothstep(0.85, 1.0, u) * (0.85 + tailRays);
 
     float totalFishCoverage = clamp(inBody + pectFin + tailFin, 0.0, 1.0);
 
     // Fish drop shadow onto riverbed with sun angle offset
-    vec2 sunOffset = vec2(0.022, -0.032);
     vec2 relShadow = (p - sunOffset) - headPos;
     float sShad = dot(relShadow, -heading);
     float vShad = dot(relShadow, sideNorm) - lateralSway;
     float uShad = sShad / fishLength;
     float wShad = maxHalfWidth * (sqrt(clamp(uShad / 0.25, 0.0, 1.0)) * (1.0 - 0.72 * smoothstep(0.25, 0.85, uShad)));
     shadowMask = (1.0 - smoothstep(0.8, 1.3, abs(vShad) / max(0.0001, wShad))) * smoothstep(-0.02, 0.05, uShad) * (1.0 - smoothstep(0.85, 1.1, uShad)) * 0.65;
-
-    // --- Nishikigoi Traditional Pigment Morphs ---
-    vec3 baseWhite = vec3(0.96, 0.95, 0.93);
-    vec3 scarletHi = vec3(0.92, 0.12, 0.05); // Rich Japanese cinnabar red
-    vec3 sumiBlack = vec3(0.04, 0.05, 0.07); // Ink black
-    vec3 goldOgon = vec3(1.0, 0.65, 0.08);   // Metallic gold
-    vec3 platinum = vec3(0.92, 0.94, 0.98);
+    shadowMask *= (1.0 - depth * 0.75);
 
     // Procedural organic pigment pattern mapped to spine coordinates
     vec2 patUV = vec2(u * 4.5, localV * 25.0);
-    float hiPattern = smoothstep(0.46, 0.52, fbm(patUV));
-    float sumiPattern = smoothstep(0.62, 0.68, fbm(patUV + vec2(2.5, 4.0)));
+    float fbmPat1 = fbm(patUV);
+    float fbmPat2 = fbm(patUV + vec2(2.5, 4.0));
 
-    vec3 col = baseWhite;
+    vec3 col = pheno.baseColor;
 
-    if (morph == 0) {
-        // Kohaku (White body with scarlet Hi islands)
-        col = mix(baseWhite, scarletHi, hiPattern);
-    } else if (morph == 1) {
-        // Taisho Sanke (White + scarlet Hi + sumi black spots)
-        col = mix(baseWhite, scarletHi, hiPattern);
-        col = mix(col, sumiBlack, sumiPattern);
-    } else if (morph == 2) {
-        // Yamabuki Ogon (Radiant metallic gold/amber with scale shimmer)
+    if (pheno.patternMode == 0) {
+        // Metallic monochrome
         float scales = sin(u * 65.0) * cos(localV * 85.0) * 0.15;
-        col = goldOgon + vec3(scales);
-    } else if (morph == 3) {
-        // Tancho Ghost Koi (Silvery platinum body + scarlet sun spot on head)
+        col = pheno.baseColor + vec3(scales * pheno.scaleShimmer);
+    } else if (pheno.patternMode == 1) {
+        // Plates / stepped marks
+        float plates = smoothstep(0.46, 0.52, fbmPat1);
+        col = mix(pheno.baseColor, pheno.secondaryColor, plates);
+    } else if (pheno.patternMode == 2) {
+        // Tri-color speckles
+        float hiPattern = smoothstep(0.46, 0.52, fbmPat1);
+        float sumiPattern = smoothstep(0.62, 0.68, fbmPat2);
+        col = mix(pheno.baseColor, pheno.secondaryColor, hiPattern);
+        col = mix(col, pheno.accentColor, sumiPattern * (variety == 2 ? (1.0 - hiPattern * 0.4) : 1.0));
+    } else if (pheno.patternMode == 3) {
+        // Crown spot
         float sunSpot = 1.0 - smoothstep(0.028, 0.038, length(vec2(u - 0.16, localV * 1.5)));
-        col = mix(platinum, scarletHi, sunSpot);
-    } else {
-        // Showa Sanshoku (Black base with bold scarlet and white marks)
-        col = sumiBlack;
-        col = mix(col, scarletHi, hiPattern);
-        col = mix(col, baseWhite, sumiPattern * (1.0 - hiPattern));
+        col = mix(pheno.baseColor, pheno.secondaryColor, sunSpot);
+    } else if (pheno.patternMode == 4) {
+        // Reticulated net / pinecone
+        float netGrid = smoothstep(0.25, 0.75, sin(u * 60.0) * cos(localV * 80.0));
+        vec3 netCol = mix(pheno.baseColor, pheno.accentColor, netGrid * 0.65);
+        float flank = smoothstep(0.35, 0.85, bodyNormDist) * smoothstep(0.15, 0.75, u);
+        col = mix(netCol, pheno.secondaryColor, flank);
+        if (pheno.scaleShimmer > 0.0) {
+            col += vec3(netGrid * 0.15 * pheno.scaleShimmer);
+        }
+    } else if (pheno.patternMode == 5) {
+        // Doitsu zipper
+        float dorsalZipper = (1.0 - smoothstep(0.0, 0.18, bodyNormDist)) * smoothstep(0.15, 0.90, u);
+        float mirrorScale = smoothstep(0.2, 0.8, sin(u * 55.0)) * dorsalZipper;
+        float flankOrange = smoothstep(0.45, 0.95, bodyNormDist) * smoothstep(0.20, 0.80, u);
+        col = mix(pheno.baseColor, pheno.accentColor, mirrorScale * 0.9);
+        col = mix(col, pheno.secondaryColor, flankOrange * 0.85);
+    } else if (pheno.patternMode == 6) {
+        // Midnight shadow
+        float edgeGlow = smoothstep(0.70, 0.98, bodyNormDist) * smoothstep(0.1, 0.9, u);
+        col = mix(pheno.baseColor, pheno.secondaryColor, edgeGlow * 0.5);
     }
 
     // 3D Dorsal Curvature & Specular Highlight
     float spineDepth = sqrt(max(0.0, 1.0 - bodyNormDist * bodyNormDist));
     vec3 lightDir = normalize(vec3(0.5, 0.6, 0.8));
     vec3 normal = normalize(vec3(-localV / max(0.001, halfWidth), -0.2, spineDepth));
-    float spec = pow(clamp(dot(normal, lightDir), 0.0, 1.0), 12.0) * 0.6;
+    float spec = pow(clamp(dot(normal, lightDir), 0.0, 1.0), 12.0) * (0.6 + 0.3 * pheno.scaleShimmer);
     col += vec3(spec);
 
     // Translucency for fins
     if (inBody < 0.2) {
         col = mix(col, vec3(0.9, 0.95, 1.0), 0.4);
+        if (finMult > 1.5) {
+            col += vec3(0.06 * sin(localV * 60.0), 0.05 * cos(u * 40.0), 0.08);
+        }
+    }
+
+    // Submersion depth blending
+    if (depth > 0.01) {
+        col = mix(col, u_color_water.rgb, depth * 0.65);
     }
 
     bodyColor = col;
@@ -212,23 +359,36 @@ float evaluateLilyPad(
     float radius,
     float angleNotch,
     float t,
+    int padType,
     out float padShadow,
     out vec3 padColor
 ) {
     vec2 toPad = p - center;
-    float dist = length(toPad);
+    float distSq = dot(toPad, toPad);
+    float rMax = radius * 1.35; // includes shadow margin
+    if (distSq > rMax * rMax) {
+        padShadow = 0.0;
+        padColor = vec3(0.0);
+        return 0.0;
+    }
+
+    float dist = sqrt(distSq);
     float padAngle = atan(toPad.y, toPad.x);
 
     // Radial pie notch (characteristic water lily slit)
-    float dAngle = mod(padAngle - angleNotch + 3.14159, 6.28318) - 3.14159;
+    float dAngle = mod(padAngle - angleNotch + 3.14159265, 6.2831853) - 3.14159265;
     float inNotch = smoothstep(0.01, 0.14, abs(dAngle) - 0.16);
 
     float inPad = (1.0 - smoothstep(radius - 0.006, radius, dist)) * inNotch;
 
     // Drop shadow on pond floor
     vec2 sOffset = vec2(0.032, -0.042);
-    float sDist = length(p - (center + sOffset));
-    padShadow = (1.0 - smoothstep(radius - 0.015, radius + 0.025, sDist)) * inNotch * 0.70;
+    vec2 toShadow = p - (center + sOffset);
+    float sDist = length(toShadow);
+    float sAngle = atan(toShadow.y, toShadow.x);
+    float dAngleS = mod(sAngle - angleNotch + 3.14159265, 6.2831853) - 3.14159265;
+    float inNotchS = smoothstep(0.01, 0.14, abs(dAngleS) - 0.16);
+    padShadow = (1.0 - smoothstep(radius - 0.015, radius + 0.025, sDist)) * inNotchS * 0.70;
 
     // Chlorophyll vein structure & edge rim
     float veins = smoothstep(0.94, 1.0, cos(padAngle * 14.0)) * (1.0 - dist / radius);
@@ -236,6 +396,17 @@ float evaluateLilyPad(
     vec3 deepGreen = vec3(0.06, 0.32, 0.12);
     vec3 brightGreen = vec3(0.18, 0.58, 0.22);
     vec3 yellowRim = vec3(0.48, 0.62, 0.16);
+
+    if (padType == 1) {
+        deepGreen = vec3(0.04, 0.26, 0.14);
+        brightGreen = vec3(0.14, 0.48, 0.20);
+        yellowRim = vec3(0.55, 0.35, 0.14);
+    } else if (padType == 2) {
+        deepGreen = vec3(0.09, 0.38, 0.15);
+        brightGreen = vec3(0.24, 0.64, 0.28);
+        yellowRim = vec3(0.62, 0.72, 0.18);
+    }
+
     vec3 col = mix(deepGreen, brightGreen, veins * 0.45);
     col = mix(col, yellowRim, rim * 0.75);
 
@@ -251,6 +422,12 @@ void main() {
 
     vec2 centerP = vec2(0.5 * aspect, 0.5);
 
+    // --- Unpack Lilypad and Fish Entities ---
+    vec4 padGeo[5] = vec4[5](u_pad0_geo, u_pad1_geo, u_pad2_geo, u_pad3_geo, u_pad4_geo);
+    vec4 padDyn[5] = vec4[5](u_pad0_dyn, u_pad1_dyn, u_pad2_dyn, u_pad3_dyn, u_pad4_dyn);
+    vec4 fishPos[5] = vec4[5](u_fish0_pos, u_fish1_pos, u_fish2_pos, u_fish3_pos, u_fish4_pos);
+    vec4 fishAttr[5] = vec4[5](u_fish0_attr, u_fish1_attr, u_fish2_attr, u_fish3_attr, u_fish4_attr);
+
     // --- Interactive Coordinates ---
     vec2 pointerP = u_pointer;
     pointerP.x *= aspect;
@@ -263,8 +440,6 @@ void main() {
 
     float t = u_time * u_vortex_speed;
     float mouseSpeed = length(u_pointer_vel);
-    float predatorPanic = smoothstep(0.06, 0.35, mouseSpeed);
-    float feedAttract = smoothstep(0.04, 0.70, u_keystroke_energy);
 
     // ------------------------------------------------------------------------
     // 1. Water Surface Wave Dynamics (Tranquil & Glassy)
@@ -292,13 +467,27 @@ void main() {
     float bassWave = sin(beatDist * 22.0 - t * 6.0) * exp(-beatDist * 5.0) * u_bass * 0.005;
     waveHeight += bassWave;
 
+    // Lilypad acoustic rim ripples
+    for (int k = 0; k < 5; ++k) {
+        float padWaveAmp = padDyn[k].y;
+        if (padWaveAmp > 0.005) {
+            vec2 toPadK = p - padGeo[k].xy;
+            float pDist = length(toPadK);
+            float pRadius = padGeo[k].z * padDyn[k].z;
+            float dRim = max(0.0, pDist - pRadius);
+            float pWave = sin(dRim * 36.0 - padDyn[k].x) * exp(-dRim * 10.0) * padWaveAmp * 0.005;
+            pWave *= smoothstep(0.0, 0.02, dRim);
+            waveHeight += pWave;
+        }
+    }
+
     // Auth Failed squall (muted)
     if (u_shockwave_intensity > 0.01) {
         float squall = sin(p.x * 40.0 + t * 12.0) * cos(p.y * 36.0 - t * 10.0) * u_shockwave_intensity * 0.012;
         waveHeight += squall;
     }
 
-    // Water surface normal for light refraction (proper central finite difference)
+    // Water surface normal for light refraction
     const float eps = 0.008;
     vec2 pDx = p + vec2(eps, 0.0);
     vec2 pDy = p + vec2(0.0, eps);
@@ -333,52 +522,34 @@ void main() {
     float pebbleBevel = smoothstep(0.04, 0.15, pebbleDist);
     bedColor *= (0.65 + 0.35 * pebbleBevel);
 
-    // Sunlight Caustics Network dancing across riverbed (calm, gentle refraction)
+    // Sunlight Caustics Network dancing across riverbed
     float caustics = evaluateCaustics(refrUV, t) * (0.85 + u_treble * 0.35);
     bedColor += u_color_caustics.rgb * caustics * 0.75;
 
     // ------------------------------------------------------------------------
-    // 3. Multi-Agent Nishikigoi School (5 Autonomous Koi Boids)
+    // 3. Multi-Agent Nishikigoi School (5 Dynamic Koi Slots)
     // ------------------------------------------------------------------------
     float totalShadow = 0.0;
     float totalFishMask = 0.0;
     vec3 totalFishColor = vec3(0.0);
-
-    // Autonomous trajectories with flocking, predator avoidance & food seeking
     float audioFlick = u_bass * 0.20;
 
     for (int i = 0; i < 5; ++i) {
-        float fi = float(i);
-        float orbitAngle = t * (0.18 + fi * 0.02) + fi * 1.25;
-        float orbitRadiusX = (0.24 + fi * 0.05) * aspect;
-        float orbitRadiusY = 0.16 + fi * 0.03;
+        vec2 headPos = fishPos[i].xy;
+        vec2 heading = fishPos[i].zw;
+        float fishLen = fishAttr[i].x;
+        float cadence = fishAttr[i].y;
+        int variety = int(fishAttr[i].z + 0.5);
+        float depth = fishAttr[i].w;
 
-        vec2 basePos = centerP + vec2(cos(orbitAngle) * orbitRadiusX, sin(orbitAngle * 1.2) * orbitRadiusY);
-        vec2 heading = vec2(-sin(orbitAngle) * orbitRadiusX, cos(orbitAngle * 1.2) * orbitRadiusY * 1.2);
-
-        // Predator Avoidance (gentle avoidance, glide away without frantic panic)
-        vec2 toPointer = basePos - pointerP;
-        vec2 panicDir = normalize(toPointer + vec2(0.001));
-        basePos += panicDir * predatorPanic * (0.05 + fi * 0.015);
-
-        // Chemotaxis Food Seeking (swim toward keystroke nutrient pellets)
-        vec2 feedDir = normalize(keystrokeP - basePos + vec2(0.001));
-        basePos = mix(basePos, keystrokeP, feedAttract * (0.35 + fi * 0.08));
-
-        // Dynamically steer fish heading along real locomotion trajectory
-        vec2 dynamicHeading = heading;
-        dynamicHeading += panicDir * predatorPanic * 0.45;
-        dynamicHeading = mix(dynamicHeading, feedDir, feedAttract * 0.75);
-        heading = normalize(dynamicHeading + vec2(0.0001));
-
-        float fishLen = 0.14 + fi * 0.015;
         float shad = 0.0;
         vec3 fCol = vec3(0.0);
-        float mask = evaluateKoi(p, basePos, heading, fishLen, t + fi * 3.0, i, audioFlick, shad, fCol);
+        float mask = evaluateKoi(p, headPos, heading, fishLen, cadence, variety, depth, audioFlick, shad, fCol);
 
         totalShadow = max(totalShadow, shad);
         if (mask > 0.01) {
-            totalFishColor = mix(totalFishColor, fCol, mask);
+            float blendWeight = mask * (1.0 - depth * 0.35);
+            totalFishColor = mix(totalFishColor, fCol, blendWeight);
             totalFishMask = max(totalFishMask, mask);
         }
     }
@@ -390,25 +561,21 @@ void main() {
     vec3 pondContent = mix(bedColor, totalFishColor, totalFishMask);
 
     // ------------------------------------------------------------------------
-    // 4. Floating Lily Pads (Nymphaeaceae)
+    // 4. Floating Lily Pads (5 Animated Nymphaeaceae)
     // ------------------------------------------------------------------------
     float totalPadShadow = 0.0;
     float totalPadMask = 0.0;
     vec3 totalPadColor = vec3(0.0);
 
-    // 3 Floating Lily Pads anchored around pond edges
-    vec2 padPos[3];
-    padPos[0] = centerP + vec2(-0.28 * aspect, 0.22);
-    padPos[1] = centerP + vec2(0.32 * aspect, -0.18);
-    padPos[2] = centerP + vec2(-0.15 * aspect, -0.26);
+    for (int k = 0; k < 5; ++k) {
+        vec2 padCenter = padGeo[k].xy;
+        float padRadius = padGeo[k].z * padDyn[k].z;
+        float padNotch = padGeo[k].w;
+        int padType = int(padDyn[k].w + 0.5);
 
-    float padRadius[3] = float[3](0.11, 0.13, 0.095);
-    float padNotch[3] = float[3](0.8, -1.2, 2.4);
-
-    for (int k = 0; k < 3; ++k) {
         float pShad = 0.0;
         vec3 pCol = vec3(0.0);
-        float pMask = evaluateLilyPad(p, padPos[k], padRadius[k], padNotch[k], t, pShad, pCol);
+        float pMask = evaluateLilyPad(p, padCenter, padRadius, padNotch, t, padType, pShad, pCol);
         totalPadShadow = max(totalPadShadow, pShad);
         if (pMask > 0.01) {
             totalPadColor = mix(totalPadColor, pCol, pMask);
@@ -424,7 +591,6 @@ void main() {
     // 5. Crystal Clear Water Volume, Depth Absorption & Sky Fresnel
     // ------------------------------------------------------------------------
     vec3 waterTint = u_color_water.rgb;
-    // Water depth absorption (Beer-Lambert attenuation)
     vec3 finalColor = mix(pondContent, waterTint, 0.22);
 
     // Surface specular sunlight glint from sky reflection

@@ -59,3 +59,29 @@ Each koi agent $i$ updates its acceleration based on classical flocking plus int
 $$\mathbf{a}_i = w_s \mathbf{F}_{\text{separation}} + w_a \mathbf{F}_{\text{alignment}} + w_c \mathbf{F}_{\text{cohesion}} + w_p \mathbf{F}_{\text{predator\_avoid}} + w_f \mathbf{F}_{\text{food\_seek}}$$
 * **Procedural Body Undulation**: The koi mesh consists of 8 skeletal segments. Segment 0 follows the boid velocity heading; segments $1 \dots 7$ follow along the movement spline with phase-delayed sine wave lateral sway:
   $$\theta_k(t) = A_k \sin(\omega t - k \cdot \phi)$$
+
+### 4. Floating Lily Pad Dynamics & Acoustic Resonance
+* **Harmonic Ambient Current Drift & Anti-Overlap Physics**:
+  5 floating lily pads (`Nymphaeaceae`) drift with gentle water currents while anchored to margin zones. Overlapping is prevented via pairwise soft elastic repulsion ($k_{\text{spring}} = 5.5$) and velocity damping ($c_{\text{damp}} = 0.88$). Bumping between leaves imparts a subtle rotational torque and contact ripple.
+* **Sound-Driven Membrane Resonance & Rim Waves**:
+  * On audio downbeats, lily pads expand by $+8\%$ with an exponential spring decay.
+  * Discrete audio pulses and physical leaf collisions generate outward circular wave packets radiating from the leaf outer rims into the water heightfield:
+    $$\Delta h = \sin(d_{\text{rim}} \cdot 36.0 - \omega \tau) \cdot \exp(-d_{\text{rim}} \cdot 10.0) \cdot A \cdot 0.005$$
+
+### 5. 12-Variety Nishikigoi Phenotypic Taxonomy & Migration Pool
+The pond maintains an active density of 5 koi slots with an open lifecycle:
+* **Taxonomic Varieties**:
+  1. **Kohaku**: Pure white body with bold scarlet red (*Hi*) stepped plates.
+  2. **Taisho Sanke**: White base with scarlet plates and sumi lacquer black dots.
+  3. **Showa Sanshoku**: Heavy ink-black base with wrapping scarlet and white lightning bands.
+  4. **Yamabuki Ogon**: Radiant metallic solid gold with scale specular glint.
+  5. **Tancho**: Silver-white body with a solitary crimson crown sun spot on the head.
+  6. **Asagi**: Indigo-blue reticulated net-pattern dorsal scales with vermilion flanks.
+  7. **Shusui**: Baby-blue porcelain mirror skin with dark indigo dorsal zipper scales.
+  8. **Ki Utsuri**: Jet-black lacquer body with bright amber-yellow tiger markings.
+  9. **Gin Matsuba**: Metallic platinum silver with dark pinecone scale centers.
+  10. **Chagoi / Ochiba**: Earthy olive-brown tea and autumn-leaf tones.
+  11. **Karasugoi (Midnight Ghost Koi)**: Crow-black shadow silhouette with glowing fin margins.
+  12. **Butterfly / Hirenaga Koi**: Flowing diaphanous veil fins ($2.2\times$ length) with iridescent pearlescence.
+* **Autonomous Migration Lifecycle**:
+  Fish cruise for 25–55 seconds before steering toward an offscreen exit gate. Near pond margins, a depth factor $z \in [0.0, 1.0]$ attenuates drop shadows, blends the body into the water absorption tint, and casts surface caustics over their backs, creating the visual effect of gliding into deep water under the banks. Slots are recycled off-screen with freshly generated varieties.
