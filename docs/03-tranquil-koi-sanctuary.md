@@ -64,7 +64,7 @@ $$\mathbf{a}_i = w_s \mathbf{F}_{\text{separation}} + w_a \mathbf{F}_{\text{alig
 * **Harmonic Ambient Current Drift & Anti-Overlap Physics**:
   5 floating lily pads (`Nymphaeaceae`) drift with gentle water currents while anchored to margin zones. Overlapping is prevented via pairwise soft elastic repulsion ($k_{\text{spring}} = 5.5$) and velocity damping ($c_{\text{damp}} = 0.88$). Bumping between leaves imparts a subtle rotational torque and contact ripple.
 * **Sound-Driven Membrane Resonance & Rim Waves**:
-  * On audio downbeats, lily pads expand by $+8\%$ with an exponential spring decay.
+  * On audio downbeats, lily pads swell gently by up to $+1.5\%$ with a fast 50ms attack and a smooth 320ms exponential return to normal.
   * Discrete audio pulses and physical leaf collisions generate outward circular wave packets radiating from the leaf outer rims into the water heightfield:
     $$\Delta h = \sin(d_{\text{rim}} \cdot 36.0 - \omega \tau) \cdot \exp(-d_{\text{rim}} \cdot 10.0) \cdot A \cdot 0.005$$
 

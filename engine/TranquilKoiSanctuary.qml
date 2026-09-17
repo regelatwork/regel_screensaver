@@ -112,8 +112,6 @@ Item {
         var kSpring = 5.5;
         var cDamp = 0.88;
 
-        var vocalBreath = root.isVocal ? 0.035 * Math.sin(root.koiTime * 2.5) * root.vocalEnergy : 0.0;
-
         for (var i = 0; i < 5; ++i) {
             var pi = lilypads[i];
 
@@ -161,8 +159,9 @@ Item {
             pi.y += pi.vy * dt;
             pi.notch += pi.vx * dt * 0.4;
 
-            // Radius relaxation after downbeat pulse & vocal breath
-            pi.scale = Math.max(1.0, pi.scale + (1.0 - pi.scale) * (dt * 3.5)) + vocalBreath;
+            // Radius breathing: base 1.0 + fast attack & exponential decay pulse (max +1.5%) + subtle vocal undulation
+            var vocalBreath = root.isVocal ? 0.003 * Math.sin(root.koiTime * 2.0 + i) * root.vocalEnergy : 0.0;
+            pi.scale = 1.0 + root.lilyPulse + vocalBreath;
 
             // Damped outward wave packet propagation
             if (pi.waveAmp > 0.001) {
@@ -341,15 +340,38 @@ Item {
         pushUniforms();
     }
 
-    // Downbeat Acoustic Resonance Trigger
+    // Downbeat Acoustic Resonance Trigger & Smooth Attack-Decay Pulse
     property real downbeatRipple: 0.0
+    property real lilyPulse: 0.0
+
+    SequentialAnimation {
+        id: lilyPulseAnim
+        // Fast raise (attack): 50ms smooth swell up to +1.5%
+        NumberAnimation {
+            target: root
+            property: "lilyPulse"
+            from: root.lilyPulse
+            to: 0.015
+            duration: 50
+            easing.type: Easing.OutQuad
+        }
+        // Smooth exponential return to normal: 320ms
+        NumberAnimation {
+            target: root
+            property: "lilyPulse"
+            to: 0.0
+            duration: 320
+            easing.type: Easing.OutCubic
+        }
+    }
+
     onDownbeatChanged: {
         if (downbeat) {
             downbeatAnim.restart();
+            lilyPulseAnim.restart();
             for (var k = 0; k < 5; ++k) {
                 lilypads[k].waveAmp = 1.0;
                 lilypads[k].wavePhase = 0.0;
-                lilypads[k].scale = 1.08;
             }
         }
     }
