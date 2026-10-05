@@ -260,6 +260,7 @@ Item {
         textSourceMode: fullRep.plasmoidItem.glyphTextSourceMode
         textCommand: fullRep.plasmoidItem.glyphTextCommand
         customText: fullRep.plasmoidItem.glyphCustomText
+        externalFortune: fullRep.plasmoidItem.liveFortune
         paletteIndex: fullRep.plasmoidItem.concept9PaletteIdx
         glyphSpacing: fullRep.plasmoidItem.glyphSpacing
         glyphZoom: fullRep.plasmoidItem.glyphZoom

@@ -12,6 +12,9 @@ import subprocess
 import threading
 import json
 
+# Enable XMLHttpRequest access to local files in Qt Quick QML
+os.environ["QML_XHR_ALLOW_FILE_READ"] = "1"
+
 # Ensure Debian system PyQt6 is discoverable even when running inside venvs/pyenv
 for dist_path in ["/usr/lib/python3/dist-packages", "/usr/local/lib/python3/dist-packages"]:
     if dist_path not in sys.path and os.path.isdir(dist_path):

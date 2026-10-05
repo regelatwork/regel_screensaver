@@ -43,10 +43,17 @@ Item {
     property int textSourceMode: 0 // 0: Command/Fortune, 1: Classical Quotes, 2: Custom Text
     property string textCommand: "/usr/games/fortune -s"
     property string customText: "The moving finger writes; and, having writ, moves on."
+    property string externalFortune: ""
     property string rawFortune: ""
     property string fortuneQuote: "A thing is not necessarily true because a man dies for it."
     property string fortuneAuthor: "— Oscar Wilde"
     property var engineBridge: null
+
+    onExternalFortuneChanged: {
+        if (externalFortune && externalFortune.trim().length > 0) {
+            parseFortune(externalFortune)
+        }
+    }
 
     // Curated Typographic Profiles spanning diverse fonts and weights
     readonly property var fontProfiles: [
@@ -289,7 +296,22 @@ Item {
         root.fontProfileIndex = (root.fontProfileIndex + 1) % root.fontProfiles.length
     }
 
+    Timer {
+        id: xhrFallbackTimer
+        interval: 100
+        repeat: false
+        onTriggered: {
+            root.nextFallbackFortune()
+        }
+    }
+
     function fetchFortune() {
+        // 0. External fortune (D-Bus or parent component)
+        if (root.externalFortune && root.externalFortune.trim().length > 0) {
+            root.parseFortune(root.externalFortune)
+            return
+        }
+
         // 1. Direct Python bridge execution (harness runner)
         if (root.engineBridge && typeof root.engineBridge.fetchFortuneText === "function") {
             var output = root.engineBridge.fetchFortuneText(root.textCommand)
@@ -300,22 +322,28 @@ Item {
         }
 
         // 2. Query /tmp/regel_fortune.txt with cache busting (written by regel-daemon)
-        var xhr = new XMLHttpRequest()
-        xhr.open("GET", "file:///tmp/regel_fortune.txt?t=" + Date.now())
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === XMLHttpRequest.DONE) {
-                if ((xhr.status === 200 || xhr.status === 0) && xhr.responseText && xhr.responseText.trim().length > 0) {
-                    var content = xhr.responseText.trim()
-                    if (content !== root.rawFortune) {
-                        root.parseFortune(content)
-                        return
+        try {
+            var xhr = new XMLHttpRequest()
+            xhr.open("GET", "file:///tmp/regel_fortune.txt?t=" + Date.now())
+            xhrFallbackTimer.restart()
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    xhrFallbackTimer.stop()
+                    if ((xhr.status === 200 || xhr.status === 0) && xhr.responseText && xhr.responseText.trim().length > 0) {
+                        var content = xhr.responseText.trim()
+                        if (content !== root.rawFortune) {
+                            root.parseFortune(content)
+                            return
+                        }
                     }
+                    root.nextFallbackFortune()
                 }
-                // Fallback cycle to next philosophical maxim if file not changed or absent
-                root.nextFallbackFortune()
             }
+            xhr.send()
+        } catch (err) {
+            xhrFallbackTimer.stop()
+            root.nextFallbackFortune()
         }
-        xhr.send()
     }
 
     function refreshText() {
@@ -652,7 +680,14 @@ Item {
     }
 
     Component.onCompleted: {
-        lastLoadedCycle = currentQuoteCycle
+        // Pick a random starting quote and typographic profile on launch
+        fallbackIndex = Math.floor(Math.random() * fallbackFortunes.length)
+        var initItem = fallbackFortunes[fallbackIndex]
+        fortuneQuote = initItem.quote
+        fortuneAuthor = initItem.author
+        fontProfileIndex = Math.floor(Math.random() * fontProfiles.length)
+
+        // Attempt live fetch immediately
         refreshText()
         setGlyphPalette(autoCycleThemes ? 0 : (paletteIndex % glyphPalettes.length))
         updateStickerLifecycle()

@@ -21,7 +21,7 @@ for f in files:
         c = fh.read()
     assert len(c) > 200, f'File {f} is too short'
     assert '# ' in c, f'File {f} missing main header'
-assert len(files) == 10, f'Expected 10 docs files, found {len(files)}'
+assert len(files) == 11, f'Expected 11 docs files, found {len(files)}'
 print(f'    All {len(files)} documentation files valid.')
 "
 
@@ -51,7 +51,9 @@ test -f engine/shaders/ephemeris.vert.qsb
 test -f engine/shaders/ephemeris.frag.qsb
 test -f engine/shaders/harp.vert.qsb
 test -f engine/shaders/harp.frag.qsb
-echo "    All 7 shader bundles (Fluid, Petri, Koi, Cosmic, City, Ephemeris, Harp) verified."
+test -f engine/shaders/glyph.vert.qsb
+test -f engine/shaders/glyph.frag.qsb
+echo "    All 8 shader bundles (Fluid, Petri, Koi, Cosmic, City, Ephemeris, Harp, Glyph) verified."
 
 echo "--> 4. Running Rust Unit Tests..."
 CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/home/rchandia/.gemini/antigravity-cli/brain/95bcad37-d3ce-494a-b37c-fe8e35613e09/scratch/target}" cargo test --workspace --locked --offline
@@ -66,6 +68,7 @@ if command -v qmllint &>/dev/null; then
     qmllint engine/RealtimeEphemerisBiome.qml
     qmllint engine/KineticSpiderwebHarp.qml
     qmllint engine/AnalogTelemetryConsole.qml
+    qmllint engine/EmbossedGlyphMatrix.qml
     qmllint tools/harness/harness.qml
     qmllint wallpaper/contents/ui/main.qml
     qmllint wallpaper/contents/ui/config.qml
@@ -79,7 +82,15 @@ else
     echo "    qmllint not available, skipping QML lint."
 fi
 
-echo "--> 6. Validating Debian Package Build..."
+echo "--> 6. Verifying Embossed Glyph Fortune Rotation..."
+if [ -x "/usr/bin/python3" ] && /usr/bin/python3 -c "import PyQt6" &>/dev/null; then
+    /usr/bin/python3 tests/test_fortune_rotation.py
+    echo "    Fortune rotation validated successfully."
+else
+    echo "    PyQt6 offscreen test runner skipped."
+fi
+
+echo "--> 7. Validating Debian Package Build..."
 VERSION="$(dpkg-parsechangelog -S Version -l debian/changelog 2>/dev/null || echo '0.3.1-1')"
 UPSTREAM_VERSION="${VERSION%%-*}"
 ARCH="$(dpkg --print-architecture 2>/dev/null || uname -m)"
@@ -102,7 +113,7 @@ else
     echo "    Debian package not found or skipped."
 fi
 
-echo "--> 7. Validating Debian Source Package & Lintian Conformance..."
+echo "--> 8. Validating Debian Source Package & Lintian Conformance..."
 if [ "${BUILD_PACKAGES:-0}" = "1" ] && command -v dpkg-source &>/dev/null && command -v lintian &>/dev/null && perl -e "eval 'use Params::Util'; exit(\$@ ? 1 : 0)" 2>/dev/null; then
     ./tools/package-src.sh
 fi

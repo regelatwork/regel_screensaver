@@ -20,6 +20,7 @@ for p in ["/usr/lib/python3/dist-packages", "/usr/local/lib/python3/dist-package
 
 def ensure_display():
     """Ensures a valid X11, Wayland, or Qt offscreen platform exists."""
+    os.environ["QML_XHR_ALLOW_FILE_READ"] = "1"
     os.environ["PULSE_SERVER"] = "/dev/null"
     os.environ["CANBERRA_DRIVER"] = "null"
     os.environ["XDG_CONFIG_HOME"] = "/tmp/regel_config"

@@ -2,7 +2,7 @@
 
 use regel_audio::{AudioSpectrum, SpectrumAnalyzer};
 use std::env;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::io::{self, Read, Write};
 use std::os::raw::{c_char, c_int};
 use std::process::{Child, Command, Stdio};
@@ -39,6 +39,7 @@ extern "C" {
     fn regel_dbus_check_auto_gain_change(out_auto_gain: *mut c_int) -> c_int;
     #[allow(dead_code)]
     fn regel_dbus_get_gain() -> f64;
+    fn regel_dbus_set_fortune(fortune: *const c_char);
 }
 
 fn spawn_pipewire_record(source: &str) -> io::Result<Child> {
@@ -325,14 +326,28 @@ fn main() {
         };
 
         if let Some(cmd) = fortune_bin {
-            loop {
-                if let Ok(output) = Command::new(cmd).arg("-s").output() {
+            let update_fortune = |bin: &str| {
+                if let Ok(output) = Command::new(bin).arg("-s").output() {
                     if output.status.success() && !output.stdout.is_empty() {
                         let _ = std::fs::write("/tmp/regel_fortune.txt.tmp", &output.stdout);
                         let _ = std::fs::rename("/tmp/regel_fortune.txt.tmp", "/tmp/regel_fortune.txt");
+                        if let Ok(text) = std::str::from_utf8(&output.stdout) {
+                            if let Ok(c_text) = CString::new(text) {
+                                unsafe {
+                                    regel_dbus_set_fortune(c_text.as_ptr());
+                                }
+                            }
+                        }
                     }
                 }
+            };
+
+            // Fetch immediately on startup so clients receive live fortune text without delay
+            update_fortune(cmd);
+
+            loop {
                 std::thread::sleep(Duration::from_secs(12));
+                update_fortune(cmd);
             }
         }
     });

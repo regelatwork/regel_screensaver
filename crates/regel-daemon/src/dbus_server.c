@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <time.h>
+#include <pthread.h>
 
 static DBusConnection *bus_conn = NULL;
 
@@ -24,6 +25,8 @@ static double current_beat_phase = 0.0;
 static dbus_bool_t current_is_vocal = FALSE;
 static double current_vocal_energy = 0.0;
 static uint32_t current_beat_counter = 0;
+static char current_fortune[2048] = "";
+static pthread_mutex_t fortune_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int source_change_requested = 0;
 static int gain_change_requested = 0;
 static int auto_gain_change_requested = 0;
@@ -69,6 +72,7 @@ static const char *introspection_xml =
     "    <property name=\"beat_phase\" type=\"d\" access=\"read\"/>\n"
     "    <property name=\"is_vocal\" type=\"b\" access=\"read\"/>\n"
     "    <property name=\"vocal_energy\" type=\"d\" access=\"read\"/>\n"
+    "    <property name=\"fortune\" type=\"s\" access=\"read\"/>\n"
     "    <signal name=\"Beat\">\n"
     "      <arg name=\"timestamp_us\" type=\"t\"/>\n"
     "      <arg name=\"bpm\" type=\"d\"/>\n"
@@ -133,6 +137,9 @@ static void build_all_properties_dict(DBusMessageIter *dict) {
     append_dict_entry_double(dict, "beat_phase", current_beat_phase);
     append_dict_entry_bool(dict, "is_vocal", current_is_vocal);
     append_dict_entry_double(dict, "vocal_energy", current_vocal_energy);
+    pthread_mutex_lock(&fortune_mutex);
+    append_dict_entry_string(dict, "fortune", current_fortune);
+    pthread_mutex_unlock(&fortune_mutex);
 }
 
 static void handle_message(DBusConnection *conn, DBusMessage *msg) {
@@ -219,6 +226,16 @@ static void handle_message(DBusConnection *conn, DBusMessage *msg) {
                         dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "s", &var);
                         dbus_message_iter_append_basic(&var, DBUS_TYPE_STRING, &src_ptr);
                         dbus_message_iter_close_container(&iter, &var);
+                    } else if (prop_name && strcmp(prop_name, "fortune") == 0) {
+                        reply = dbus_message_new_method_return(msg);
+                        DBusMessageIter iter, var;
+                        pthread_mutex_lock(&fortune_mutex);
+                        const char *fortune_ptr = current_fortune;
+                        dbus_message_iter_init_append(reply, &iter);
+                        dbus_message_iter_open_container(&iter, DBUS_TYPE_VARIANT, "s", &var);
+                        dbus_message_iter_append_basic(&var, DBUS_TYPE_STRING, &fortune_ptr);
+                        dbus_message_iter_close_container(&iter, &var);
+                        pthread_mutex_unlock(&fortune_mutex);
                     } else if (prop_name && strcmp(prop_name, "gain") == 0) {
                         reply = dbus_message_new_method_return(msg);
                         DBusMessageIter iter, var;
@@ -525,3 +542,46 @@ int regel_dbus_check_auto_gain_change(int *out_auto_gain) {
 double regel_dbus_get_gain(void) {
     return current_gain;
 }
+
+void regel_dbus_set_fortune(const char *fortune) {
+    if (!fortune) return;
+    pthread_mutex_lock(&fortune_mutex);
+    if (strcmp(current_fortune, fortune) == 0) {
+        pthread_mutex_unlock(&fortune_mutex);
+        return;
+    }
+    strncpy(current_fortune, fortune, sizeof(current_fortune) - 1);
+    current_fortune[sizeof(current_fortune) - 1] = '\0';
+    pthread_mutex_unlock(&fortune_mutex);
+
+    if (!bus_conn) return;
+
+    DBusMessage *sig = dbus_message_new_signal(
+        "/org/regel/Audio",
+        "org.freedesktop.DBus.Properties",
+        "PropertiesChanged"
+    );
+    if (!sig) return;
+
+    DBusMessageIter iter, dict, empty_arr;
+    const char *iface = "org.regel.Audio";
+    dbus_message_iter_init_append(sig, &iter);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &iface);
+
+    dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "{sv}", &dict);
+    pthread_mutex_lock(&fortune_mutex);
+    append_dict_entry_string(&dict, "fortune", current_fortune);
+    pthread_mutex_unlock(&fortune_mutex);
+    dbus_message_iter_close_container(&iter, &dict);
+
+    dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "s", &empty_arr);
+    dbus_message_iter_close_container(&iter, &empty_arr);
+
+    dbus_connection_send(bus_conn, sig, NULL);
+    dbus_message_unref(sig);
+}
+
+const char *regel_dbus_get_fortune(void) {
+    return current_fortune;
+}
+

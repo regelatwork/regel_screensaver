@@ -132,6 +132,7 @@ PlasmoidItem {
     property real liveVocalEnergy: isAudioLive && typeof audioProps.properties.vocal_energy === "number" ? audioProps.properties.vocal_energy : 0.0
     property bool liveTransient: isAudioLive && typeof audioProps.properties.transient === "boolean" ? audioProps.properties.transient : false
     property real liveBeatPhase: isAudioLive && typeof audioProps.properties.beat_phase === "number" ? audioProps.properties.beat_phase : 0.0
+    property string liveFortune: (audioProps.properties && typeof audioProps.properties.fortune === "string") ? audioProps.properties.fortune : ""
 
     // Active audio levels fed into visualizers
     property real subBass: (audioReactive && isAudioLive) ? liveSubBass : 0.05

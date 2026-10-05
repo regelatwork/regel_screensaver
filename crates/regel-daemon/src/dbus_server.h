@@ -30,6 +30,8 @@ int regel_dbus_check_source_change(char *out_source, size_t max_len);
 int regel_dbus_check_gain_change(double *out_gain);
 int regel_dbus_check_auto_gain_change(int *out_auto_gain);
 double regel_dbus_get_gain(void);
+void regel_dbus_set_fortune(const char *fortune);
+const char *regel_dbus_get_fortune(void);
 
 #ifdef __cplusplus
 }
