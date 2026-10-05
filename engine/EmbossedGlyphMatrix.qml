@@ -48,10 +48,19 @@ Item {
     property string fortuneQuote: "A thing is not necessarily true because a man dies for it."
     property string fortuneAuthor: "— Oscar Wilde"
     property var engineBridge: null
+    property bool isStarted: false
 
     onExternalFortuneChanged: {
-        if (externalFortune && externalFortune.trim().length > 0) {
-            parseFortune(externalFortune)
+        if (!externalFortune || externalFortune.trim().length === 0) return
+        if (root.isStarted && root.quoteIsOnScreen) {
+            // A quote is currently visible on screen: wait until it goes off screen before changing it!
+            root.pendingFortune = externalFortune
+            root.hasPendingFortune = true
+        } else {
+            // Currently off screen (or during startup): apply immediately!
+            root.parseFortune(externalFortune)
+            root.hasPendingFortune = false
+            root.pendingFortune = ""
         }
     }
 
@@ -301,14 +310,21 @@ Item {
         interval: 100
         repeat: false
         onTriggered: {
-            root.nextFallbackFortune()
+            if (!root.isStarted || !root.quoteIsOnScreen) {
+                root.nextFallbackFortune()
+            }
         }
     }
 
     function fetchFortune() {
         // 0. External fortune (D-Bus or parent component)
         if (root.externalFortune && root.externalFortune.trim().length > 0) {
-            root.parseFortune(root.externalFortune)
+            if (root.isStarted && root.quoteIsOnScreen) {
+                root.pendingFortune = root.externalFortune
+                root.hasPendingFortune = true
+            } else {
+                root.parseFortune(root.externalFortune)
+            }
             return
         }
 
@@ -316,7 +332,12 @@ Item {
         if (root.engineBridge && typeof root.engineBridge.fetchFortuneText === "function") {
             var output = root.engineBridge.fetchFortuneText(root.textCommand)
             if (output && output.trim().length > 0) {
-                root.parseFortune(output)
+                if (root.isStarted && root.quoteIsOnScreen) {
+                    root.pendingFortune = output
+                    root.hasPendingFortune = true
+                } else {
+                    root.parseFortune(output)
+                }
                 return
             }
         }
@@ -332,17 +353,26 @@ Item {
                     if ((xhr.status === 200 || xhr.status === 0) && xhr.responseText && xhr.responseText.trim().length > 0) {
                         var content = xhr.responseText.trim()
                         if (content !== root.rawFortune) {
-                            root.parseFortune(content)
+                            if (root.isStarted && root.quoteIsOnScreen) {
+                                root.pendingFortune = content
+                                root.hasPendingFortune = true
+                            } else {
+                                root.parseFortune(content)
+                            }
                             return
                         }
                     }
-                    root.nextFallbackFortune()
+                    if (!root.isStarted || !root.quoteIsOnScreen) {
+                        root.nextFallbackFortune()
+                    }
                 }
             }
             xhr.send()
         } catch (err) {
             xhrFallbackTimer.stop()
-            root.nextFallbackFortune()
+            if (!root.isStarted || !root.quoteIsOnScreen) {
+                root.nextFallbackFortune()
+            }
         }
     }
 
@@ -372,16 +402,33 @@ Item {
     readonly property int currentQuoteCycle: Math.floor(currentQuoteCoordY)
     readonly property real currentQuotePhase: (currentQuoteCoordY - currentQuoteCycle + 1.0) % 1.0
 
-    // Offscreen detection: quote is visible on screen only within phase [0.23, 0.77].
-    // When phase is in [0.77, 1.0) or [0.0, 0.23), the quote is completely offscreen!
-    readonly property bool quoteIsOffscreen: currentQuotePhase > 0.77 || currentQuotePhase < 0.23
-    property int lastLoadedCycle: -999999
+    // Dynamic half-extent of viewport in quoteCoord space
+    readonly property real screenHalfHeightInQuoteSpace: 1.9 * Math.max(0.25, glyphZoom) * 0.055
+    // Safety clearance guaranteeing the quote box and its emboss are 100% outside the viewport
+    readonly property real quoteOffscreenMargin: screenHalfHeightInQuoteSpace + quoteHalfH + 0.025
+    // Phase distance from screen center (0.5)
+    readonly property real quoteDistanceFromCenter: Math.abs(currentQuotePhase - 0.5)
+    // Exactly one quote tablet exists per period; it is on screen if its distance from screen center is within the visible bound
+    readonly property bool quoteIsOnScreen: quoteDistanceFromCenter <= quoteOffscreenMargin
+    readonly property bool quoteIsOffscreen: !quoteIsOnScreen
 
-    onCurrentQuotePhaseChanged: {
-        // Trigger a fresh fortune exactly as the old one scrolls away from view!
-        if (quoteIsOffscreen && lastLoadedCycle !== currentQuoteCycle) {
-            lastLoadedCycle = currentQuoteCycle
-            refreshText()
+    property string pendingFortune: ""
+    property bool hasPendingFortune: false
+
+    function applyNextFortune() {
+        if (root.hasPendingFortune && root.pendingFortune.trim().length > 0) {
+            root.parseFortune(root.pendingFortune)
+            root.hasPendingFortune = false
+            root.pendingFortune = ""
+        } else {
+            root.refreshText()
+        }
+    }
+
+    onQuoteIsOnScreenChanged: {
+        // Triggered exactly when the current quote scrolls completely off the screen!
+        if (!quoteIsOnScreen) {
+            applyNextFortune()
         }
     }
 
@@ -687,10 +734,9 @@ Item {
         fortuneAuthor = initItem.author
         fontProfileIndex = Math.floor(Math.random() * fontProfiles.length)
 
-        // Attempt live fetch immediately
-        refreshText()
         setGlyphPalette(autoCycleThemes ? 0 : (paletteIndex % glyphPalettes.length))
         updateStickerLifecycle()
+        isStarted = true
     }
 
     // Theme auto-cycling timer with smooth continuous shifting

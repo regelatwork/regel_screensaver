@@ -35,25 +35,36 @@ obj1 = component.create()
 assert obj1 is not None, "Failed to instantiate EmbossedGlyphMatrix"
 quote1 = obj1.property("fortuneQuote")
 print("Instance 1 initial quote:", quote1)
+assert len(quote1) > 0, "Initial quote must not be empty"
 
-# Let initial startup async fetch finish if active
-time.sleep(0.2)
-app.processEvents()
-quote_after_init = obj1.property("fortuneQuote")
-print("Instance 1 after initial fetch settled:", quote_after_init)
+# Verify that initial quote is currently on screen
+is_on_screen = obj1.property("quoteIsOnScreen")
+print("Instance 1 quoteIsOnScreen at startup:", is_on_screen)
+assert is_on_screen is True, "Quote tablet should be on screen at startup"
 
-# 2. Check externalFortune reactive property updates
+# 2. Check externalFortune: while on screen, it MUST wait and NOT change immediately
 test_live_quote = "Knowledge speaks, but wisdom listens.\n-- Jimi Hendrix"
 obj1.setProperty("externalFortune", test_live_quote)
 app.processEvents()
 
-quote_after_ext = obj1.property("fortuneQuote")
-author_after_ext = obj1.property("fortuneAuthor")
-print("After externalFortune:", quote_after_ext, author_after_ext)
-assert "Knowledge speaks, but wisdom listens." in quote_after_ext, f"Unexpected quote: {quote_after_ext}"
-assert "Jimi Hendrix" in author_after_ext, f"Unexpected author: {author_after_ext}"
+# Verify that fortuneQuote has NOT changed yet because it is still on screen!
+assert obj1.property("hasPendingFortune") is True, "Should have pending fortune queued"
+quote_while_on_screen = obj1.property("fortuneQuote")
+assert quote_while_on_screen == quote1, "fortuneQuote must NOT change while visible on screen"
+print("Verified: Incoming fortune is safely deferred while tablet is visible on screen.")
 
-# 3. Test nextFallbackFortune cycling
+# 3. Simulate tablet scrolling off screen: applyNextFortune() runs
+obj1.applyNextFortune()
+app.processEvents()
+
+quote_after_offscreen = obj1.property("fortuneQuote")
+author_after_offscreen = obj1.property("fortuneAuthor")
+print("After off-screen application:", quote_after_offscreen, author_after_offscreen)
+assert "Knowledge speaks, but wisdom listens." in quote_after_offscreen
+assert "Jimi Hendrix" in author_after_offscreen
+assert obj1.property("hasPendingFortune") is False
+
+# 4. Test fallback cycling when off screen
 prev_quote = obj1.property("fortuneQuote")
 obj1.nextFallbackFortune()
 app.processEvents()
