@@ -50,6 +50,20 @@ Kirigami.FormLayout {
     // Archetype 8: The Analog Telemetry Console
     property int cfg_concept8Palette: 0
 
+    // Archetype 9: The Embossed Glyph Matrix
+    property int cfg_concept9Palette: 0
+    property alias cfg_glyphAutoCycleThemes: glyphAutoCycleBox.checked
+    property alias cfg_glyphCycleInterval: glyphCycleSlider.value
+    property alias cfg_glyphScrollSpeed: glyphScrollSlider.value
+    property alias cfg_glyphEmbossDepth: glyphEmbossSlider.value
+    property alias cfg_glyphHoloStrength: glyphHoloSlider.value
+    property int cfg_glyphTextSourceMode: 0
+    property alias cfg_glyphTextCommand: glyphTextCommandField.text
+    property alias cfg_glyphCustomText: glyphCustomTextField.text
+    property alias cfg_glyphSpacing: glyphSpacingSlider.value
+    property alias cfg_glyphZoom: glyphZoomSlider.value
+    property alias cfg_glyphHoloMode: glyphHoloModeSlider.value
+
     // Audio Reactivity
     property alias cfg_audioReactive: audioReactiveCheckBox.checked
     property string cfg_audioSource: "monitor"
@@ -74,7 +88,8 @@ Kirigami.FormLayout {
             "5. Procedural Synthwave Megacity (Cyberpunk Skyline)",
             "6. Real-Time Ephemeris Biome (Painterly Terrarium)",
             "7. Kinetic Spiderweb & Resonance Harp (Elastic Lattice)",
-            "8. The Analog Telemetry Console (Ballistic Galvanometers & CRT)"
+            "8. The Analog Telemetry Console (Ballistic Galvanometers & CRT)",
+            "9. The Embossed Glyph Matrix (Bas-Relief & Shifting Materials)"
         ]
         currentIndex: Math.max(0, Math.min(model.length - 1, root.cfg_activeConcept - 1))
         onActivated: (index) => {
@@ -275,6 +290,117 @@ Kirigami.FormLayout {
         model: palettes.getNames(palettes.consolePalettes)
         currentIndex: Math.max(0, Math.min(model.length - 1, root.cfg_concept8Palette))
         onActivated: (index) => { root.cfg_concept8Palette = index }
+    }
+
+    // --- Concept 9: The Embossed Glyph Matrix ---
+    QQC2.ComboBox {
+        id: concept9Combo
+        Kirigami.FormData.label: "Glyph Monolith Theme:"
+        visible: root.cfg_activeConcept === 9
+        model: palettes.getNames(palettes.glyphPalettes)
+        currentIndex: Math.max(0, Math.min(model.length - 1, root.cfg_concept9Palette))
+        onActivated: (index) => { root.cfg_concept9Palette = index }
+    }
+
+    QQC2.CheckBox {
+        id: glyphAutoCycleBox
+        Kirigami.FormData.label: "Auto-Cycle Themes:"
+        visible: root.cfg_activeConcept === 9
+        text: "Smoothly transition across material themes"
+        checked: true
+    }
+
+    QQC2.Slider {
+        id: glyphCycleSlider
+        Kirigami.FormData.label: "Theme Cycle Interval (s):"
+        visible: root.cfg_activeConcept === 9 && glyphAutoCycleBox.checked
+        from: 6.0
+        to: 120.0
+        stepSize: 2.0
+        value: 24.0
+    }
+
+    QQC2.Slider {
+        id: glyphScrollSlider
+        Kirigami.FormData.label: "Field Scroll Speed (4× range):"
+        visible: root.cfg_activeConcept === 9
+        from: 0.1
+        to: 8.0
+        stepSize: 0.1
+        value: 1.2
+    }
+
+    QQC2.Slider {
+        id: glyphEmbossSlider
+        Kirigami.FormData.label: "Emboss Depth:"
+        visible: root.cfg_activeConcept === 9
+        from: 0.2
+        to: 2.5
+        stepSize: 0.1
+        value: 1.0
+    }
+
+    QQC2.Slider {
+        id: glyphHoloSlider
+        Kirigami.FormData.label: "Holo Sticker CD-Diffraction:"
+        visible: root.cfg_activeConcept === 9
+        from: 0.0
+        to: 2.0
+        stepSize: 0.05
+        value: 1.0
+    }
+
+    QQC2.Slider {
+        id: glyphHoloModeSlider
+        Kirigami.FormData.label: "Hologram Sticker Density:"
+        visible: root.cfg_activeConcept === 9
+        from: 0.0
+        to: 1.0
+        stepSize: 0.05
+        value: 1.0
+    }
+
+    QQC2.Slider {
+        id: glyphSpacingSlider
+        Kirigami.FormData.label: "Glyph Field Spacing:"
+        visible: root.cfg_activeConcept === 9
+        from: 0.6
+        to: 2.5
+        stepSize: 0.1
+        value: 1.2
+    }
+
+    QQC2.Slider {
+        id: glyphZoomSlider
+        Kirigami.FormData.label: "Field Zoom Scale:"
+        visible: root.cfg_activeConcept === 9
+        from: 0.4
+        to: 2.5
+        stepSize: 0.1
+        value: 1.0
+    }
+
+    QQC2.ComboBox {
+        id: glyphTextSourceCombo
+        Kirigami.FormData.label: "Text Source:"
+        visible: root.cfg_activeConcept === 9
+        model: ["Fortune Command Stream", "Classical Philosophical Maxims", "Custom Text Inscription"]
+        currentIndex: Math.max(0, Math.min(model.length - 1, root.cfg_glyphTextSourceMode))
+        onActivated: (index) => { root.cfg_glyphTextSourceMode = index }
+    }
+
+    QQC2.TextField {
+        id: glyphTextCommandField
+        Kirigami.FormData.label: "Text Command:"
+        visible: root.cfg_activeConcept === 9 && root.cfg_glyphTextSourceMode === 0
+        text: "/usr/games/fortune -s"
+    }
+
+    QQC2.TextField {
+        id: glyphCustomTextField
+        Kirigami.FormData.label: "Custom Text:"
+        visible: root.cfg_activeConcept === 9 && root.cfg_glyphTextSourceMode === 2
+        text: "The moving finger writes; and, having writ, moves on."
     }
 
     // =========================================================================

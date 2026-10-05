@@ -36,7 +36,8 @@ PlasmoidItem {
         "5. Procedural Synthwave Megacity",
         "6. Real-Time Ephemeris Biome",
         "7. Kinetic Spiderweb & Resonance Harp",
-        "8. Analog Telemetry Console"
+        "8. Analog Telemetry Console",
+        "9. Embossed Glyph Matrix"
     ]
 
     // Configuration bindings
@@ -48,7 +49,7 @@ PlasmoidItem {
     property real configuredAudioGain: (Plasmoid.configuration && typeof Plasmoid.configuration.audioGain !== "undefined") ? Plasmoid.configuration.audioGain : 3.5
 
     function cycleConcept(delta) {
-        let count = 8
+        let count = 9
         let next = ((activeConcept - 1 + delta) % count + count) % count + 1
         activeConcept = next
         if (Plasmoid.configuration) {
@@ -101,6 +102,21 @@ PlasmoidItem {
     // --- Concept 8 Parameters ---
     property int concept8PaletteIdx: (Plasmoid.configuration && typeof Plasmoid.configuration.concept8Palette === "number") ? Plasmoid.configuration.concept8Palette : 0
     readonly property var currentConsolePalette: palettes.consolePalettes[concept8PaletteIdx % palettes.consolePalettes.length]
+
+    // --- Concept 9 Parameters ---
+    property int concept9PaletteIdx: (Plasmoid.configuration && typeof Plasmoid.configuration.concept9Palette === "number") ? Plasmoid.configuration.concept9Palette : 0
+    readonly property var currentGlyphPalette: palettes.glyphPalettes[concept9PaletteIdx % palettes.glyphPalettes.length]
+    property real glyphScrollSpeed: (Plasmoid.configuration && typeof Plasmoid.configuration.glyphScrollSpeed === "number") ? Plasmoid.configuration.glyphScrollSpeed : 1.2
+    property real glyphEmbossDepth: (Plasmoid.configuration && typeof Plasmoid.configuration.glyphEmbossDepth === "number") ? Plasmoid.configuration.glyphEmbossDepth : 1.0
+    property bool glyphAutoCycleThemes: (Plasmoid.configuration && typeof Plasmoid.configuration.glyphAutoCycleThemes === "boolean") ? Plasmoid.configuration.glyphAutoCycleThemes : true
+    property real glyphCycleInterval: (Plasmoid.configuration && typeof Plasmoid.configuration.glyphCycleInterval === "number") ? Plasmoid.configuration.glyphCycleInterval : 24.0
+    property real glyphHoloStrength: (Plasmoid.configuration && typeof Plasmoid.configuration.glyphHoloStrength === "number") ? Plasmoid.configuration.glyphHoloStrength : 1.0
+    property int glyphTextSourceMode: (Plasmoid.configuration && typeof Plasmoid.configuration.glyphTextSourceMode === "number") ? Plasmoid.configuration.glyphTextSourceMode : 0
+    property string glyphTextCommand: (Plasmoid.configuration && typeof Plasmoid.configuration.glyphTextCommand === "string") ? Plasmoid.configuration.glyphTextCommand : "/usr/games/fortune -s"
+    property string glyphCustomText: (Plasmoid.configuration && typeof Plasmoid.configuration.glyphCustomText === "string") ? Plasmoid.configuration.glyphCustomText : "The moving finger writes; and, having writ, moves on."
+    property real glyphSpacing: (Plasmoid.configuration && typeof Plasmoid.configuration.glyphSpacing === "number") ? Plasmoid.configuration.glyphSpacing : 1.2
+    property real glyphZoom: (Plasmoid.configuration && typeof Plasmoid.configuration.glyphZoom === "number") ? Plasmoid.configuration.glyphZoom : 1.0
+    property real glyphHoloMode: (Plasmoid.configuration && typeof Plasmoid.configuration.glyphHoloMode === "number") ? Plasmoid.configuration.glyphHoloMode : 1.0
 
     // Live audio properties from D-Bus
     property bool isAudioLive: audioProps.properties && typeof audioProps.properties.bass === "number"

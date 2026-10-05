@@ -234,6 +234,38 @@ Item {
         colorAccent: fullRep.plasmoidItem.currentConsolePalette.accent
     }
 
+    // Concept 9: The Embossed Glyph Matrix (Bas-Relief & Shifting Materials)
+    EmbossedGlyphMatrix {
+        anchors.fill: parent
+        visible: fullRep.plasmoidItem.activeConcept === 9
+        simTime: fullRep.plasmoidItem.simTime
+        bass: fullRep.plasmoidItem.bass
+        mids: fullRep.plasmoidItem.mids
+        treble: fullRep.plasmoidItem.treble
+        bpm: fullRep.plasmoidItem.bpm
+        beat: fullRep.plasmoidItem.beat
+        downbeat: fullRep.plasmoidItem.downbeat
+        beatPhase: fullRep.plasmoidItem.beatPhase
+        isVocal: fullRep.plasmoidItem.isVocal
+        vocalEnergy: fullRep.plasmoidItem.vocalEnergy
+        transientHit: fullRep.plasmoidItem.transientHit
+        pointerPos: fullRep.pointerPos
+        pointerVel: fullRep.pointerVel
+        vortexSpeed: fullRep.plasmoidItem.globalVortexSpeed
+        scrollSpeed: fullRep.plasmoidItem.glyphScrollSpeed
+        embossDepth: fullRep.plasmoidItem.glyphEmbossDepth
+        holoStrength: fullRep.plasmoidItem.glyphHoloStrength
+        autoCycleThemes: fullRep.plasmoidItem.glyphAutoCycleThemes
+        cycleInterval: fullRep.plasmoidItem.glyphCycleInterval
+        textSourceMode: fullRep.plasmoidItem.glyphTextSourceMode
+        textCommand: fullRep.plasmoidItem.glyphTextCommand
+        customText: fullRep.plasmoidItem.glyphCustomText
+        paletteIndex: fullRep.plasmoidItem.concept9PaletteIdx
+        glyphSpacing: fullRep.plasmoidItem.glyphSpacing
+        glyphZoom: fullRep.plasmoidItem.glyphZoom
+        holoMode: fullRep.plasmoidItem.glyphHoloMode
+    }
+
     // Pointer tracker when cursor hovers over widget
     MouseArea {
         id: surfaceMouseArea

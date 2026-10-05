@@ -314,6 +314,29 @@ fn main() {
         }
     }
 
+    // Background fortune generator for the Embossed Glyph Matrix
+    std::thread::spawn(|| {
+        let fortune_bin = if std::path::Path::new("/usr/games/fortune").exists() {
+            Some("/usr/games/fortune")
+        } else if Command::new("which").arg("fortune").output().map(|o| o.status.success()).unwrap_or(false) {
+            Some("fortune")
+        } else {
+            None
+        };
+
+        if let Some(cmd) = fortune_bin {
+            loop {
+                if let Ok(output) = Command::new(cmd).arg("-s").output() {
+                    if output.status.success() && !output.stdout.is_empty() {
+                        let _ = std::fs::write("/tmp/regel_fortune.txt.tmp", &output.stdout);
+                        let _ = std::fs::rename("/tmp/regel_fortune.txt.tmp", "/tmp/regel_fortune.txt");
+                    }
+                }
+                std::thread::sleep(Duration::from_secs(12));
+            }
+        }
+    });
+
     if let Err(e) = run_audio_daemon(source, gain, gamma, auto_gain, write_stdout) {
         eprintln!("Error in regel-daemon: {}", e);
         std::process::exit(1);

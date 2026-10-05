@@ -234,6 +234,33 @@ CONCEPTS = {
             colorAccent: "#38bdf8"
         }"""
     },
+    9: {
+        "name": "glyph_matrix",
+        "title": "The Embossed Glyph Matrix",
+        "snippet": """EmbossedGlyphMatrix {
+            anchors.fill: parent
+            simTime: parent.simTime
+            bass: parent.bass
+            mids: parent.mids
+            treble: parent.treble
+            bpm: parent.bpm
+            beat: parent.beat
+            downbeat: parent.downbeat
+            beatPhase: parent.beatPhase
+            isVocal: parent.isVocal
+            vocalEnergy: parent.vocalEnergy
+            transientHit: parent.transientHit
+            pointerPos: parent.pointerPos
+            pointerVel: parent.pointerVel
+            scrollSpeed: 0.6
+            embossDepth: 1.0
+            colorStone: "#081c15"
+            colorPorcelain: "#edf6f9"
+            colorGold: "#d4af37"
+            colorSheen: "#52b788"
+            colorVoid: "#020907"
+        }"""
+    },
 }
 
 def qimage_to_pil(qimg):
@@ -389,7 +416,8 @@ Item {{
             "5. Procedural Synthwave Megacity",
             "6. Real-Time Ephemeris Biome",
             "7. Kinetic Spiderweb & Resonance Harp",
-            "8. The Analog Telemetry Console"
+            "8. The Analog Telemetry Console",
+            "9. The Embossed Glyph Matrix"
         ]
         Palettes {{ id: palettes }}
         property var currentFluidPalette: palettes.fluidPalettes[0]
@@ -410,6 +438,16 @@ Item {{
         property real harpDewDensity: 0.75
         property real harpTension: 1.0
         property var currentConsolePalette: palettes.consolePalettes[0]
+        property var currentGlyphPalette: palettes.glyphPalettes[0]
+        property real glyphScrollSpeed: 1.2
+        property real glyphEmbossDepth: 1.0
+        property real glyphHoloStrength: 1.0
+        property bool glyphAutoCycleThemes: true
+        property real glyphCycleInterval: 24.0
+        property int glyphTextSourceMode: 0
+        property string glyphTextCommand: "/usr/games/fortune -s"
+        property string glyphCustomText: "The moving finger writes; and, having writ, moves on."
+        property int concept9PaletteIdx: 0
         function cycleConcept(d) {{}}
     }}
 
@@ -575,7 +613,7 @@ def main():
     parser = argparse.ArgumentParser(description="Regel Headless Capture Engine & Benchmarker")
     parser.add_argument("--target", choices=["concept", "widget-desktop", "widget-panel", "grid", "all"], default="concept",
                         help="Target element to capture")
-    parser.add_argument("--concept", default="1", help="Concept ID (1-8)")
+    parser.add_argument("--concept", default="1", help="Concept ID (1-9)")
     parser.add_argument("--warmup", type=float, default=2.5, help="Simulation warmup time in seconds")
     parser.add_argument("--duration", type=float, default=0.0, help="Recording duration in seconds (0 for still image)")
     parser.add_argument("--fps", type=int, default=30, help="Frames per second for animation")

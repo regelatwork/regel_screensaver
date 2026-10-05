@@ -206,6 +206,24 @@ class EngineBridge(QObject):
         else:
             self.setAudio(sub_bass, bass, mids, treble, rms, transient)
 
+    @pyqtSlot(result=str)
+    @pyqtSlot(str, result=str)
+    def fetchFortuneText(self, cmd=""):
+        cmd_to_run = cmd if cmd and cmd.strip() else "/usr/games/fortune -s"
+        try:
+            res = subprocess.run(cmd_to_run, shell=True, capture_output=True, text=True, timeout=2)
+            if res.returncode == 0 and res.stdout.strip():
+                text = res.stdout.strip()
+                try:
+                    with open("/tmp/regel_fortune.txt", "w") as f:
+                        f.write(text + "\n")
+                except Exception:
+                    pass
+                return text
+        except Exception:
+            pass
+        return ""
+
     # Exposed QML Properties
     @pyqtProperty(float, notify=stateChanged)
     def simTime(self):

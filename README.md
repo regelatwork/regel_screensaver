@@ -25,7 +25,7 @@
 
 ## ✨ Key Features
 
-- **8 Procedural Aesthetic Archetypes**: From Navier-Stokes fluid dynamics and continuous artificial life (Lenia) to relativistic black hole gravitational lensing and vintage analog telemetry consoles.
+- **9 Procedural Aesthetic Archetypes**: From Navier-Stokes fluid dynamics and continuous artificial life (Lenia) to relativistic black hole gravitational lensing, vintage analog telemetry consoles, and embossed glyph matrices with shifting optical textures.
 - **Versatile Plasma 6 Integrations**:
   - **Wallpaper Containment Plugin (`org.regel.wallpaper`)**: Immersive, full-screen interactive background.
   - **Desktop & Panel Widget / Plasmoid (`org.regel.widget`)**: Freely resizable planar widget on the desktop or animated compact equalizer in the taskbar panel with interactive popup HUD.
@@ -102,6 +102,7 @@ flowchart TD
 | **06** | [**Real-Time Ephemeris Biome**](docs/06-realtime-ephemeris-biome.md) | Painterly Ghibli Weather Terrarium | **Themes**: *Yakushima Ancient Forest, Sakura Spring Dawn, Autumn Koyo, Alpine Winter, Midnight Bioluminescence*.<br/>**Options**: Weather mode (Clear, Rain, Snow, Mist), real solar clock sync. |
 | **07** | [**Kinetic Spiderweb & Resonance Harp**](docs/07-kinetic-spiderweb-harp.md) | Tactile Elastic Lattice | **Themes**: *Moonlit Gossamer, Golden Laser Harp, Bioluminescent Abyssal, Electric Synapse, Frost Crystal Web*.<br/>**Options**: Dewdrop density slider, silk elastic tension slider. |
 | **08** | [**The Analog Telemetry Console**](docs/08-analog-telemetry-console.md) | Hex-Meter Ballistic Galvanometer Matrix & Phosphor Timebase | **Themes**: *Vintage Laboratory, Tektronix Phosphor 1974, Nagra IV-S Field Recorder, Soviet Cold-War Bunker, Cyberpunk Deck*.<br/>6 identical ballistic VU galvanometers (ANSI C16.5 2nd-order ODE), external chassis jewel pilot lamps with peak-hold pulse stretchers, P1 phosphor CRT oscilloscope, and Nixie BPM readout. |
+| **09** | [**The Embossed Glyph Matrix**](docs/10-embossed-glyph-matrix.md) | Chrono-Glyph Bas-Relief & Shifting Materials | **Themes**: *Imperial Jade & Porcelain, Obsidian & Iridescent Oil-Slick, Alabaster & Rose Gold, Lapislazuli Celestial Gold, Cybernetic Bismuth Monolith, Starlight Diamond & Platinum (Ultra Glitter), Prismatic Opal & Hologram (CD Diffraction), Cosmic Nebula & Amethyst, Abalone Shell & Oceanic Nacre*.<br/>Scrolling field of 24 procedural SDF glyphs across 6 distinct typographic fonts with shifting matte stone, vitreous porcelain SSS, microflake metallic glitter, thin-film iridescence, CD / holographic diffraction grating, dynamic rectangular quote cartouche with word-wrap, configurable text command sources (fortune/quotes/custom), 4× scroll speed, tactile mouse carving, and smooth continuous theme auto-cycling. |
 
 <div align="center">
   <img src="assets/screenshots/concept-8-analog-console.jpg" alt="Concept 8: The Analog Telemetry Console with 6 Uniform Ballistic VU Galvanometers, External Chassis Pilot Lamps, Circular CRT Phosphor Oscilloscope, and Nixie BPM Readout" width="100%">

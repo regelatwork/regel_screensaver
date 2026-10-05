@@ -173,6 +173,21 @@ Item {
         pointerVel: lockScreenRoot.pointerVel
     }
 
+    // Concept 9: The Embossed Glyph Matrix (Bas-Relief & Shifting Materials)
+    EmbossedGlyphMatrix {
+        anchors.fill: parent
+        visible: lockScreenRoot.activeConcept === 9
+        simTime: lockScreenRoot.simTime
+        keystrokeEnergy: lockScreenRoot.keystrokeEnergy
+        shockwaveIntensity: lockScreenRoot.shockwaveIntensity
+        bass: lockScreenRoot.bass
+        mids: lockScreenRoot.mids
+        treble: lockScreenRoot.treble
+        beatPhase: lockScreenRoot.beatPhase
+        pointerPos: lockScreenRoot.pointerPos
+        pointerVel: lockScreenRoot.pointerVel
+    }
+
     // Authenticator connection for Plasma 6 kscreenlocker
     Connections {
         target: typeof authenticator !== "undefined" ? authenticator : null

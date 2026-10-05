@@ -68,6 +68,18 @@ QtObject {
         { name: "Cyber-Laboratory 2088 (Dark Titanium & Cyan Oscilloscope)",   chassis: "#0d1117", dial: "#161b22", bezel: "#21262d", scope: "#051e28", needle: "#06b6d4", accent: "#ec4899" }
     ]
 
+    readonly property var glyphPalettes: [
+        { name: "Imperial Jade & Porcelain (Default)", stone: "#081c15", porcelain: "#edf6f9", gold: "#d4af37", sheen: "#52b788", voidColor: "#020907", glitter: 0.85, iridescence: 1.0, holo: 0.00, holoMode: 0.00 },
+        { name: "Obsidian & Iridescent Oil-Slick",      stone: "#0b0c10", porcelain: "#1f2833", gold: "#66fcf1", sheen: "#c77dff", voidColor: "#000000", glitter: 1.10, iridescence: 1.85, holo: 0.00, holoMode: 0.00 },
+        { name: "Alabaster & Rose Gold",              stone: "#2b2024", porcelain: "#fff1e6", gold: "#e07a5f", sheen: "#f4a261", voidColor: "#140d10", glitter: 0.70, iridescence: 0.75, holo: 0.00, holoMode: 0.00 },
+        { name: "Lapislazuli & Celestial Gold",       stone: "#0d1b2a", porcelain: "#e0e1dd", gold: "#e0a96d", sheen: "#415a77", voidColor: "#050a12", glitter: 0.90, iridescence: 0.90, holo: 0.00, holoMode: 0.00 },
+        { name: "Cybernetic Bismuth & Hologram Stickers", stone: "#161a1d", porcelain: "#f5f3f4", gold: "#ffb703", sheen: "#00b4d8", voidColor: "#0b090a", glitter: 1.25, iridescence: 1.60, holo: 1.60, holoMode: 1.00 },
+        { name: "Starlight Diamond & Platinum (Ultra Glitter)", stone: "#0c0e14", porcelain: "#ffffff", gold: "#e2e8f0", sheen: "#67e8f9", voidColor: "#030408", glitter: 2.00, iridescence: 1.15, holo: 0.00, holoMode: 0.00 },
+        { name: "Prismatic Opal & Hologram Stickers (CD Diffraction)", stone: "#12101e", porcelain: "#fdfbf7", gold: "#f472b6", sheen: "#38bdf8", voidColor: "#08060f", glitter: 1.35, iridescence: 2.00, holo: 2.00, holoMode: 1.00 },
+        { name: "Cosmic Nebula & Amethyst (Glitter & Iridescence)", stone: "#13091f", porcelain: "#f3e8ff", gold: "#d946ef", sheen: "#06b6d4", voidColor: "#06020a", glitter: 1.65, iridescence: 1.75, holo: 0.00, holoMode: 0.00 },
+        { name: "Abalone Shell & Oceanic Nacre",       stone: "#041c1e", porcelain: "#ecfeff", gold: "#2dd4bf", sheen: "#a78bfa", voidColor: "#020d0e", glitter: 1.40, iridescence: 1.90, holo: 0.00, holoMode: 0.00 }
+    ]
+
     function getNames(paletteList) {
         let list = [];
         for (let i = 0; i < paletteList.length; ++i) {

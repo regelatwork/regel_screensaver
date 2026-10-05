@@ -82,6 +82,21 @@ WallpaperItem {
     property int concept8PaletteIdx: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.concept8Palette === "number") ? wallpaperRoot.configuration.concept8Palette : 0
     readonly property var currentConsolePalette: palettes.consolePalettes[concept8PaletteIdx % palettes.consolePalettes.length]
 
+    // --- Concept 9 Parameters ---
+    property int concept9PaletteIdx: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.concept9Palette === "number") ? wallpaperRoot.configuration.concept9Palette : 0
+    readonly property var currentGlyphPalette: palettes.glyphPalettes[concept9PaletteIdx % palettes.glyphPalettes.length]
+    property real glyphScrollSpeed: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.glyphScrollSpeed === "number") ? wallpaperRoot.configuration.glyphScrollSpeed : 1.2
+    property real glyphEmbossDepth: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.glyphEmbossDepth === "number") ? wallpaperRoot.configuration.glyphEmbossDepth : 1.0
+    property bool glyphAutoCycleThemes: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.glyphAutoCycleThemes === "boolean") ? wallpaperRoot.configuration.glyphAutoCycleThemes : true
+    property real glyphCycleInterval: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.glyphCycleInterval === "number") ? wallpaperRoot.configuration.glyphCycleInterval : 24.0
+    property real glyphHoloStrength: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.glyphHoloStrength === "number") ? wallpaperRoot.configuration.glyphHoloStrength : 1.0
+    property int glyphTextSourceMode: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.glyphTextSourceMode === "number") ? wallpaperRoot.configuration.glyphTextSourceMode : 0
+    property string glyphTextCommand: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.glyphTextCommand === "string") ? wallpaperRoot.configuration.glyphTextCommand : "/usr/games/fortune -s"
+    property string glyphCustomText: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.glyphCustomText === "string") ? wallpaperRoot.configuration.glyphCustomText : "The moving finger writes; and, having writ, moves on."
+    property real glyphSpacing: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.glyphSpacing === "number") ? wallpaperRoot.configuration.glyphSpacing : 1.2
+    property real glyphZoom: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.glyphZoom === "number") ? wallpaperRoot.configuration.glyphZoom : 1.0
+    property real glyphHoloMode: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.glyphHoloMode === "number") ? wallpaperRoot.configuration.glyphHoloMode : 1.0
+
     // Live audio properties from D-Bus
     property bool isAudioLive: audioProps.properties && typeof audioProps.properties.bass === "number"
     property real liveSubBass: isAudioLive && typeof audioProps.properties.sub_bass === "number" ? audioProps.properties.sub_bass : 0.05
@@ -379,6 +394,38 @@ WallpaperItem {
         colorScope: wallpaperRoot.currentConsolePalette.scope
         colorNeedle: wallpaperRoot.currentConsolePalette.needle
         colorAccent: wallpaperRoot.currentConsolePalette.accent
+    }
+
+    // Concept 9: The Embossed Glyph Matrix (Bas-Relief & Shifting Materials)
+    EmbossedGlyphMatrix {
+        anchors.fill: parent
+        visible: wallpaperRoot.activeConcept === 9
+        simTime: wallpaperRoot.simTime
+        bass: wallpaperRoot.bass
+        mids: wallpaperRoot.mids
+        treble: wallpaperRoot.treble
+        bpm: wallpaperRoot.bpm
+        beat: wallpaperRoot.beat
+        downbeat: wallpaperRoot.downbeat
+        beatPhase: wallpaperRoot.beatPhase
+        isVocal: wallpaperRoot.isVocal
+        vocalEnergy: wallpaperRoot.vocalEnergy
+        transientHit: wallpaperRoot.transientHit
+        pointerPos: wallpaperRoot.pointerPos
+        pointerVel: wallpaperRoot.pointerVel
+        vortexSpeed: wallpaperRoot.globalVortexSpeed
+        scrollSpeed: wallpaperRoot.glyphScrollSpeed
+        embossDepth: wallpaperRoot.glyphEmbossDepth
+        holoStrength: wallpaperRoot.glyphHoloStrength
+        autoCycleThemes: wallpaperRoot.glyphAutoCycleThemes
+        cycleInterval: wallpaperRoot.glyphCycleInterval
+        textSourceMode: wallpaperRoot.glyphTextSourceMode
+        textCommand: wallpaperRoot.glyphTextCommand
+        customText: wallpaperRoot.glyphCustomText
+        paletteIndex: wallpaperRoot.concept9PaletteIdx
+        glyphSpacing: wallpaperRoot.glyphSpacing
+        glyphZoom: wallpaperRoot.glyphZoom
+        holoMode: wallpaperRoot.glyphHoloMode
     }
 
     // Pointer tracker when cursor hovers over exposed desktop

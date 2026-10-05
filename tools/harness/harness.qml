@@ -108,8 +108,21 @@ ApplicationWindow {
         { name: "Cyberpunk Deck (Obsidian & Amber)",        bg: "#0a0a0f", dye1: "#fed7aa", dye2: "#1f1d2b", dye3: "#261304" }
     ]
 
+    // Concept 9 Palettes (The Embossed Glyph Matrix)
+    readonly property var glyphPalettes: [
+        { name: "Imperial Jade & Porcelain (Default)", bg: "#081c15", dye1: "#edf6f9", dye2: "#d4af37", dye3: "#52b788" },
+        { name: "Obsidian & Iridescent Oil-Slick",      bg: "#0b0c10", dye1: "#1f2833", dye2: "#66fcf1", dye3: "#c77dff" },
+        { name: "Alabaster & Rose Gold",              bg: "#2b2024", dye1: "#fff1e6", dye2: "#e07a5f", dye3: "#f4a261" },
+        { name: "Lapislazuli & Celestial Gold",       bg: "#0d1b2a", dye1: "#e0e1dd", dye2: "#e0a96d", dye3: "#415a77" },
+        { name: "Cybernetic Bismuth Monolith",         bg: "#161a1d", dye1: "#f5f3f4", dye2: "#ffb703", dye3: "#00b4d8" },
+        { name: "Starlight Diamond & Platinum (Ultra Glitter)", bg: "#0c0e14", dye1: "#ffffff", dye2: "#e2e8f0", dye3: "#67e8f9" },
+        { name: "Prismatic Opal & Hologram (Ultra Iridescent / CD Hologram)", bg: "#12101e", dye1: "#fdfbf7", dye2: "#f472b6", dye3: "#38bdf8" },
+        { name: "Cosmic Nebula & Amethyst (Glitter & Iridescence)", bg: "#13091f", dye1: "#f3e8ff", dye2: "#d946ef", dye3: "#06b6d4" },
+        { name: "Abalone Shell & Oceanic Nacre",       bg: "#041c1e", dye1: "#ecfeff", dye2: "#2dd4bf", dye3: "#a78bfa" }
+    ]
+
     property int selectedPalette: 0
-    readonly property var currentPalettes: selectedConcept === 8 ? consolePalettes : (selectedConcept === 7 ? harpPalettes : (selectedConcept === 6 ? biomePalettes : (selectedConcept === 5 ? cityPalettes : (selectedConcept === 4 ? cosmicPalettes : (selectedConcept === 3 ? koiPalettes : (selectedConcept === 2 ? petriPalettes : fluidPalettes))))))
+    readonly property var currentPalettes: selectedConcept === 9 ? glyphPalettes : (selectedConcept === 8 ? consolePalettes : (selectedConcept === 7 ? harpPalettes : (selectedConcept === 6 ? biomePalettes : (selectedConcept === 5 ? cityPalettes : (selectedConcept === 4 ? cosmicPalettes : (selectedConcept === 3 ? koiPalettes : (selectedConcept === 2 ? petriPalettes : fluidPalettes)))))))
     property color activeBg: currentPalettes[selectedPalette % currentPalettes.length].bg
     property color activeDye1: currentPalettes[selectedPalette % currentPalettes.length].dye1
     property color activeDye2: currentPalettes[selectedPalette % currentPalettes.length].dye2
@@ -445,6 +458,46 @@ ApplicationWindow {
             colorAccent: "#38bdf8"
         }
 
+        // Concept 9: The Embossed Glyph Matrix (Bas-Relief & Shifting Materials)
+        EmbossedGlyphMatrix {
+            id: glyphSandbox
+            anchors.fill: parent
+            visible: root.selectedConcept === 9
+            simTime: root.simTime
+            keystrokeEnergy: root.keystrokeEnergy
+            shockwaveIntensity: root.shockwaveIntensity
+            vortexSpeed: root.vortexSpeed
+            bass: root.bass
+            mids: root.mids
+            treble: root.treble
+            bpm: root.bpm
+            beat: root.beat
+            downbeat: root.downbeat
+            beatPhase: root.beatPhase
+            isVocal: root.isVocal
+            vocalEnergy: root.vocalEnergy
+            transientHit: root.transientHit
+            pointerPos: root.pointerPos
+            pointerVel: root.pointerVel
+            scrollSpeed: (typeof sldGlyphScroll !== "undefined") ? sldGlyphScroll.value : 1.2
+            embossDepth: (typeof sldGlyphEmboss !== "undefined") ? sldGlyphEmboss.value : 1.0
+            glitterDensity: (typeof sldGlyphGlitter !== "undefined") ? sldGlyphGlitter.value : 0.85
+            iridescenceStrength: (typeof sldGlyphIrid !== "undefined") ? sldGlyphIrid.value : 1.0
+            holoStrength: (typeof sldGlyphHolo !== "undefined") ? sldGlyphHolo.value : 1.0
+            glyphSpacing: (typeof sldGlyphSpacing !== "undefined") ? sldGlyphSpacing.value : 1.2
+            glyphZoom: (typeof sldGlyphZoom !== "undefined") ? sldGlyphZoom.value : 1.0
+            holoMode: (typeof sldGlyphHoloMode !== "undefined") ? sldGlyphHoloMode.value : 1.0
+            autoCycleThemes: (typeof chkGlyphAutoCycle !== "undefined") ? chkGlyphAutoCycle.checked : false
+            cycleInterval: (typeof sldGlyphCycleInterval !== "undefined") ? sldGlyphCycleInterval.value : 24.0
+            paletteIndex: root.selectedPalette
+            engineBridge: (typeof engineCore !== "undefined") ? engineCore : null
+            colorStone: root.activeBg
+            colorPorcelain: root.activeDye1
+            colorGold: root.activeDye2
+            colorSheen: root.activeDye3
+            colorVoid: "#020907"
+        }
+
         // Pointer Reactive Cursor Halo
         Rectangle {
             x: root.pointerPos.x * canvasArea.width - width / 2
@@ -541,7 +594,8 @@ ApplicationWindow {
                             "5: Procedural Synthwave Megacity (Cyberpunk Skyline)",
                             "6: Real-Time Ephemeris Biome (Ghibli Weather Terrarium)",
                             "7: Kinetic Spiderweb Harp (Elastic Lattice & Dewdrops)",
-                            "8: The Analog Telemetry Console (Ballistic VU & CRT)"
+                            "8: The Analog Telemetry Console (Ballistic VU & CRT)",
+                            "9: The Embossed Glyph Matrix (Bas-Relief & Textures)"
                         ]
                         currentIndex: root.selectedConcept - 1
                         onActivated: (idx) => {
@@ -897,6 +951,147 @@ ApplicationWindow {
                             id: chkVocal
                             text: "Singing Vocal Active"
                             checked: true
+                        }
+                    }
+                }
+
+                // Concept 9 Parameters (The Embossed Glyph Matrix)
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: root.selectedConcept === 9
+                    spacing: 8
+
+                    Text { text: "Concept 9 Parameters (Embossed Glyph Matrix)"; color: "#38bdf8"; font.bold: true }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Scroll Speed (4×): " + sldGlyphScroll.value.toFixed(2); color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldGlyphScroll
+                            from: 0.1
+                            to: 8.0
+                            value: 1.2
+                            stepSize: 0.1
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Emboss Depth: " + sldGlyphEmboss.value.toFixed(1); color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldGlyphEmboss
+                            from: 0.2
+                            to: 2.5
+                            value: 1.0
+                            stepSize: 0.1
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Glitter Density: " + (sldGlyphGlitter.value * 100).toFixed(0) + "%"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldGlyphGlitter
+                            from: 0.0
+                            to: 2.0
+                            value: 0.85
+                            stepSize: 0.05
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Thin-Film Sheen: " + (sldGlyphIrid.value * 100).toFixed(0) + "%"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldGlyphIrid
+                            from: 0.0
+                            to: 2.0
+                            value: 1.0
+                            stepSize: 0.1
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Holo Sticker CD-Diffraction: " + (sldGlyphHolo.value * 100).toFixed(0) + "%"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldGlyphHolo
+                            from: 0.0
+                            to: 2.0
+                            value: 1.0
+                            stepSize: 0.05
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Hologram Sticker Density: " + (sldGlyphHoloMode.value * 100).toFixed(0) + "%"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldGlyphHoloMode
+                            from: 0.0
+                            to: 1.0
+                            value: 1.0
+                            stepSize: 0.05
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Glyph Spacing: " + sldGlyphSpacing.value.toFixed(2); color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldGlyphSpacing
+                            from: 0.6
+                            to: 2.5
+                            value: 1.2
+                            stepSize: 0.1
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Field Zoom Scale: " + sldGlyphZoom.value.toFixed(2) + "×"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldGlyphZoom
+                            from: 0.4
+                            to: 2.5
+                            value: 1.0
+                            stepSize: 0.1
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        CheckBox {
+                            id: chkGlyphAutoCycle
+                            text: "Auto-Cycle Themes"
+                            checked: true
+                            contentItem: Text { text: chkGlyphAutoCycle.text; color: "#cbd5e1"; leftPadding: 24 }
+                        }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldGlyphCycleInterval
+                            visible: chkGlyphAutoCycle.checked
+                            from: 5.0
+                            to: 60.0
+                            value: 24.0
+                            stepSize: 1.0
+                            Layout.preferredWidth: 110
                         }
                     }
                 }

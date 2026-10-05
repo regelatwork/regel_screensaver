@@ -117,6 +117,56 @@
       <label>Analog Console Finish &amp; Dial Palette</label>
       <default>0</default>
     </entry>
+
+    <!-- Archetype 9: The Embossed Glyph Matrix -->
+    <entry name="concept9Palette" type="Int">
+      <label>Embossed Glyph Monolith Palette</label>
+      <default>0</default>
+    </entry>
+    <entry name="glyphAutoCycleThemes" type="Bool">
+      <label>Auto-Cycle Material Themes</label>
+      <default>true</default>
+    </entry>
+    <entry name="glyphCycleInterval" type="Double">
+      <label>Theme Cycle Interval (Seconds)</label>
+      <default>24.0</default>
+    </entry>
+    <entry name="glyphScrollSpeed" type="Double">
+      <label>Glyph Field Scroll Speed</label>
+      <default>1.2</default>
+    </entry>
+    <entry name="glyphEmbossDepth" type="Double">
+      <label>Embossed Relief Depth</label>
+      <default>1.0</default>
+    </entry>
+    <entry name="glyphHoloStrength" type="Double">
+      <label>CD / Holographic Diffraction Strength</label>
+      <default>1.0</default>
+    </entry>
+    <entry name="glyphTextSourceMode" type="Int">
+      <label>Text Inscription Source Mode (0: Command/Fortune, 1: Classical Quotes, 2: Custom Text)</label>
+      <default>0</default>
+    </entry>
+    <entry name="glyphTextCommand" type="String">
+      <label>Text Generation Shell Command</label>
+      <default>/usr/games/fortune -s</default>
+    </entry>
+    <entry name="glyphCustomText" type="String">
+      <label>Custom Quote Text</label>
+      <default>The moving finger writes; and, having writ, moves on.</default>
+    </entry>
+    <entry name="glyphSpacing" type="Double">
+      <label>Glyph Matrix Field Spacing</label>
+      <default>1.2</default>
+    </entry>
+    <entry name="glyphZoom" type="Double">
+      <label>Glyph Matrix Field Zoom</label>
+      <default>1.0</default>
+    </entry>
+    <entry name="glyphHoloMode" type="Double">
+      <label>Patterned Holographic Foil Mode</label>
+      <default>1.0</default>
+    </entry>
   </group>
 
 </kcfg>
