@@ -1,3 +1,28 @@
+regel-screensaver (0.4.0-1) unstable; urgency=medium
+
+  * Release v0.4.0: Concept 09 - The Embossed Glyph Matrix & Live Typography.
+  * Concept 09: Bas-relief stone inscription and shifting material monolith
+    with 108 procedural signed distance field (SDF) glyphs spanning runes,
+    alchemical sigils, cuneiform, Greek, math, circuitry, and typography.
+  * Security Holo Stickers: Procedural tamper-evident holographic foil seals
+    with multi-order thin-film diffraction grating, micro-embossed security
+    patterns, dynamic glitter flake orientation, and persistent off-screen
+    lifecycle management.
+  * Live Fortune & Monumental Typography: Integrated `/usr/games/fortune`
+    with fallback pool of 42 philosophical maxims and 6 typographic font
+    profiles in golden ratio portrait layout.
+  * Off-screen Deferral Queue: Mathematically verified single-fortune layout
+    with reactive queueing that defers updates until the active tablet
+    scrolls completely off screen to prevent mid-screen text shifts.
+  * PipeWire D-Bus IPC: Added 'fortune' string property and PropertiesChanged
+    signal emission in regel-daemon, bound reactively into Plasma wallpaper
+    and widget frontends.
+  * Concept 03 (The Tranquil Sanctuary): Added drifting resonant lily pads
+    with gentle attack-decay audio envelope and 12-variety koi migration pool.
+  * Upgraded developer harness runner and headless RHI capture tools.
+
+ -- Regel Project Contributors <info@regel.org>  Sun, 04 Oct 2026 22:35:00 -0400
+
 regel-screensaver (0.3.1-1) unstable; urgency=medium
 
   * Release v0.3.1: Hydrodynamic Stability & Interaction Pacing Fix.
