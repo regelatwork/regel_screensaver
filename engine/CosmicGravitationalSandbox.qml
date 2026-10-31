@@ -35,13 +35,15 @@ Item {
     property real jetFlare: 0.0
     onDownbeatChanged: {
         if (downbeat) {
-            jetFlare = 1.0
+            jetFlareAnim.restart()
         }
     }
 
-    NumberAnimation on jetFlare {
-        running: root.jetFlare > 0.0
-        from: root.jetFlare
+    NumberAnimation {
+        id: jetFlareAnim
+        target: root
+        property: "jetFlare"
+        from: 1.0
         to: 0.0
         duration: 240
         easing.type: Easing.OutQuad

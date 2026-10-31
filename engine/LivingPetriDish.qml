@@ -41,13 +41,15 @@ Item {
     property real mitosisPulse: 0.0
     onDownbeatChanged: {
         if (downbeat) {
-            mitosisPulse = 1.0
+            mitosisPulseAnim.restart()
         }
     }
 
-    NumberAnimation on mitosisPulse {
-        running: root.mitosisPulse > 0.0
-        from: root.mitosisPulse
+    NumberAnimation {
+        id: mitosisPulseAnim
+        target: root
+        property: "mitosisPulse"
+        from: 1.0
         to: 0.0
         duration: 260
         easing.type: Easing.OutQuad

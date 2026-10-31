@@ -43,13 +43,15 @@ Item {
     property real sporePulse: 0.0
     onDownbeatChanged: {
         if (downbeat) {
-            sporePulse = 1.0
+            sporePulseAnim.restart()
         }
     }
 
-    NumberAnimation on sporePulse {
-        running: root.sporePulse > 0.0
-        from: root.sporePulse
+    NumberAnimation {
+        id: sporePulseAnim
+        target: root
+        property: "sporePulse"
+        from: 1.0
         to: 0.0
         duration: 280
         easing.type: Easing.OutQuad

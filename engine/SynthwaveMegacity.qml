@@ -41,13 +41,15 @@ Item {
     property real searchlightPulse: 0.0
     onDownbeatChanged: {
         if (downbeat) {
-            searchlightPulse = 1.0
+            searchlightPulseAnim.restart()
         }
     }
 
-    NumberAnimation on searchlightPulse {
-        running: root.searchlightPulse > 0.0
-        from: root.searchlightPulse
+    NumberAnimation {
+        id: searchlightPulseAnim
+        target: root
+        property: "searchlightPulse"
+        from: 1.0
         to: 0.0
         duration: 250
         easing.type: Easing.OutQuad

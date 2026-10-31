@@ -40,13 +40,15 @@ Item {
     property real downbeatPulse: 0.0
     onDownbeatChanged: {
         if (downbeat) {
-            downbeatPulse = 1.0
+            downbeatAnim.restart()
         }
     }
 
-    NumberAnimation on downbeatPulse {
-        running: root.downbeatPulse > 0.0
-        from: root.downbeatPulse
+    NumberAnimation {
+        id: downbeatAnim
+        target: root
+        property: "downbeatPulse"
+        from: 1.0
         to: 0.0
         duration: 220
         easing.type: Easing.OutQuad

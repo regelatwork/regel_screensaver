@@ -404,8 +404,10 @@ Item {
 
     // Dynamic half-extent of viewport in quoteCoord space
     readonly property real screenHalfHeightInQuoteSpace: 1.9 * Math.max(0.25, glyphZoom) * 0.055
+    // Maximum tablet half-height across all quote lengths (max quoteHalfW 0.135 * 1.618034)
+    readonly property real maxQuoteHalfH: 0.135 * 1.618034
     // Safety clearance guaranteeing the quote box and its emboss are 100% outside the viewport
-    readonly property real quoteOffscreenMargin: screenHalfHeightInQuoteSpace + quoteHalfH + 0.025
+    readonly property real quoteOffscreenMargin: screenHalfHeightInQuoteSpace + maxQuoteHalfH + 0.025
     // Phase distance from screen center (0.5)
     readonly property real quoteDistanceFromCenter: Math.abs(currentQuotePhase - 0.5)
     // Exactly one quote tablet exists per period; it is on screen if its distance from screen center is within the visible bound
@@ -428,7 +430,7 @@ Item {
     onQuoteIsOnScreenChanged: {
         // Triggered exactly when the current quote scrolls completely off the screen!
         if (!quoteIsOnScreen) {
-            applyNextFortune()
+            Qt.callLater(applyNextFortune)
         }
     }
 
@@ -641,13 +643,15 @@ Item {
     property real downbeatPulse: 0.0
     onDownbeatChanged: {
         if (downbeat) {
-            downbeatPulse = 1.0
+            downbeatAnim.restart()
         }
     }
 
-    NumberAnimation on downbeatPulse {
-        running: root.downbeatPulse > 0.0
-        from: root.downbeatPulse
+    NumberAnimation {
+        id: downbeatAnim
+        target: root
+        property: "downbeatPulse"
+        from: 1.0
         to: 0.0
         duration: 260
         easing.type: Easing.OutQuad
