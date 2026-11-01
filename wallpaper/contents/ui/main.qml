@@ -1,6 +1,8 @@
 import QtQuick
 import org.kde.plasma.plasmoid
 import org.kde.plasma.workspace.dbus as PlasmaDBus
+import org.kde.plasma.wallpapers.image as PlasmaWallpaper
+import org.kde.kwindowsystem
 import "../engine"
 
 WallpaperItem {
@@ -14,7 +16,7 @@ WallpaperItem {
         z: -1
     }
 
-    // D-Bus IPC connection to regel-daemon
+    // D-Bus IPC connection to regel-daemon (Session Bus)
     PlasmaDBus.Properties {
         id: audioProps
         service: "org.regel.Audio"
@@ -22,6 +24,17 @@ WallpaperItem {
         iface: "org.regel.Audio"
         busType: PlasmaDBus.BusType.Session
     }
+
+    // UPower battery monitoring on System Bus
+    PlasmaDBus.Properties {
+        id: upowerProps
+        service: "org.freedesktop.UPower"
+        path: "/org/freedesktop/UPower"
+        iface: "org.freedesktop.UPower"
+        busType: PlasmaDBus.BusType.System
+    }
+
+    readonly property bool isOnBattery: upowerProps.properties && upowerProps.properties.OnBattery === true
 
     property real simTime: 0.0
     property point pointerPos: Qt.point(0.5, 0.5)
@@ -35,6 +48,26 @@ WallpaperItem {
     property string configuredAudioSource: (wallpaperRoot.configuration && wallpaperRoot.configuration.audioSource) ? wallpaperRoot.configuration.audioSource : "monitor"
     property bool configuredAudioAutoGain: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.audioAutoGain !== "undefined") ? wallpaperRoot.configuration.audioAutoGain : true
     property real configuredAudioGain: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.audioGain !== "undefined") ? wallpaperRoot.configuration.audioGain : 3.5
+
+    // Power & Performance Configuration
+    property bool pauseWhenOccluded: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.pauseWhenOccluded === "boolean") ? wallpaperRoot.configuration.pauseWhenOccluded : true
+    property int configuredTargetFramerate: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.targetFramerate === "number") ? wallpaperRoot.configuration.targetFramerate : 30
+    property real configuredResolutionScale: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.resolutionScale === "number") ? wallpaperRoot.configuration.resolutionScale : 0.75
+    property bool batterySaverEnabled: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.batterySaver === "boolean") ? wallpaperRoot.configuration.batterySaver : true
+
+    // Context-Aware Occlusion Evaluation (Wallpaper vs Lockscreen vs ShowingDesktop)
+    readonly property rect desktopRect: Window.window && Window.window.screen
+        ? Qt.rect(Window.window.screen.virtualX, Window.window.screen.virtualY, Window.window.width, Window.window.height)
+        : (Window.window ? Qt.rect(Window.window.x, Window.window.y, Window.window.width, Window.window.height) : Qt.rect(0, 0, width, height))
+
+    PlasmaWallpaper.MaximizedWindowMonitor {
+        id: activeWindowMonitor
+        regionGeometry: wallpaperRoot.desktopRect
+    }
+
+    readonly property bool isWallpaperOccluded: pauseWhenOccluded && (
+        KWindowSystem.isLocked || (activeWindowMonitor.count > 0 && !KWindowSystem.showingDesktop)
+    )
 
     Palettes {
         id: palettes
@@ -173,16 +206,39 @@ WallpaperItem {
         onTriggered: wallpaperRoot.syncDaemonSettings()
     }
 
-    // Simulation frame timer & pointer velocity decay
+    // Silence and Inactivity Detection
+    property real silenceDuration: 0.0
+    readonly property bool isAudioSilent: !isAudioLive || (liveRms < 0.005 && !liveTransient && liveBass < 0.02)
+    readonly property bool isPointerStill: wallpaperRoot.pointerVel.x === 0.0 && wallpaperRoot.pointerVel.y === 0.0
+    readonly property bool isQuietState: isAudioSilent && isPointerStill && silenceDuration >= 5.0
+
+    // Dynamic framerate selection (60 FPS = 16ms, 30 FPS = 33ms, 20 FPS = 50ms, 15 FPS = 66ms)
+    property int activeFramerate: (isOnBattery && batterySaverEnabled)
+        ? (isQuietState ? 15 : 20)
+        : (isQuietState ? 15 : configuredTargetFramerate)
+
+    property int activeInterval: activeFramerate <= 15 ? 66 : (activeFramerate <= 20 ? 50 : (activeFramerate <= 30 ? 33 : 16))
+
+    // Simulation frame timer & dynamic dt accumulation
     Timer {
-        interval: 16
-        running: true
+        id: simTimer
+        interval: wallpaperRoot.activeInterval
+        running: !wallpaperRoot.isWallpaperOccluded
         repeat: true
         onTriggered: {
-            wallpaperRoot.simTime += 0.016
+            let dt = interval / 1000.0
+            wallpaperRoot.simTime += dt
+
+            if (isAudioSilent && isPointerStill) {
+                silenceDuration = Math.min(10.0, silenceDuration + dt)
+            } else {
+                silenceDuration = 0.0
+            }
+
             if (wallpaperRoot.pointerVel.x !== 0.0 || wallpaperRoot.pointerVel.y !== 0.0) {
-                let vx = wallpaperRoot.pointerVel.x * 0.82
-                let vy = wallpaperRoot.pointerVel.y * 0.82
+                let decay = Math.pow(0.82, dt / 0.016)
+                let vx = wallpaperRoot.pointerVel.x * decay
+                let vy = wallpaperRoot.pointerVel.y * decay
                 if (Math.abs(vx) < 0.0005 && Math.abs(vy) < 0.0005) {
                     vx = 0.0
                     vy = 0.0
@@ -192,242 +248,160 @@ WallpaperItem {
         }
     }
 
-    // Concept 1: Liquid Neon Abyss GPU Shader Visualizer
-    LiquidNeonAbyss {
-        anchors.fill: parent
-        visible: wallpaperRoot.activeConcept === 1
-        simTime: wallpaperRoot.simTime
-        bass: wallpaperRoot.bass
-        mids: wallpaperRoot.mids
-        treble: wallpaperRoot.treble
-        bpm: wallpaperRoot.bpm
-        beat: wallpaperRoot.beat
-        downbeat: wallpaperRoot.downbeat
-        beatPhase: wallpaperRoot.beatPhase
-        isVocal: wallpaperRoot.isVocal
-        vocalEnergy: wallpaperRoot.vocalEnergy
-        transientHit: wallpaperRoot.transientHit
-        pointerPos: wallpaperRoot.pointerPos
-        pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: wallpaperRoot.globalVortexSpeed
-        colorBg: wallpaperRoot.currentFluidPalette.bg
-        colorDye1: wallpaperRoot.currentFluidPalette.dye1
-        colorDye2: wallpaperRoot.currentFluidPalette.dye2
-        colorDye3: wallpaperRoot.currentFluidPalette.dye3
+    readonly property var conceptFiles: [
+        "LiquidNeonAbyss.qml",
+        "LivingPetriDish.qml",
+        "TranquilKoiSanctuary.qml",
+        "CosmicGravitationalSandbox.qml",
+        "SynthwaveMegacity.qml",
+        "RealtimeEphemerisBiome.qml",
+        "KineticSpiderwebHarp.qml",
+        "AnalogTelemetryConsole.qml",
+        "EmbossedGlyphMatrix.qml"
+    ]
+
+    // Complete property forwarding contract for active archetype
+    function applyArchetypeProperties(target) {
+        if (!target) return;
+
+        // 1. Universal Uniforms
+        target.simTime = Qt.binding(() => wallpaperRoot.simTime);
+        target.bass = Qt.binding(() => wallpaperRoot.bass);
+        target.mids = Qt.binding(() => wallpaperRoot.mids);
+        target.treble = Qt.binding(() => wallpaperRoot.treble);
+        target.bpm = Qt.binding(() => wallpaperRoot.bpm);
+        target.beat = Qt.binding(() => wallpaperRoot.beat);
+        target.downbeat = Qt.binding(() => wallpaperRoot.downbeat);
+        target.beatPhase = Qt.binding(() => wallpaperRoot.beatPhase);
+        target.isVocal = Qt.binding(() => wallpaperRoot.isVocal);
+        target.vocalEnergy = Qt.binding(() => wallpaperRoot.vocalEnergy);
+        target.transientHit = Qt.binding(() => wallpaperRoot.transientHit);
+        target.pointerPos = Qt.binding(() => wallpaperRoot.pointerPos);
+        target.pointerVel = Qt.binding(() => wallpaperRoot.pointerVel);
+        target.vortexSpeed = Qt.binding(() => wallpaperRoot.globalVortexSpeed);
+
+        // 2. Archetype-Specific Specializations & Palettes
+        switch (wallpaperRoot.activeConcept) {
+            case 1:
+                target.colorBg = Qt.binding(() => wallpaperRoot.currentFluidPalette.bg);
+                target.colorDye1 = Qt.binding(() => wallpaperRoot.currentFluidPalette.dye1);
+                target.colorDye2 = Qt.binding(() => wallpaperRoot.currentFluidPalette.dye2);
+                target.colorDye3 = Qt.binding(() => wallpaperRoot.currentFluidPalette.dye3);
+                break;
+            case 2:
+                target.apertureMode = Qt.binding(() => wallpaperRoot.petriAperture ? 1.0 : 0.0);
+                target.colorBg = Qt.binding(() => wallpaperRoot.currentPetriPalette.bg);
+                target.colorMembrane = Qt.binding(() => wallpaperRoot.currentPetriPalette.membrane);
+                target.colorOrganelle = Qt.binding(() => wallpaperRoot.currentPetriPalette.organelle);
+                target.colorGlow = Qt.binding(() => wallpaperRoot.currentPetriPalette.glow);
+                break;
+            case 3:
+                target.waterClarity = Qt.binding(() => wallpaperRoot.koiWaterClarity);
+                target.colorWater = Qt.binding(() => wallpaperRoot.currentKoiPalette.water);
+                target.colorPebbles = Qt.binding(() => wallpaperRoot.currentKoiPalette.pebbles);
+                target.colorCaustics = Qt.binding(() => wallpaperRoot.currentKoiPalette.caustics);
+                target.colorAccent = Qt.binding(() => wallpaperRoot.currentKoiPalette.accent);
+                break;
+            case 4:
+                target.lensStrength = Qt.binding(() => wallpaperRoot.cosmicLensStrength);
+                target.autoHyperspace = Qt.binding(() => wallpaperRoot.cosmicAutoCycle);
+                target.colorCore = Qt.binding(() => wallpaperRoot.currentCosmicPalette.core);
+                target.colorDisk = Qt.binding(() => wallpaperRoot.currentCosmicPalette.disk);
+                target.colorJets = Qt.binding(() => wallpaperRoot.currentCosmicPalette.jets);
+                target.colorNebula = Qt.binding(() => wallpaperRoot.currentCosmicPalette.nebula);
+                break;
+            case 5:
+                target.rainDensity = Qt.binding(() => wallpaperRoot.cityRainDensity);
+                target.fogDensity = Qt.binding(() => wallpaperRoot.cityFogDensity);
+                target.colorSky = Qt.binding(() => wallpaperRoot.currentCityPalette.sky);
+                target.colorNeon1 = Qt.binding(() => wallpaperRoot.currentCityPalette.neon1);
+                target.colorNeon2 = Qt.binding(() => wallpaperRoot.currentCityPalette.neon2);
+                target.colorGrid = Qt.binding(() => wallpaperRoot.currentCityPalette.grid);
+                break;
+            case 6:
+                target.weatherMode = Qt.binding(() => wallpaperRoot.biomeWeatherMode);
+                target.syncToSystemClock = Qt.binding(() => wallpaperRoot.biomeSyncClock);
+                target.colorSky = Qt.binding(() => wallpaperRoot.currentBiomePalette.sky);
+                target.colorFoliage = Qt.binding(() => wallpaperRoot.currentBiomePalette.foliage);
+                target.colorSunMoon = Qt.binding(() => wallpaperRoot.currentBiomePalette.sunMoon);
+                target.colorWisp = Qt.binding(() => wallpaperRoot.currentBiomePalette.wisp);
+                break;
+            case 7:
+                target.dewDensity = Qt.binding(() => wallpaperRoot.harpDewDensity);
+                target.tension = Qt.binding(() => wallpaperRoot.harpTension);
+                target.colorSilk = Qt.binding(() => wallpaperRoot.currentHarpPalette.silk);
+                target.colorDew = Qt.binding(() => wallpaperRoot.currentHarpPalette.dew);
+                target.colorResonance = Qt.binding(() => wallpaperRoot.currentHarpPalette.resonance);
+                target.colorVoid = Qt.binding(() => wallpaperRoot.currentHarpPalette.voidColor);
+                break;
+            case 8:
+                target.subBass = Qt.binding(() => wallpaperRoot.subBass);
+                target.rms = Qt.binding(() => wallpaperRoot.rms);
+                target.colorChassis = Qt.binding(() => wallpaperRoot.currentConsolePalette.chassis);
+                target.colorDial = Qt.binding(() => wallpaperRoot.currentConsolePalette.dial);
+                target.colorBezel = Qt.binding(() => wallpaperRoot.currentConsolePalette.bezel);
+                target.colorScope = Qt.binding(() => wallpaperRoot.currentConsolePalette.scope);
+                target.colorNeedle = Qt.binding(() => wallpaperRoot.currentConsolePalette.needle);
+                target.colorAccent = Qt.binding(() => wallpaperRoot.currentConsolePalette.accent);
+                break;
+            case 9:
+                target.scrollSpeed = Qt.binding(() => wallpaperRoot.glyphScrollSpeed);
+                target.embossDepth = Qt.binding(() => wallpaperRoot.glyphEmbossDepth);
+                target.holoStrength = Qt.binding(() => wallpaperRoot.glyphHoloStrength);
+                target.autoCycleThemes = Qt.binding(() => wallpaperRoot.glyphAutoCycleThemes);
+                target.cycleInterval = Qt.binding(() => wallpaperRoot.glyphCycleInterval);
+                target.textSourceMode = Qt.binding(() => wallpaperRoot.glyphTextSourceMode);
+                target.textCommand = Qt.binding(() => wallpaperRoot.glyphTextCommand);
+                target.customText = Qt.binding(() => wallpaperRoot.glyphCustomText);
+                target.externalFortune = Qt.binding(() => wallpaperRoot.liveFortune);
+                target.paletteIndex = Qt.binding(() => wallpaperRoot.concept9PaletteIdx);
+                target.glyphSpacing = Qt.binding(() => wallpaperRoot.glyphSpacing);
+                target.glyphZoom = Qt.binding(() => wallpaperRoot.glyphZoom);
+                target.holoMode = Qt.binding(() => wallpaperRoot.glyphHoloMode);
+                break;
+        }
     }
 
-    // Concept 2: The Living Petri Dish (Lenia Continuous Artificial Life)
-    LivingPetriDish {
+    // Resolution Scaling Container with Offscreen FBO downsampling
+    Item {
+        id: renderContainer
         anchors.fill: parent
-        visible: wallpaperRoot.activeConcept === 2
-        simTime: wallpaperRoot.simTime
-        bass: wallpaperRoot.bass
-        mids: wallpaperRoot.mids
-        treble: wallpaperRoot.treble
-        bpm: wallpaperRoot.bpm
-        beat: wallpaperRoot.beat
-        downbeat: wallpaperRoot.downbeat
-        beatPhase: wallpaperRoot.beatPhase
-        isVocal: wallpaperRoot.isVocal
-        vocalEnergy: wallpaperRoot.vocalEnergy
-        transientHit: wallpaperRoot.transientHit
-        pointerPos: wallpaperRoot.pointerPos
-        pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: wallpaperRoot.globalVortexSpeed
-        apertureMode: wallpaperRoot.petriAperture ? 1.0 : 0.0
-        colorBg: wallpaperRoot.currentPetriPalette.bg
-        colorMembrane: wallpaperRoot.currentPetriPalette.membrane
-        colorOrganelle: wallpaperRoot.currentPetriPalette.organelle
-        colorGlow: wallpaperRoot.currentPetriPalette.glow
-    }
+        visible: !wallpaperRoot.isWallpaperOccluded
 
-    // Concept 3: The Tranquil Sanctuary (Caustic Koi Pond & Boid Ecosystem)
-    TranquilKoiSanctuary {
-        anchors.fill: parent
-        visible: wallpaperRoot.activeConcept === 3
-        simTime: wallpaperRoot.simTime
-        bass: wallpaperRoot.bass
-        mids: wallpaperRoot.mids
-        treble: wallpaperRoot.treble
-        bpm: wallpaperRoot.bpm
-        beat: wallpaperRoot.beat
-        downbeat: wallpaperRoot.downbeat
-        beatPhase: wallpaperRoot.beatPhase
-        isVocal: wallpaperRoot.isVocal
-        vocalEnergy: wallpaperRoot.vocalEnergy
-        transientHit: wallpaperRoot.transientHit
-        pointerPos: wallpaperRoot.pointerPos
-        pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: wallpaperRoot.globalVortexSpeed
-        waterClarity: wallpaperRoot.koiWaterClarity
-        colorWater: wallpaperRoot.currentKoiPalette.water
-        colorPebbles: wallpaperRoot.currentKoiPalette.pebbles
-        colorCaustics: wallpaperRoot.currentKoiPalette.caustics
-        colorAccent: wallpaperRoot.currentKoiPalette.accent
-    }
+        property real effectiveRenderScale: (wallpaperRoot.isOnBattery && wallpaperRoot.batterySaverEnabled)
+            ? 0.50
+            : wallpaperRoot.configuredResolutionScale
 
-    // Concept 4: Cosmic Gravitational Sandbox (Black Hole & Relativistic Jets)
-    CosmicGravitationalSandbox {
-        anchors.fill: parent
-        visible: wallpaperRoot.activeConcept === 4
-        simTime: wallpaperRoot.simTime
-        bass: wallpaperRoot.bass
-        mids: wallpaperRoot.mids
-        treble: wallpaperRoot.treble
-        bpm: wallpaperRoot.bpm
-        beat: wallpaperRoot.beat
-        downbeat: wallpaperRoot.downbeat
-        beatPhase: wallpaperRoot.beatPhase
-        isVocal: wallpaperRoot.isVocal
-        vocalEnergy: wallpaperRoot.vocalEnergy
-        transientHit: wallpaperRoot.transientHit
-        pointerPos: wallpaperRoot.pointerPos
-        pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: wallpaperRoot.globalVortexSpeed
-        lensStrength: wallpaperRoot.cosmicLensStrength
-        autoHyperspace: wallpaperRoot.cosmicAutoCycle
-        colorCore: wallpaperRoot.currentCosmicPalette.core
-        colorDisk: wallpaperRoot.currentCosmicPalette.disk
-        colorJets: wallpaperRoot.currentCosmicPalette.jets
-        colorNebula: wallpaperRoot.currentCosmicPalette.nebula
-    }
+        // Downsampling is restricted to compute-heavy fragment shaders (Concepts 1, 4, 5)
+        readonly property bool isHeavyShader: wallpaperRoot.activeConcept === 1 || 
+                                              wallpaperRoot.activeConcept === 4 || 
+                                              wallpaperRoot.activeConcept === 5
 
-    // Concept 5: Procedural Synthwave Megacity (Cyberpunk Skyline & Raymarched Highway)
-    SynthwaveMegacity {
-        anchors.fill: parent
-        visible: wallpaperRoot.activeConcept === 5
-        simTime: wallpaperRoot.simTime
-        bass: wallpaperRoot.bass
-        mids: wallpaperRoot.mids
-        treble: wallpaperRoot.treble
-        bpm: wallpaperRoot.bpm
-        beat: wallpaperRoot.beat
-        downbeat: wallpaperRoot.downbeat
-        beatPhase: wallpaperRoot.beatPhase
-        isVocal: wallpaperRoot.isVocal
-        vocalEnergy: wallpaperRoot.vocalEnergy
-        transientHit: wallpaperRoot.transientHit
-        pointerPos: wallpaperRoot.pointerPos
-        pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: wallpaperRoot.globalVortexSpeed
-        rainDensity: wallpaperRoot.cityRainDensity
-        fogDensity: wallpaperRoot.cityFogDensity
-        colorSky: wallpaperRoot.currentCityPalette.sky
-        colorNeon1: wallpaperRoot.currentCityPalette.neon1
-        colorNeon2: wallpaperRoot.currentCityPalette.neon2
-        colorGrid: wallpaperRoot.currentCityPalette.grid
-    }
+        readonly property real targetDpr: (Window.window && Window.window.screen) 
+            ? Window.window.screen.devicePixelRatio 
+            : (Screen.devicePixelRatio || 1.0)
 
-    // Concept 6: Real-Time Ephemeris Biome (Ghibli Weather Terrarium)
-    RealtimeEphemerisBiome {
-        anchors.fill: parent
-        visible: wallpaperRoot.activeConcept === 6
-        simTime: wallpaperRoot.simTime
-        bass: wallpaperRoot.bass
-        mids: wallpaperRoot.mids
-        treble: wallpaperRoot.treble
-        bpm: wallpaperRoot.bpm
-        beat: wallpaperRoot.beat
-        downbeat: wallpaperRoot.downbeat
-        beatPhase: wallpaperRoot.beatPhase
-        isVocal: wallpaperRoot.isVocal
-        vocalEnergy: wallpaperRoot.vocalEnergy
-        transientHit: wallpaperRoot.transientHit
-        pointerPos: wallpaperRoot.pointerPos
-        pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: wallpaperRoot.globalVortexSpeed
-        weatherMode: wallpaperRoot.biomeWeatherMode
-        syncToSystemClock: wallpaperRoot.biomeSyncClock
-        colorSky: wallpaperRoot.currentBiomePalette.sky
-        colorFoliage: wallpaperRoot.currentBiomePalette.foliage
-        colorSunMoon: wallpaperRoot.currentBiomePalette.sunMoon
-        colorWisp: wallpaperRoot.currentBiomePalette.wisp
-    }
+        layer.enabled: effectiveRenderScale < 0.99 && isHeavyShader
+        layer.smooth: true
+        layer.textureSize: Qt.size(
+            Math.max(320, Math.round(width * targetDpr * effectiveRenderScale)),
+            Math.max(240, Math.round(height * targetDpr * effectiveRenderScale))
+        )
 
-    // Concept 7: Kinetic Spiderweb & Resonance Harp (Tactile Elastic Lattice)
-    KineticSpiderwebHarp {
-        anchors.fill: parent
-        visible: wallpaperRoot.activeConcept === 7
-        simTime: wallpaperRoot.simTime
-        bass: wallpaperRoot.bass
-        mids: wallpaperRoot.mids
-        treble: wallpaperRoot.treble
-        bpm: wallpaperRoot.bpm
-        beat: wallpaperRoot.beat
-        downbeat: wallpaperRoot.downbeat
-        beatPhase: wallpaperRoot.beatPhase
-        isVocal: wallpaperRoot.isVocal
-        vocalEnergy: wallpaperRoot.vocalEnergy
-        transientHit: wallpaperRoot.transientHit
-        pointerPos: wallpaperRoot.pointerPos
-        pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: wallpaperRoot.globalVortexSpeed
-        dewDensity: wallpaperRoot.harpDewDensity
-        tension: wallpaperRoot.harpTension
-        colorSilk: wallpaperRoot.currentHarpPalette.silk
-        colorDew: wallpaperRoot.currentHarpPalette.dew
-        colorResonance: wallpaperRoot.currentHarpPalette.resonance
-        colorVoid: wallpaperRoot.currentHarpPalette.voidColor
-    }
+        Loader {
+            id: conceptLoader
+            anchors.fill: parent
+            asynchronous: true
+            source: (wallpaperRoot.activeConcept >= 1 && wallpaperRoot.activeConcept <= 9)
+                    ? Qt.resolvedUrl("../engine/" + wallpaperRoot.conceptFiles[wallpaperRoot.activeConcept - 1])
+                    : ""
 
-    // Concept 8: The Analog Telemetry Console (Ballistic Galvanometers & P1 Phosphor CRT)
-    AnalogTelemetryConsole {
-        anchors.fill: parent
-        visible: wallpaperRoot.activeConcept === 8
-        simTime: wallpaperRoot.simTime
-        subBass: wallpaperRoot.subBass
-        bass: wallpaperRoot.bass
-        mids: wallpaperRoot.mids
-        treble: wallpaperRoot.treble
-        rms: wallpaperRoot.rms
-        bpm: wallpaperRoot.bpm
-        beat: wallpaperRoot.beat
-        downbeat: wallpaperRoot.downbeat
-        beatPhase: wallpaperRoot.beatPhase
-        isVocal: wallpaperRoot.isVocal
-        vocalEnergy: wallpaperRoot.vocalEnergy
-        transientHit: wallpaperRoot.transientHit
-        pointerPos: wallpaperRoot.pointerPos
-        pointerVel: wallpaperRoot.pointerVel
-        colorChassis: wallpaperRoot.currentConsolePalette.chassis
-        colorDial: wallpaperRoot.currentConsolePalette.dial
-        colorBezel: wallpaperRoot.currentConsolePalette.bezel
-        colorScope: wallpaperRoot.currentConsolePalette.scope
-        colorNeedle: wallpaperRoot.currentConsolePalette.needle
-        colorAccent: wallpaperRoot.currentConsolePalette.accent
-    }
-
-    // Concept 9: The Embossed Glyph Matrix (Bas-Relief & Shifting Materials)
-    EmbossedGlyphMatrix {
-        anchors.fill: parent
-        visible: wallpaperRoot.activeConcept === 9
-        simTime: wallpaperRoot.simTime
-        bass: wallpaperRoot.bass
-        mids: wallpaperRoot.mids
-        treble: wallpaperRoot.treble
-        bpm: wallpaperRoot.bpm
-        beat: wallpaperRoot.beat
-        downbeat: wallpaperRoot.downbeat
-        beatPhase: wallpaperRoot.beatPhase
-        isVocal: wallpaperRoot.isVocal
-        vocalEnergy: wallpaperRoot.vocalEnergy
-        transientHit: wallpaperRoot.transientHit
-        pointerPos: wallpaperRoot.pointerPos
-        pointerVel: wallpaperRoot.pointerVel
-        vortexSpeed: wallpaperRoot.globalVortexSpeed
-        scrollSpeed: wallpaperRoot.glyphScrollSpeed
-        embossDepth: wallpaperRoot.glyphEmbossDepth
-        holoStrength: wallpaperRoot.glyphHoloStrength
-        autoCycleThemes: wallpaperRoot.glyphAutoCycleThemes
-        cycleInterval: wallpaperRoot.glyphCycleInterval
-        textSourceMode: wallpaperRoot.glyphTextSourceMode
-        textCommand: wallpaperRoot.glyphTextCommand
-        customText: wallpaperRoot.glyphCustomText
-        externalFortune: wallpaperRoot.liveFortune
-        paletteIndex: wallpaperRoot.concept9PaletteIdx
-        glyphSpacing: wallpaperRoot.glyphSpacing
-        glyphZoom: wallpaperRoot.glyphZoom
-        holoMode: wallpaperRoot.glyphHoloMode
+            onLoaded: {
+                if (item) {
+                    wallpaperRoot.applyArchetypeProperties(item)
+                }
+            }
+        }
     }
 
     // Pointer tracker when cursor hovers over exposed desktop

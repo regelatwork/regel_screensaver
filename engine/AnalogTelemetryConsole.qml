@@ -92,7 +92,7 @@ Item {
     Timer {
         id: physicsTimer
         interval: 16
-        running: true
+        running: root.visible
         repeat: true
         onTriggered: {
             let dt = 0.016;

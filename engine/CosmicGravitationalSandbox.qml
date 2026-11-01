@@ -204,7 +204,7 @@ Item {
     Timer {
         id: jumpTimer
         interval: 1000
-        running: root.autoHyperspace
+        running: root.visible && root.autoHyperspace
         repeat: true
         onTriggered: {
             if (root.secondsRemaining > 0) {

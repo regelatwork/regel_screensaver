@@ -114,7 +114,7 @@ Item {
     // Physical mass-spring harmonic damping loop
     Timer {
         interval: 16
-        running: true
+        running: root.visible
         repeat: true
         onTriggered: {
             if (root.pluckAmplitude > 0.001) {

@@ -603,7 +603,7 @@ Item {
     // Fallback safety timer if simulation time is paused
     Timer {
         interval: 30000
-        running: root.simTime === 0
+        running: root.visible && root.simTime === 0
         repeat: true
         onTriggered: root.refreshText()
     }
@@ -747,7 +747,7 @@ Item {
     Timer {
         id: cycleTimer
         interval: Math.max(3000, Math.round(root.cycleInterval * 1000))
-        running: root.autoCycleThemes
+        running: root.visible && root.autoCycleThemes
         repeat: true
         onTriggered: {
             var nextIdx = (root.currentPaletteIndex + 1) % root.glyphPalettes.length

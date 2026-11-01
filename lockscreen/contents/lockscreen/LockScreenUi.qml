@@ -23,16 +23,18 @@ Item {
     // Simulation frame & impulse decay loop
     Timer {
         interval: 16
-        running: true
+        running: lockScreenRoot.visible
         repeat: true
         onTriggered: {
-            lockScreenRoot.simTime += 0.016
-            lockScreenRoot.keystrokeEnergy = Math.max(0.0, lockScreenRoot.keystrokeEnergy * Math.exp(-2.5 * 0.016))
-            lockScreenRoot.shockwaveIntensity = Math.max(0.0, lockScreenRoot.shockwaveIntensity * Math.exp(-3.0 * 0.016))
-            lockScreenRoot.vortexSpeed += (1.0 - lockScreenRoot.vortexSpeed) * 2.0 * 0.016
+            let dt = interval / 1000.0
+            lockScreenRoot.simTime += dt
+            lockScreenRoot.keystrokeEnergy = Math.max(0.0, lockScreenRoot.keystrokeEnergy * Math.exp(-2.5 * dt))
+            lockScreenRoot.shockwaveIntensity = Math.max(0.0, lockScreenRoot.shockwaveIntensity * Math.exp(-3.0 * dt))
+            lockScreenRoot.vortexSpeed += (1.0 - lockScreenRoot.vortexSpeed) * 2.0 * dt
             if (lockScreenRoot.pointerVel.x !== 0.0 || lockScreenRoot.pointerVel.y !== 0.0) {
-                let vx = lockScreenRoot.pointerVel.x * 0.82
-                let vy = lockScreenRoot.pointerVel.y * 0.82
+                let decay = Math.pow(0.82, dt / 0.016)
+                let vx = lockScreenRoot.pointerVel.x * decay
+                let vy = lockScreenRoot.pointerVel.y * decay
                 if (Math.abs(vx) < 0.0005 && Math.abs(vy) < 0.0005) {
                     vx = 0.0
                     vy = 0.0

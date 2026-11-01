@@ -117,7 +117,7 @@ Item {
     Timer {
         id: clockTimer
         interval: 1000
-        running: root.syncToSystemClock
+        running: root.visible && root.syncToSystemClock
         repeat: true
         triggeredOnStart: true
         onTriggered: {

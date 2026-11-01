@@ -171,13 +171,22 @@ void main() {
     // ------------------------------------------------------------------------
     float t = 0.2;
     float tMax = 120.0;
+
+    // Upward ceiling intersection bounding envelope (scene max skyscraper height y = 34.0)
+    if (rd.y > 0.0) {
+        float tCeiling = (34.0 - ro.y) / rd.y;
+        if (tCeiling > 0.0 && tCeiling < tMax) {
+            tMax = tCeiling;
+        }
+    }
+
     int hitType = 0;
     vec2 hitCell = vec2(0.0);
     float hitBldgH = 0.0;
     bool hit = false;
     vec3 hitPos = vec3(0.0);
 
-    for (int i = 0; i < 52; ++i) {
+    for (int i = 0; i < 30; ++i) {
         vec3 pos = ro + rd * t;
         int curHitType = 0;
         vec2 curCell = vec2(0.0);
@@ -192,7 +201,7 @@ void main() {
             hitPos = pos;
             break;
         }
-        t += max(d * 0.85, 0.04);
+        t += max(d * 0.90, 0.05);
         if (t > tMax) break;
     }
 

@@ -196,12 +196,19 @@ PlasmoidItem {
         onTriggered: root.syncDaemonSettings()
     }
 
-    // Simulation frame timer
+    // Dynamic framerate selection (60 FPS = 16ms, 30 FPS = 33ms, 20 FPS = 50ms)
+    property int targetFramerate: (Plasmoid.configuration && typeof Plasmoid.configuration.targetFramerate === "number") ? Plasmoid.configuration.targetFramerate : 30
+    property int activeInterval: targetFramerate === 60 ? 16 : (targetFramerate === 20 ? 50 : 33)
+
+    // Simulation frame timer: only ticks when visible on desktop (Planar) or when popup is open
     Timer {
-        interval: 16
-        running: true
+        interval: root.activeInterval
+        running: (Plasmoid.formFactor === PlasmaCore.Types.Planar || root.expanded)
         repeat: true
-        onTriggered: root.simTime += 0.016
+        onTriggered: {
+            let dt = interval / 1000.0
+            root.simTime += dt
+        }
     }
 
     compactRepresentation: CompactRepresentation {

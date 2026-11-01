@@ -70,6 +70,12 @@ Kirigami.FormLayout {
     property alias cfg_audioAutoGain: autoGainCheckBox.checked
     property alias cfg_audioGain: gainSlider.value
 
+    // Power & Performance
+    property alias cfg_pauseWhenOccluded: pauseWhenOccludedCheckBox.checked
+    property int cfg_targetFramerate: 30
+    property real cfg_resolutionScale: 0.75
+    property alias cfg_batterySaver: batterySaverCheckBox.checked
+
     Palettes {
         id: palettes
     }
@@ -448,5 +454,55 @@ Kirigami.FormLayout {
         to: 10.0
         stepSize: 0.5
         value: 3.5
+    }
+
+    // =========================================================================
+    // SECTION: Power & Performance Optimization
+    // =========================================================================
+    Kirigami.Separator {
+        Kirigami.FormData.isSection: true
+        Kirigami.FormData.label: "Power & Performance"
+    }
+
+    QQC2.CheckBox {
+        id: pauseWhenOccludedCheckBox
+        Kirigami.FormData.label: "Window Occlusion:"
+        text: "Pause rendering when covered by windows or locked"
+        checked: true
+    }
+
+    QQC2.ComboBox {
+        id: framerateComboBox
+        Kirigami.FormData.label: "Target Frame Rate:"
+        model: [
+            "Balanced (30 FPS) - Recommended",
+            "Fluid (60 FPS) - High Performance",
+            "Eco (20 FPS) - Battery Saver"
+        ]
+        currentIndex: root.cfg_targetFramerate === 60 ? 1 : (root.cfg_targetFramerate === 20 ? 2 : 0)
+        onActivated: (index) => {
+            root.cfg_targetFramerate = (index === 1) ? 60 : (index === 2 ? 20 : 30)
+        }
+    }
+
+    QQC2.ComboBox {
+        id: resolutionScaleComboBox
+        Kirigami.FormData.label: "Internal Resolution Scale:"
+        model: [
+            "Balanced (75%) - Recommended for 1440p/4K",
+            "Native (100%) - Crisp 1:1 Rendering",
+            "Performance (50%) - Max Power Saving"
+        ]
+        currentIndex: Math.abs(root.cfg_resolutionScale - 1.0) < 0.05 ? 1 : (Math.abs(root.cfg_resolutionScale - 0.50) < 0.05 ? 2 : 0)
+        onActivated: (index) => {
+            root.cfg_resolutionScale = (index === 1) ? 1.0 : (index === 2 ? 0.50 : 0.75)
+        }
+    }
+
+    QQC2.CheckBox {
+        id: batterySaverCheckBox
+        Kirigami.FormData.label: "Battery Saver:"
+        text: "Auto-reduce framerate & quality when on battery"
+        checked: true
     }
 }

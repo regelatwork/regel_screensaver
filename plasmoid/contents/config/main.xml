@@ -30,6 +30,22 @@
       <label>Audio Sensitivity Gain</label>
       <default>3.5</default>
     </entry>
+    <entry name="pauseWhenOccluded" type="Bool">
+      <label>Pause rendering when desktop is covered by windows or locked</label>
+      <default>true</default>
+    </entry>
+    <entry name="targetFramerate" type="Int">
+      <label>Target Rendering Frame Rate (60 = Fluid, 30 = Balanced, 20 = Eco)</label>
+      <default>30</default>
+    </entry>
+    <entry name="resolutionScale" type="Double">
+      <label>Internal Resolution Scale (1.0 = Native, 0.75 = Balanced, 0.50 = High Performance)</label>
+      <default>0.75</default>
+    </entry>
+    <entry name="batterySaver" type="Bool">
+      <label>Automatically reduce quality and framerate when on battery</label>
+      <default>true</default>
+    </entry>
 
     <!-- Archetype 1: Liquid Neon Abyss -->
     <entry name="concept1Palette" type="Int">

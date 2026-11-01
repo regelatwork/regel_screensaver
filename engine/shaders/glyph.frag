@@ -1226,14 +1226,17 @@ void main() {
     float h = surf.height;
     vec2 pos = surf.pos;
     
-    // --- Normal Map via Central Differences of Height Field ---
-    vec2 eps = vec2(1.2 / u_resolution.y, 0.0);
-    float hL = getSurface(uv - eps.xy).height;
-    float hR = getSurface(uv + eps.xy).height;
-    float hD = getSurface(uv - eps.yx).height;
-    float hU = getSurface(uv + eps.yx).height;
-    
-    vec3 N = normalize(vec3((hL - hR) * u_emboss_depth * 7.5, (hD - hU) * u_emboss_depth * 7.5, 1.0));
+    // --- Aspect-Correct Normal via Screen-Space Hardware Derivatives ---
+    float dh_dx = dFdx(h);
+    float dh_dy = dFdy(h);
+    vec2 grad = vec2(dh_dx * aspect, dh_dy) * u_emboss_depth * 7.5;
+
+    // Edge discontinuity conditioning (suppresses 2x2 quad stepping across SDF boundaries)
+    float gradMag = length(grad);
+    if (gradMag > 12.0) {
+        grad = normalize(grad) * 12.0;
+    }
+    vec3 N = normalize(vec3(-grad.x, -grad.y, 1.0));
     
     // View vector
     vec3 V = normalize(vec3(0.5 - uv.x, 0.5 - uv.y, 1.4));

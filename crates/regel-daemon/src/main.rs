@@ -131,6 +131,7 @@ fn run_audio_daemon(
     let mut source_buf = [0 as c_char; 32];
     let mut new_gain = 0.0f64;
     let mut new_auto_gain = 0 as c_int;
+    let mut consecutive_silent_frames: usize = 0;
 
     eprintln!(
         "==> regel-daemon audio DSP active (source: '{source}') [AGC: {auto_gain}, Gain: {gain:.1}x, Gamma: {gamma:.2}]"
@@ -195,21 +196,36 @@ fn run_audio_daemon(
                     }
                 }
 
-                // Broadcast spectrum over D-Bus PropertiesChanged signal
-                regel_dbus_emit_spectrum_ex(
-                    spectrum.sub_bass as f64,
-                    spectrum.bass as f64,
-                    spectrum.mids as f64,
-                    spectrum.treble as f64,
-                    spectrum.rms as f64,
-                    if spectrum.transient { 1 } else { 0 },
-                    spectrum.bpm as f64,
-                    if spectrum.beat { 1 } else { 0 },
-                    if spectrum.downbeat { 1 } else { 0 },
-                    spectrum.beat_phase as f64,
-                    if spectrum.is_vocal { 1 } else { 0 },
-                    spectrum.vocal_energy as f64,
-                );
+                // Silence detection: when RMS < 0.005 and no transients/sub-bass, throttle D-Bus signals
+                let is_quiet = spectrum.rms < 0.005 && !spectrum.transient && spectrum.bass < 0.02;
+                let mut should_emit = true;
+                if is_quiet {
+                    consecutive_silent_frames = consecutive_silent_frames.saturating_add(1);
+                    // During prolonged silence (> 1.0 second @ ~47 Hz = 48 frames), throttle to ~2 Hz heartbeat
+                    if consecutive_silent_frames > 48 && consecutive_silent_frames % 24 != 0 {
+                        should_emit = false;
+                    }
+                } else {
+                    consecutive_silent_frames = 0;
+                }
+
+                if should_emit {
+                    // Broadcast spectrum over D-Bus PropertiesChanged signal
+                    regel_dbus_emit_spectrum_ex(
+                        spectrum.sub_bass as f64,
+                        spectrum.bass as f64,
+                        spectrum.mids as f64,
+                        spectrum.treble as f64,
+                        spectrum.rms as f64,
+                        if spectrum.transient { 1 } else { 0 },
+                        spectrum.bpm as f64,
+                        if spectrum.beat { 1 } else { 0 },
+                        if spectrum.downbeat { 1 } else { 0 },
+                        spectrum.beat_phase as f64,
+                        if spectrum.is_vocal { 1 } else { 0 },
+                        spectrum.vocal_energy as f64,
+                    );
+                }
             }
         }
 

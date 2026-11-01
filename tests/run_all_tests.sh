@@ -21,7 +21,7 @@ for f in files:
         c = fh.read()
     assert len(c) > 200, f'File {f} is too short'
     assert '# ' in c, f'File {f} missing main header'
-assert len(files) == 11, f'Expected 11 docs files, found {len(files)}'
+assert len(files) == 12, f'Expected 12 docs files, found {len(files)}'
 print(f'    All {len(files)} documentation files valid.')
 "
 
