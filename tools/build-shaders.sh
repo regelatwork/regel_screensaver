@@ -13,6 +13,12 @@ fi
 
 echo "==> Compiling Qt 6 RHI Shaders with ${QSB_BIN}..."
 
+# Ensure glint dictionary texture is generated
+if [ ! -f "${ROOT_DIR}/engine/textures/glint_dict.png" ]; then
+    echo "==> Generating Chermain et al. 2020 Glint Dictionary Texture..."
+    python3 "${ROOT_DIR}/tools/generate_glint_dict.py"
+fi
+
 for vert in "${SHADER_DIR}"/*.vert; do
     if [ -f "${vert}" ]; then
         out="${vert}.qsb"

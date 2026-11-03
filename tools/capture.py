@@ -251,8 +251,8 @@ CONCEPTS = {
             isVocal: parent.isVocal
             vocalEnergy: parent.vocalEnergy
             transientHit: parent.transientHit
-            pointerPos: parent.pointerPos
-            pointerVel: parent.pointerVel
+            pointerPos: Qt.point(0.5, 0.5)
+            pointerVel: Qt.point(0.0, 0.0)
             scrollSpeed: 0.6
             embossDepth: 1.0
             colorStone: "#081c15"

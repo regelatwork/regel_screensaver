@@ -25,7 +25,7 @@ assert len(files) == 12, f'Expected 12 docs files, found {len(files)}'
 print(f'    All {len(files)} documentation files valid.')
 "
 
-echo "--> 2. Validating JSON Metadata..."
+echo "--> 2. Validating JSON Metadata & KConfigXT XML..."
 python3 -c "
 import json
 for meta in ['wallpaper/metadata.json', 'lockscreen/metadata.json', 'plasmoid/metadata.json']:
@@ -33,6 +33,15 @@ for meta in ['wallpaper/metadata.json', 'lockscreen/metadata.json', 'plasmoid/me
         data = json.load(fh)
     assert 'KPlugin' in data, f'Missing KPlugin in {meta}'
     print(f'    Valid: {meta}')
+"
+python3 -c "
+import xml.etree.ElementTree as ET
+for xml_file in ['wallpaper/contents/config/main.xml', 'plasmoid/contents/config/main.xml']:
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+    entries = root.findall('.//{http://www.kde.org/standards/kcfg/1.0}entry')
+    assert len(entries) >= 40, f'Expected at least 40 entries in {xml_file}, got {len(entries)}'
+    print(f'    Valid KConfigXT XML ({len(entries)} entries): {xml_file}')
 "
 
 echo "--> 3. Compiling and Verifying Qt 6 RHI Shaders..."
@@ -56,7 +65,7 @@ test -f engine/shaders/glyph.frag.qsb
 echo "    All 8 shader bundles (Fluid, Petri, Koi, Cosmic, City, Ephemeris, Harp, Glyph) verified."
 
 echo "--> 4. Running Rust Unit Tests..."
-CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-/home/rchandia/.gemini/antigravity-cli/brain/95bcad37-d3ce-494a-b37c-fe8e35613e09/scratch/target}" cargo test --workspace --locked --offline
+CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-${ROOT_DIR}/target}" cargo test --workspace --locked --offline
 
 echo "--> 5. Running QML Lint on all Components..."
 if command -v qmllint &>/dev/null; then

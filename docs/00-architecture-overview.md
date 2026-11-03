@@ -23,7 +23,9 @@ regel_screensaver/
 │   ├── 06-realtime-ephemeris-biome.md  # Concept 6: Real-Time Ephemeris Biome
 │   ├── 07-kinetic-spiderweb-harp.md    # Concept 7: Kinetic Spiderweb & Resonance Harp
 │   ├── 08-analog-telemetry-console.md  # Concept 8: Analog Telemetry Console (VU & CRT)
-│   └── 09-neural-audio-subsystem.md    # Neural Audio: BeatNet, SVD & D-Bus Schema
+│   ├── 09-neural-audio-subsystem.md    # Neural Audio: BeatNet, SVD & D-Bus Schema
+│   ├── 10-embossed-glyph-matrix.md     # Concept 9: Chrono-Glyph Bas-Relief & Stickers
+│   └── 11-gpu-power-optimization.md    # GPU Power Optimization & Occlusion Culling
 ├── engine/                             # Core Rendering & Simulation Engine
 │   ├── shaders/                        # High-performance GLSL / QSB shaders
 │   ├── simulation/                     # Physics, automata, and particle models

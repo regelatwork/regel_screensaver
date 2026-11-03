@@ -6,6 +6,9 @@ import "../engine"
 
 Kirigami.FormLayout {
     id: root
+
+    property var configDialog
+    property var wallpaperConfiguration
     twinFormLayouts: parentLayout
 
     property alias formLayout: root

@@ -470,7 +470,7 @@ Item {
     }
 
     function getStickerCenter(cx, cy) {
-        var sSpacing = 4.2;
+        var sSpacing = 3.2;
         var h = hash22(cx * 53.41 + 8.1, cy * 53.41 + 91.7);
         var jitterX = (h[0] - 0.5) * 0.55;
         var jitterY = (h[1] - 0.5) * 0.55;
@@ -510,10 +510,11 @@ Item {
         var minPosY = scrollVecY - 0.25 * scaleY;
         var maxPosY = scrollVecY + 1.30 * scaleY;
 
-        var minCX = Math.floor(minPosX / 4.2) - 1;
-        var maxCX = Math.floor(maxPosX / 4.2) + 1;
-        var minCY = Math.floor(minPosY / 4.2) - 1;
-        var maxCY = Math.floor(maxPosY / 4.2) + 1;
+        var sSpacing = 3.2;
+        var minCX = Math.floor(minPosX / sSpacing) - 1;
+        var maxCX = Math.floor(maxPosX / sSpacing) + 1;
+        var minCY = Math.floor(minPosY / sSpacing) - 1;
+        var maxCY = Math.floor(maxPosY / sSpacing) + 1;
 
         var curPalette = root.glyphPalettes[root.currentPaletteIndex];
         var curHolo = (curPalette && curPalette.holo !== undefined) ? curPalette.holo : 0.0;
@@ -531,7 +532,7 @@ Item {
                     var initUY = (cInit[1] - scrollVecY) / scaleY;
                     if (themeHasHolo && initUX >= -0.20 && initUX <= 1.20 && initUY >= -0.20 && initUY <= 1.20) {
                         var hInit = hash12(initCX * 37.19 + 15.3, initCY * 37.19 + 71.9);
-                        if (hInit <= 0.44) {
+                        if (hInit <= 0.58) {
                             keptStickers.push({ cx: initCX, cy: initCY, intensity: curHolo });
                         }
                     }
@@ -553,7 +554,7 @@ Item {
                         // Cell is entering from off-screen!
                         if (uvX >= 0.95 || uvY >= 0.95) {
                             var hCandidate = hash12(cx * 37.19 + 15.3, cy * 37.19 + 71.9);
-                            if (hCandidate <= 0.44 && themeHasHolo) {
+                            if (hCandidate <= 0.58 && themeHasHolo) {
                                 keptStickers.push({ cx: cx, cy: cy, intensity: curHolo });
                             }
                         }
@@ -831,6 +832,13 @@ Item {
         smooth: true
     }
 
+    Image {
+        id: glintDictImage
+        source: Qt.resolvedUrl("textures/glint_dict.png")
+        visible: false
+        cache: true
+    }
+
     ShaderEffect {
         id: glyphShader
         anchors.fill: parent
@@ -886,6 +894,7 @@ Item {
         property vector4d u_sticker7: root.stickerSlot7
 
         property var u_text_texture: textSource
+        property var u_glint_dict: glintDictImage
 
         vertexShader: Qt.resolvedUrl("shaders/glyph.vert.qsb")
         fragmentShader: Qt.resolvedUrl("shaders/glyph.frag.qsb")

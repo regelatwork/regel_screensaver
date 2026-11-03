@@ -12,11 +12,14 @@ Rather than a rigid tile grid or a static stone carving:
   * *Procedural Glyphs*: 24 glyphs across 6 distinct typographic styles (Classical Antiqua, Modernist Sans, Greek Epigraphic, Elder Futhark runes, Cuneiform, Alchemical sigils) with dynamic stroke weights ranging from delicate hairline ($0.015$) to extra bold / black ($0.033$).
   * *Fortune Inscriptions*: Cycles through curated typographic profiles (Classical Antiqua, Editorial Didone, Monumental Grotesque, Humanist Book Serif, Lapidary Epigraphic, Technical Monospace) with varying weights (`Light`, `Normal`, `Medium`, `Bold`, `Black`), letter-spacing, and line heights.
 * **Configurable Spacing & Zoom**: Independent user sliders for **Glyph Spacing** ($0.6\times - 2.5\times$) and **Field Zoom Scale** ($0.4\times - 2.5\times$) to seamlessly transition from dense, intimate glyph studies to panoramic vistas.
-* **Independent Holographic Stickers & CD Diffraction (Isolated to 2 Themes)**:
-  * Holographic effects are modeled as **physical holographic foil stickers** (circular serrated seals, rounded security tags, hexagonal badges, and 8-pointed starbursts) stuck onto the monolith with their own raised thickness, edge bevel, and glossy metallic foil base.
-  * Microscopic concentric circular diffraction tracks project the unmistakable **dual-fan CD rainbow diffraction beams** and holographic security watermarks.
+* **Independent Holographic Stickers & CD Diffraction (Active Across 7 Curated Themes)**:
+  * Holographic effects are modeled as **physical holographic foil stickers** (circular serrated seals, rounded security tags, hexagonal badges, 8-pointed starbursts, faceted diamond lozenges, gothic archway portals, chamfered octagons, and 12-pointed solar medallions) stuck onto the monolith with their own raised thickness, edge bevel, and glossy metallic foil base.
+  * Three optical foil modes:
+    * **Mode 0: Pure CD Rainbow Diffraction Foil**: Metallic mirror substrate with concentric dual-fan CD rainbow diffraction beams and micro-dot security watermarks.
+    * **Mode 1: Prismatic Diamond-Dust Glitter Vinyl**: High-density crystalline microflake glitter bed with wide multi-spectral rainbow dispersion under a glossy clearcoat.
+    * **Mode 2: Hybrid CD Rainbow + Glitter Vinyl**: Combining both sweeping CD rainbow diffraction fans and scintillating prismatic crystal sparkles.
   * Stickers are completely independent from the glyph grid and can **freely overlap embossed glyphs, stone, and chiseled quotes**.
-  * **Theme Isolation**: CD diffraction and holographic stickers are strictly active on only **two themes** (*Cybernetic Bismuth & Hologram Stickers* and *Prismatic Opal & Hologram Stickers*), while the other 7 classical themes remain pure, matte, and free of artificial stickers.
+  * **Theme Availability**: Stickers and holographic diffraction are active across **7 curated themes** (Obsidian, Lapislazuli, Cybernetic Bismuth, Starlight Diamond, Prismatic Opal, Cosmic Nebula, Abalone Shell), while the remaining 2 classical themes (Imperial Jade and Alabaster) remain pure, matte, and free of artificial stickers.
   * **Off-Screen Generation & Continuous Persistence (Zero Mid-Screen Popping)**:
     * Stickers are **never spawned or deleted in the middle of the screen**.
     * As the material scrolls from bottom-right towards top-left, candidate sticker grid cells are evaluated as they cross the off-screen entry boundary ($uv \in [0.95, 1.25]$).
@@ -130,10 +133,13 @@ The procedural signed distance field engine incorporates **108 distinct glyphs**
 Unlike uniform rainbow washes, real holographic foil stickers combine a reflective metallic mirror substrate with intricate micro-etched diffraction gratings forming crisp vector emblems, security logomarks, and guilloche patterns.
 
 #### 1. High-Contrast Substrate vs. Vector Emblems
-* **Substrate (Negative Space)**: High-specular polished silver chrome or imperial gold mirror foil with subtle micro-dot security lattice watermarks.
+* **Substrate (Negative Space)**:
+  * **Mode 0 (Pure CD Rainbow Foil)**: High-specular polished silver chrome or imperial gold mirror foil with subtle micro-dot security lattice watermarks.
+  * **Mode 1 (Prismatic Glitter Vinyl)**: Sparkling bed of high-density crystalline microflakes featuring multi-spectral rainbow dispersion under a glossy clearcoat dome.
+  * **Mode 2 (Hybrid CD + Glitter Vinyl)**: Concentric CD rainbow diffraction tracks projecting sweeping color fans across scintillating prismatic diamond-dust flakes.
 * **Graphic Vector Emblems**: Intricately etched diffraction lines that burst with vivid multi-order rainbow light under specular angles, framed by micro-chiseled 3D normal relief bevels (`embH = 0.006`).
 
-#### 2. Procedural Geometric Emblem Library
+#### 2. Procedural Geometric Emblem Library (8 Distinct Vector Designs)
 Each sticker shape has its own distinct vector design:
 1. **Shape 0: Authenticity Guilloche Rosette & 8-Point Faceted Star (Circular Seal)**:
    * Concentric micro-beaded security rims and outer gear border.
@@ -150,6 +156,18 @@ Each sticker shape has its own distinct vector design:
 4. **Shape 3: Imperial Starburst Medallion & Heraldic Shield (8-Point Starburst)**:
    * 16 razor-sharp radiating sunburst wedge beams and notched laurel gear ring.
    * Central heraldic diamond shield with double border enclosing a solid royal cross, corner fleurons, and crest jewel.
+5. **Shape 4: Diamond Lozenge & Eye of Providence (Sacred Masonic Rhombus)**:
+   * Dual concentric diamond security borders with corner register crosshairs and 12 radiating pyramidal sunbeam rays.
+   * Stepped 3-tier Masonic pyramid platform enclosing an almond-shaped sacred eye with glowing radiant pupil.
+6. **Shape 5: Sacred Gothic Archway Portal & Tree of Life (Scalloped Portal)**:
+   * Twin Corinthian fluted portal pillars and gothic pointed arch ribs with celestial constellation starfield lattice.
+   * Sacred Kabbalistic Tree of Life Sephirah nodes with interconnecting geometric energy conduits.
+7. **Shape 6: Cyberspace Chamfered Octagon & Quantum Biohazard Reactor (Caution Seal)**:
+   * Dual octagonal hazard border with alternating diagonal caution chevrons and corner optical reticles.
+   * Tri-sector ionizing radiation blades, central particle collider ring, and glowing singularity core.
+8. **Shape 7: 12-Pointed Solar Medallion & Celestial Astrolabe (Ornate Golden Medal)**:
+   * 12 perimeter solar flare cusps, concentric degree dial with 24 astrolabe hour ticks, and zodiac inner rim.
+   * Armillary sphere celestial equatorial rings and 4-point cardinal compass rose with central polar star gem.
 
 #### 3. Dual-Channel Kinetic Color-Flipping (Angle Multiplexing)
 Authentic security holograms etch different graphic elements with orthogonal grating orientations. When the light moves or the view angle tilts, complementary elements flip between fiery red/gold and emerald/cyan:
@@ -170,6 +188,24 @@ To ensure physical realism and eliminate jarring popping:
 * **Persistent Material State**: Once a sticker is affixed, it remains in the active sticker set regardless of subsequent theme switches, continuing to diffract and catch light on the stone slab until it passes beyond the top/left screen exit boundaries ($uv < -0.25$).
 * **8 Active Vector Slots**: The QML coordinator populates 8 std140 `vec4` uniform slots (`u_sticker0..7`) packing `(cell.x, cell.y, intensity, active_flag)`. The fragment shader directly iterates only active slots with bounding-box rejection, executing faster than previous exhaustive neighborhood loops.
 
+### Procedural Physically-Based Glitter & Glints (Chermain et al. 2020)
+Rather than rendering diffuse circular dots placed on an integer grid, the screensaver implements the physically based real-time glint BRDF from *Chermain, Sauvage, Dischler, and Dachsbacher (Pacific Graphics 2020 / Computer Graphics Forum)*:
+* **1D Marginal Distribution Dictionary**: A lightweight $1024 \times 64$ texture atlas stores 16 multi-scale LOD levels (levels 0..15), each containing 64 RGB triplets ($192$ independent 1D distributions per scale).
+* **Slope-Space Decomposition**: For half-vector $\vec{H}$ in tangent frame $(\vec{T}, \vec{B}, \vec{N})$, slopes $\tilde{s} = -(h_x, h_y) / h_z$ are randomly rotated by cell angle $\theta$ and looked up as two independent 1D marginal distributions $P_1(u)$ and $P_2(v)$.
+* **Exact Energy Conservation & Normalization**: The joint slope distribution is reconstructed as $P(\tilde{s}) = \frac{1}{s^2} P_1(u) P_2(v)$, strictly satisfying $\iint P(\tilde{s}) d\tilde{s} = 1$.
+* **Multiscale Convergence (Central Limit Theorem)**: Screen-space derivatives (`dFdx`/`dFdy`) calculate the pixel footprint $\mathcal{P}$. At fine scales (LOD $\sim 0$), individual microfacets flash with sharp, crystalline scintillation. At coarse scales or grazing distances (LOD $\sim 15$), the dictionary smoothly and mathematically converges to the continuous Beckmann Gaussian distribution without aliasing or sparkling noise.
+* **Dynamic Screen-Resolution Density**: Microflake cellular frequency dynamically follows `u_resolution.y / (3.8 * zoom * 1.35)`, targeting ~1.35 screen pixels per crystal facet. Flakes render as razor-sharp optical pinpoints with continuous sub-pixel jitter and smooth antialiasing across 1080p, 1440p, and 4K displays.
+* **Spectral Dispersion**: Sub-wavelength slope offsets between R, G, and B produce subtle prismatic chromatic glints on facet edges.
+
+### Structured Patterned Glitter vs. Uniform Sea
+To avoid visual fatigue, loss of focus, and the "wet asphalt / metallic car paint" effect of an isotropic glitter carpet, glitter is hierarchically patterned:
+* **Mineral Vein Strata**: Modulated by domain-warped procedural noise (`mineralVein = smoothstep(0.38, 0.72, noise2D(...))`), generating natural flowing rivulets of gold pyrite and calcite mica, framed by deep matte stone negative space.
+* **Chiseled Glyph Inlays (*Maki-e* Foil Stamping via `u_holo_mode`)**: When `u_holo_mode > 0.5`, gold microflakes concentrate inside the carved glyph troughs and raised relief crests (`glyphInlay = smoothstep(0.035, -0.020, surf.glyphDist)`), mimicking powdered gold lacquer in ancient epigraphy.
+* **Fortune Quote Clearance**: Glitter is automatically attenuated over the dynamic portrait golden-ratio quote tablet (`1.0 - textMask * 0.88`), guaranteeing crystal-clear typographical legibility.
+* **Dual-Tier Glitter Separation**:
+  * *Stone Monolith*: Warm, naturalistic gold/pyrite/calcite microflake glints.
+  * *Holographic Stickers*: Ultra-dense multi-spectral rainbow diamond-dust flakes with high chromatic dispersion under a glossy clearcoat dome.
+
 ---
 
 ## 4. Color Themes & Material Palettes
@@ -177,20 +213,20 @@ To ensure physical realism and eliminate jarring popping:
 | Preset | Stone (Matte) | Porcelain (SSS) | Gold Inlay / Glint | Sheen / Tint | Deep Void | Primary Characteristic |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **01: Imperial Jade & Porcelain (Default)** | `#081c15` (Deep Jade) | `#edf6f9` (Milky Porcelain) | `#d4af37` (Imperial Gold) | `#52b788` (Emerald Sheen) | `#020907` | Balanced Classical Bas-Relief |
-| **02: Obsidian & Iridescent Oil-Slick** | `#0b0c10` (Volcanic Basalt) | `#1f2833` (Smoked Glass) | `#66fcf1` (Cyan Diamond) | `#c77dff` (Peacock Violet) | `#000000` | High Thin-Film Iridescence |
+| **02: Obsidian & Prismatic Foil Stickers** | `#0b0c10` (Volcanic Basalt) | `#1f2833` (Smoked Glass) | `#66fcf1` (Cyan Diamond) | `#c77dff` (Peacock Violet) | `#000000` | Prismatic Holographic Foil Stickers |
 | **03: Alabaster & Rose Gold** | `#2b2024` (Porphyry Stone) | `#fff1e6` (Warm Alabaster) | `#e07a5f` (Rose Gold) | `#f4a261` (Topaz Sheen) | `#140d10` | Warm Classical Marble |
-| **04: Lapislazuli & Celestial Gold** | `#0d1b2a` (Ultramarine Slate)| `#e0e1dd` (Pearl Vein) | `#e0a96d` (Pyrite Sparkle) | `#415a77` (Celestial Azure) | `#050a12` | Gilded Semi-Precious Mineral |
-| **05: Cybernetic Bismuth Monolith** | `#161a1d` (Carbon Substrate) | `#f5f3f4` (Glazed Enamel) | `#ffb703` (Gold Circuit) | `#00b4d8` (Anodized Bismuth)| `#0b090a` | High Metallic Rainbow Steps |
-| **06: Starlight Diamond & Platinum (Ultra Glitter)** | `#0c0e14` (Deep Charcoal) | `#ffffff` (Pure Diamond Crystal) | `#e2e8f0` (Polished Platinum) | `#67e8f9` (Electric Cyan) | `#030408` | Ultra Dense Microflake Glitter |
-| **07: Prismatic Opal & Hologram (Ultra Iridescent / CD Hologram)** | `#12101e` (Midnight Indigo) | `#fdfbf7` (Australian Fire Opal) | `#f472b6` (Laser Magenta) | `#38bdf8` (Prismatic Sky) | `#08060f` | Maximum CD Hologram Grating |
-| **08: Cosmic Nebula & Amethyst (Glitter & Iridescence)** | `#13091f` (Deep Violet Abyss) | `#f3e8ff` (Amethyst Quartz) | `#d946ef` (Fuchsia Star-dust) | `#06b6d4` (Nebular Teal) | `#06020a` | Glitter + Iridescent Dual Shift |
+| **04: Lapislazuli & Celestial Gold Seals** | `#0d1b2a` (Ultramarine Slate)| `#e0e1dd` (Pearl Vein) | `#e0a96d` (Pyrite Sparkle) | `#415a77` (Celestial Azure) | `#050a12` | Gilded Semi-Precious Mineral & Seals |
+| **05: Cybernetic Bismuth & Hologram Stickers** | `#161a1d` (Carbon Substrate) | `#f5f3f4` (Glazed Enamel) | `#ffb703` (Gold Circuit) | `#00b4d8` (Anodized Bismuth)| `#0b090a` | Cybernetic Processor Badges |
+| **06: Starlight Diamond & Platinum (Ultra Glitter)** | `#0c0e14` (Deep Charcoal) | `#ffffff` (Pure Diamond Crystal) | `#e2e8f0` (Polished Platinum) | `#67e8f9` (Electric Cyan) | `#030408` | Diamond-Dust Glitter Vinyl Badges |
+| **07: Prismatic Opal & Hologram Stickers (CD Diffraction)** | `#12101e` (Midnight Indigo) | `#fdfbf7` (Australian Fire Opal) | `#f472b6` (Laser Magenta) | `#38bdf8` (Prismatic Sky) | `#08060f` | Maximum CD Hologram Grating |
+| **08: Cosmic Nebula & Amethyst (Glitter & Holograms)** | `#13091f` (Deep Violet Abyss) | `#f3e8ff` (Amethyst Quartz) | `#d946ef` (Fuchsia Star-dust) | `#06b6d4` (Nebular Teal) | `#06020a` | Alchemical Astrolabe Holograms |
 | **09: Abalone Shell & Oceanic Nacre** | `#041c1e` (Dark Abyss Trench) | `#ecfeff` (Pauwa Shell Nacre) | `#2dd4bf` (Oceanic Turquoise) | `#a78bfa` (Lavender Pearl) | `#020d0e` | Multi-layered Organic Pearl Nacre |
 
 ---
 
 ## 5. Technical Specifications & Performance
 * **Shader Pipeline**: Single-pass Qt 6 RHI fragment shader compiled via `qsb` (`--glsl "100 es,120,330"`).
-* **Buffer Layout**: std140 uniform block with 416-byte alignment (including 8 dynamic active sticker uniform vector slots `u_sticker0..7` at offsets 288..415) + `sampler2D u_text_texture` binding at slot 1.
+* **Buffer Layout**: std140 uniform block with 416-byte alignment (including 8 dynamic active sticker uniform vector slots `u_sticker0..7` at offsets 288..415) + `sampler2D u_text_texture` binding at slot 1 + `sampler2D u_glint_dict` binding at slot 2.
 * **Frame Budget**: Evaluates in $<0.8\text{ ms}$ on modern integrated GPUs and $<0.25\text{ ms}$ on discrete GPUs.
-* **Memory Footprint**: Only 1 lightweight offscreen texture (512 KB) for dynamic command typography; 100% procedural glyphs and microflakes.
+* **Memory Footprint**: 1 lightweight offscreen texture (512 KB) for dynamic command typography + 1 compact glint dictionary texture atlas (52 KB, $1024 \times 64$) for real-time Chermain glints.
 * **Daemon Integration**: `tools/fortune-stream.sh` periodically updates `/tmp/regel_fortune.txt` with atomic replacement, ensuring zero stutter during file reads.

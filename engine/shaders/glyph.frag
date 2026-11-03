@@ -48,6 +48,7 @@ layout(std140, binding = 0) uniform buf {
 };
 
 layout(binding = 1) uniform sampler2D u_text_texture;
+layout(binding = 2) uniform sampler2D u_glint_dict;
 
 // --- Fast GPU Noise & Hash Primitives ---
 float hash12(vec2 p) {
@@ -69,6 +70,35 @@ float noise2D(vec2 p) {
                    dot(hash22(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
                mix(dot(hash22(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)),
                    dot(hash22(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x), u.y);
+}
+
+// --- Procedural Physically Based BRDF for Real-Time Glints (Chermain et al. 2020) ---
+// Samples 1D marginal distributions from the multiscale dictionary (1024x64 texture atlas).
+// Texture layout: 16 LOD levels (0..15), each 64 columns x 64 rows.
+// 64 columns = 64 triplets = 192 marginal distributions per level.
+// Values are encoded with square-root curve: P = (texel * texel) * 25.0
+float sampleGlintMarginal(float u_slope, int triplet_idx, int channel_idx, float lod) {
+    // Dictionary covers slope u in [-1.5, 1.5] (range = 3.0)
+    float u_norm = clamp(u_slope / 3.0 + 0.5, 0.5 / 64.0, 1.0 - 0.5 / 64.0);
+    
+    int l0 = clamp(int(floor(lod)), 0, 15);
+    int l1 = min(l0 + 1, 15);
+    float fracLOD = fract(lod);
+    
+    float uCoord0 = (float(l0 * 64 + triplet_idx) + 0.5) / 1024.0;
+    float uCoord1 = (float(l1 * 64 + triplet_idx) + 0.5) / 1024.0;
+    
+    vec3 c0 = texture(u_glint_dict, vec2(uCoord0, u_norm)).rgb;
+    vec3 c1 = texture(u_glint_dict, vec2(uCoord1, u_norm)).rgb;
+    
+    // Decode square-root compression
+    vec3 p0 = c0 * c0 * 25.0;
+    vec3 p1 = c1 * c1 * 25.0;
+    
+    float val0 = (channel_idx == 0) ? p0.r : ((channel_idx == 1) ? p0.g : p0.b);
+    float val1 = (channel_idx == 0) ? p1.r : ((channel_idx == 1) ? p1.g : p1.b);
+    
+    return mix(val0, val1, fracLOD);
 }
 
 // --- 2D Signed Distance Field (SDF) Primitives ---
@@ -942,7 +972,7 @@ vec2 evalStickerEmblem(vec2 q, int shape) {
         
         emblem.y = max(hexagram, max(innerCirc, coreNode));
         
-    } else {
+    } else if (shape == 3) {
         // --- Shape 3: Imperial Starburst Medallion & Heraldic Shield ---
         // Channel A: 16 radiating sunburst wedge beams, notched outer rim, and mid ring
         float rayWedge = (r > 0.42 && r < 0.86) ? smoothstep(0.12, 0.65, abs(sin(theta * 8.0))) : 0.0;
@@ -963,6 +993,86 @@ vec2 evalStickerEmblem(vec2 q, int shape) {
         float crestJewel = smoothstep(0.018, 0.0, abs(r - 0.06)) + smoothstep(0.045, 0.0, r);
         
         emblem.y = max(max(shield, shieldInner), max(crossMark, max(fleuron, crestJewel)));
+        
+    } else if (shape == 4) {
+        // --- Shape 4: Diamond Lozenge & Eye of Providence ---
+        // Channel A: Dual concentric diamond security rims, 12 radiating pyramidal sunbeam rays
+        float rhD = aq.x * 0.85 + aq.y * 1.15;
+        float rhBorder1 = smoothstep(0.018, 0.0, abs(rhD - 0.88));
+        float rhBorder2 = smoothstep(0.015, 0.0, abs(rhD - 0.78));
+        float rhTicks = (abs(rhD - 0.83) < 0.045) ? step(0.3, sin(theta * 32.0)) : 0.0;
+        float sunRays = (r > 0.30 && r < 0.76) ? smoothstep(0.14, 0.65, abs(sin(theta * 12.0))) : 0.0;
+        
+        emblem.x = max(max(rhBorder1, rhBorder2), max(rhTicks, sunRays));
+        
+        // Channel B: Stepped Masonic pyramid platform, almond sacred eye, and radiant pupil
+        float pY = q.y + 0.14;
+        float pyrBase = smoothstep(0.016, 0.0, abs(max(aq.x * 1.15 + pY * 0.82 - 0.32, -pY)));
+        float pyrSteps = (pyrBase > 0.2 && pY > 0.0) ? step(0.45, sin(pY * 42.0)) : 0.0;
+        
+        float eyeUpper = smoothstep(0.018, 0.0, abs(length(q - vec2(0.0, -0.16)) - 0.32)) * step(abs(q.x), 0.26);
+        float eyeLower = smoothstep(0.018, 0.0, abs(length(q - vec2(0.0, 0.16)) - 0.32)) * step(abs(q.x), 0.26);
+        float eyeIris = smoothstep(0.016, 0.0, abs(r - 0.10));
+        float eyePupil = smoothstep(0.05, 0.0, r);
+        
+        emblem.y = max(max(pyrBase, pyrSteps), max(max(eyeUpper, eyeLower), max(eyeIris, eyePupil)));
+        
+    } else if (shape == 5) {
+        // --- Shape 5: Sacred Gothic Archway Portal & Tree of Life ---
+        // Channel A: Twin Corinthian portal pillars, gothic pointed arch ribs, celestial starfield
+        float pillarL = smoothstep(0.016, 0.0, abs(q.x + 0.52)) * step(q.y, 0.25) * step(-0.75, q.y);
+        float pillarR = smoothstep(0.016, 0.0, abs(q.x - 0.52)) * step(q.y, 0.25) * step(-0.75, q.y);
+        float archRib = smoothstep(0.018, 0.0, abs(length(vec2(aq.x - 0.22, max(0.0, q.y - 0.20))) - 0.54));
+        float archStars = (q.y > 0.12 && r < 0.65) ? step(0.70, sin(q.x * 38.0) * sin(q.y * 38.0)) * 0.8 : 0.0;
+        
+        emblem.x = max(max(pillarL, pillarR), max(archRib, archStars));
+        
+        // Channel B: Tree of Life / Kabbalistic Sephirah nodes and energy conduits
+        float trunk = smoothstep(0.016, 0.0, abs(q.x)) * step(abs(q.y), 0.52);
+        float conduits = smoothstep(0.016, 0.0, abs(abs(q.x) - abs(q.y + 0.08))) * step(r, 0.46);
+        float nodeCrown = smoothstep(0.016, 0.0, abs(length(q - vec2(0.0, 0.40)) - 0.055));
+        float nodeHeart = smoothstep(0.016, 0.0, abs(length(q) - 0.065)) + smoothstep(0.04, 0.0, length(q));
+        float nodeBase = smoothstep(0.016, 0.0, abs(length(q - vec2(0.0, -0.40)) - 0.055));
+        float nodeSides = smoothstep(0.016, 0.0, abs(length(aq - vec2(0.26, 0.18)) - 0.050));
+        
+        emblem.y = max(max(trunk, conduits), max(max(nodeCrown, nodeHeart), max(nodeBase, nodeSides)));
+        
+    } else if (shape == 6) {
+        // --- Shape 6: Cyberspace Chamfered Octagon & Quantum Biohazard Reactor ---
+        // Channel A: Dual octagonal hazard border, perimeter caution chevrons, corner reticles
+        float octD = max(max(aq.x, aq.y), (aq.x + aq.y) * 0.707107);
+        float octRim1 = smoothstep(0.018, 0.0, abs(octD - 0.86));
+        float octRim2 = smoothstep(0.015, 0.0, abs(octD - 0.76));
+        float chevrons = (octD > 0.76 && octD < 0.86) ? step(0.35, sin((q.x + q.y) * 44.0)) : 0.0;
+        
+        emblem.x = max(max(octRim1, octRim2), chevrons);
+        
+        // Channel B: Tri-sector ionizing radiation blades, collider ring, and quantum core
+        float a3 = mod(theta + 1.047198, 2.094395) - 1.047198;
+        float blades = (r > 0.22 && r < 0.64) ? smoothstep(0.02, 0.12, abs(a3)) * step(abs(a3), 0.50) : 0.0;
+        float collider = smoothstep(0.016, 0.0, abs(r - 0.20));
+        float qCore = smoothstep(0.018, 0.0, abs(r - 0.07)) + smoothstep(0.045, 0.0, r);
+        
+        emblem.y = max(blades, max(collider, qCore));
+        
+    } else {
+        // --- Shape 7: 12-Pointed Solar Medallion & Celestial Astrolabe ---
+        // Channel A: 12 perimeter solar flare cusps, 24 astrolabe hour ticks, zodiac rim
+        float a12 = mod(theta + 0.261799, 0.523599) - 0.261799;
+        float solRing = smoothstep(0.018, 0.0, abs(r - (0.76 + cos(a12 * 6.0) * 0.08)));
+        float astroTicks = (r > 0.64 && r < 0.73) ? step(0.3, sin(theta * 24.0)) : 0.0;
+        float zodiacRim = smoothstep(0.016, 0.0, abs(r - 0.64));
+        
+        emblem.x = max(solRing, max(astroTicks, zodiacRim));
+        
+        // Channel B: Armillary sphere rings, 4-point cardinal compass rose, central polar star
+        float equator = smoothstep(0.016, 0.0, abs(r - 0.44));
+        float cArmH = max(aq.y * 3.4 + abs(aq.x - 0.20) * 1.2 - 0.24, -aq.x) * step(aq.x, 0.38);
+        float cArmV = max(aq.x * 3.4 + abs(aq.y - 0.20) * 1.2 - 0.24, -aq.y) * step(aq.y, 0.38);
+        float compass = max(smoothstep(0.016, 0.0, cArmH), smoothstep(0.016, 0.0, cArmV));
+        float polarStar = smoothstep(0.018, 0.0, abs(r - 0.08)) + smoothstep(0.045, 0.0, r);
+        
+        emblem.y = max(equator, max(compass, polarStar));
     }
     
     return clamp(emblem, 0.0, 1.0);
@@ -1001,7 +1111,7 @@ StickerData getSticker(vec2 pos) {
     sd.radius = 0.65;
     sd.intensity = 0.0;
     
-    float sSpacing = 4.2;
+    float sSpacing = 3.2;
     
     // Evaluate active persistent sticker slots
     for (int i = 0; i < 8; ++i) {
@@ -1023,7 +1133,7 @@ StickerData getSticker(vec2 pos) {
         vec2 pRot = vec2(cosA * pDiff.x - sinA * pDiff.y, sinA * pDiff.x + cosA * pDiff.y);
         
         float sRad = 0.55 + hash12(c * 83.11) * 0.28;
-        int shapeType = int(floor(hash12(c * 97.43) * 4.0));
+        int shapeType = int(floor(hash12(c * 97.43) * 8.0)); // 8 distinct shapes (0..7)
         
         float d = 1e5;
         if (shapeType == 0) {
@@ -1039,14 +1149,33 @@ StickerData getSticker(vec2 pos) {
             // Hexagonal prism sticker
             vec2 q = abs(pRot);
             d = max(q.x * 0.866025 + q.y * 0.5, q.y) - sRad;
-        } else {
+        } else if (shapeType == 3) {
             // 8-Pointed Starburst Hologram Seal (classic "AUTHENTIC" sticker)
             float b1 = sdBox(pRot, vec2(sRad, sRad * 0.42));
             float b2 = sdBox(pRot, vec2(sRad * 0.42, sRad));
-            vec2 p45 = vec2(pRot.x - pRot.y, pRot.x + pRot.y) * 0.7071;
+            vec2 p45 = vec2(pRot.x - pRot.y, pRot.x + pRot.y) * 0.707107;
             float b3 = sdBox(p45, vec2(sRad, sRad * 0.42));
             float b4 = sdBox(p45, vec2(sRad * 0.42, sRad));
             d = min(min(b1, b2), min(b3, b4)) - 0.04;
+        } else if (shapeType == 4) {
+            // Diamond Lozenge & Eye of Providence (Faceted Rhombus)
+            d = sdRhombus(pRot, vec2(sRad * 1.18, sRad * 0.76)) - 0.03;
+        } else if (shapeType == 5) {
+            // Scalloped Gothic Archway & Sacred Tree of Life
+            float archCap = length(vec2(pRot.x, max(0.0, pRot.y - sRad * 0.15))) - sRad * 0.65;
+            float archBox = sdBox(pRot + vec2(0.0, sRad * 0.22), vec2(sRad * 0.65, sRad * 0.60));
+            d = min(archCap, archBox) - 0.025;
+        } else if (shapeType == 6) {
+            // Cyberspace Chamfered Octagon & Quantum Biohazard Reactor
+            vec2 q6 = abs(pRot);
+            float dBox6 = max(q6.x, q6.y);
+            float dDiag6 = (q6.x + q6.y) * 0.707107;
+            d = max(dBox6, dDiag6) - sRad;
+        } else {
+            // 12-Pointed Solar Medallion & Celestial Astrolabe
+            float a12 = mod(atan(pRot.y, pRot.x) + 0.261799, 0.523599) - 0.261799;
+            float r12 = length(pRot);
+            d = (r12 - sRad) + cos(a12 * 6.0) * (sRad * 0.06);
         }
         
         if (d < sd.dist) {
@@ -1293,24 +1422,113 @@ void main() {
     // --- Composite Base Surface Material ---
     vec3 finalColor = colMatte * wMatte + colPorcelain * wPorcelain + colIridescent * wIridescent;
     
-    // --- Shading Phase 4: Microflake Metallic Glitter & Glints (Affixed to Material Space) ---
-    // The microflakes scroll in lockstep with the material pos!
-    vec2 flakeCoord = pos * 26.0;
-    vec2 flakeCell = floor(flakeCoord);
-    vec2 flakeLocal = fract(flakeCoord) - 0.5;
-    float flakeHash = hash12(flakeCell);
+    // --- Surface Tangent Basis & Glint Slope Frame ---
+    vec3 up_surf = abs(N.z) < 0.99 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+    vec3 T_surf = normalize(cross(up_surf, N));
+    vec3 B_surf = cross(N, T_surf);
     
-    float glitterMask = step(1.0 - (u_glitter_density * 0.42), flakeHash);
-    if (glitterMask > 0.0) {
-        vec2 flakeTilt = hash22(flakeCell) * 0.65;
-        vec3 N_flake = normalize(N + vec3(flakeTilt, 0.0));
+    float NdotH = dot(N, H_key);
+    float NdotL = max(0.001, dot(N, L_key));
+    float NdotV = max(0.001, dot(N, V));
+    float VdotH = max(0.001, dot(V, H_key));
+    
+    float hx = dot(T_surf, H_key);
+    float hy = dot(B_surf, H_key);
+    float hz = NdotH;
+    vec2 slopes = -vec2(hx, hy) / max(0.0001, hz);
+    
+    float alphaGlitter = 0.36;
+    float alphaDict = 0.5;
+    float slopeScale = alphaGlitter / alphaDict;
+    float hz4 = hz * hz * hz * hz;
+    
+    // Smith Masking-Shadowing for Beckmann distribution
+    float tan2V = max(0.0, (1.0 - NdotV * NdotV) / (NdotV * NdotV));
+    float tan2L = max(0.0, (1.0 - NdotL * NdotL) / (NdotL * NdotL));
+    float g1V = 2.0 / (1.0 + sqrt(1.0 + 3.14159 * alphaGlitter * alphaGlitter * tan2V));
+    float g1L = 2.0 / (1.0 + sqrt(1.0 + 3.14159 * alphaGlitter * alphaGlitter * tan2L));
+    float G_smith = g1V * g1L;
+    
+    // Schlick Fresnel for metallic gold microflakes
+    vec3 F0_flake = mix(u_color_gold.rgb, vec3(1.0), 0.35);
+    vec3 F_flake = F0_flake + (vec3(1.0) - F0_flake) * pow(clamp(1.0 - VdotH, 0.0, 1.0), 5.0);
+    
+    // Screen-Resolution Proportional Microflake Density (Chermain et al. 2020)
+    float targetPixelsPerFlake = 1.35;
+    float zoomScale = max(0.25, u_glyph_zoom);
+    float pixelsPerMaterialUnit = u_resolution.y / (3.8 * zoomScale);
+    float flakeFreq = max(48.0, pixelsPerMaterialUnit / targetPixelsPerFlake);
+
+    // --- Shading Phase 4: Patterned Physically Based Microflake Glints (Chermain et al. 2020) ---
+    // Rather than an isotropic uniform noise carpet, glitter is patterned:
+    // 1. Organic mineral veins (flowing pyrite & calcite seams in lapis/marble)
+    // 2. Chiseled glyph inlays (powdered gold leaf in carved runes via u_holo_mode)
+    // 3. Fortune tablet clearance (preserving typographical legibility)
+    if (u_glitter_density > 0.01 && NdotH > 0.01) {
+        // Veined mineral distribution
+        float veinNoise = noise2D(pos * 0.55 + vec2(warp * 0.40, -warp * 0.30));
+        float mineralVein = smoothstep(0.38, 0.72, veinNoise);
         
-        float glintKey = pow(max(0.0, dot(N_flake, H_key)), 140.0);
-        float glintSpot = smoothstep(0.48, 0.0, length(flakeLocal));
-        float glintIntensity = glintKey * glintSpot * glitterMask * 1.8;
+        // Concentrated gold inlay inside carved glyph crevices and raised bevels
+        float glyphInlay = smoothstep(0.035, -0.020, surf.glyphDist);
         
-        vec3 glintColor = mix(u_color_gold.rgb, vec3(1.0), 0.65) * glintIntensity;
-        finalColor += glintColor;
+        // Modulate stone glitter between natural mineral veins and patterned glyph inlays
+        float stoneGlitterMask = mix(mineralVein * 0.85 + 0.15, max(mineralVein * 0.35, glyphInlay * 1.6), u_holo_mode);
+        
+        // Suppress stone glitter inside fortune text area so typography remains crisp and clear
+        stoneGlitterMask *= (1.0 - surf.textMask * 0.88);
+        
+        vec2 flakeCoord = pos * flakeFreq;
+        vec2 flakeCell = floor(flakeCoord);
+        
+        // Multiscale footprint estimation via hardware screen-space derivatives
+        vec2 dCoordX = dFdx(flakeCoord);
+        vec2 dCoordY = dFdy(flakeCoord);
+        float footprint = max(length(dCoordX), length(dCoordY));
+        float lod = clamp(log2(max(1.0, footprint * 1.2)), 0.0, 15.0);
+        
+        vec2 flakeJitter = (hash22(flakeCell * 71.3) - 0.5) * 0.55;
+        vec2 cellCenter = flakeCell + 0.5 + flakeJitter;
+        float flakeDist = length(flakeCoord - cellCenter);
+        float flakeProfile = smoothstep(0.65, 0.12, flakeDist);
+        
+        float theta = hash12(flakeCell * 19.31) * 6.283185;
+        float cosT = cos(theta);
+        float sinT = sin(theta);
+        vec2 rotSlopes = vec2(
+            cosT * slopes.x - sinT * slopes.y,
+            sinT * slopes.x + cosT * slopes.y
+        );
+        vec2 uSlope = rotSlopes / slopeScale;
+        
+        float hA = hash12(flakeCell * 37.71);
+        float hB = hash12(flakeCell * 89.23);
+        int tripletA = int(floor(hA * 64.0));
+        int tripletB = int(floor(hB * 64.0));
+        int chanA = int(floor(fract(hA * 64.0) * 3.0));
+        int chanB = int(floor(fract(hB * 64.0) * 3.0));
+        
+        // Cellular occupancy mask controlled by patterned glitter density
+        float cellHash = hash12(flakeCell * 53.11);
+        float cellActive = step(1.0 - (u_glitter_density * stoneGlitterMask * 0.72), cellHash);
+        
+        if (cellActive > 0.0 || lod > 2.0) {
+            float maskWeight = mix(cellActive, 1.0, smoothstep(2.0, 6.0, lod));
+            float activeProfile = mix(flakeProfile, 1.0, smoothstep(1.5, 4.0, lod));
+            
+            float P1_G = sampleGlintMarginal(uSlope.x, tripletA, chanA, lod);
+            float P2_G = sampleGlintMarginal(uSlope.y, tripletB, chanB, lod);
+            float P1_R = sampleGlintMarginal(uSlope.x * 0.985, tripletA, chanA, lod);
+            float P2_R = sampleGlintMarginal(uSlope.y * 0.985, tripletB, chanB, lod);
+            float P1_B = sampleGlintMarginal(uSlope.x * 1.015, tripletA, chanA, lod);
+            float P2_B = sampleGlintMarginal(uSlope.y * 1.015, tripletB, chanB, lod);
+            
+            vec3 jointP = vec3(P1_R * P2_R, P1_G * P2_G, P1_B * P2_B);
+            vec3 D_glint = jointP / (slopeScale * slopeScale * max(0.0001, hz4));
+            vec3 glintRadiance = (F_flake * G_smith * D_glint) / (4.0 * NdotV);
+            
+            finalColor += glintRadiance * maskWeight * activeProfile * (u_glitter_density * stoneGlitterMask * 2.2);
+        }
     }
     
     // --- Shading Phase 5: Gilded Inlay on Embossed Ridges ---
@@ -1321,17 +1539,23 @@ void main() {
         finalColor = mix(finalColor, goldShade, goldMask * 0.5);
     }
     
-    // --- Shading Phase 6: Independent Holographic CD-Diffraction Stickers ---
+    // --- Shading Phase 6: Independent Holographic Stickers (CD Foil, Glitter Vinyl & Hybrid) ---
     // Physical metallic holographic foil stickers affixed to the monolith.
-    // Independent from glyphs and can overlap glyphs and quotes!
+    // 8 distinct geometric shapes, 3 optical foil modes: CD foil, Prismatic Glitter vinyl, or Hybrid.
     if (surf.stickerIntensity > 0.01 && surf.stickerDist < 0.018) {
         float stickerMask = smoothstep(0.008, -0.008, surf.stickerDist);
         float holoPwr = surf.stickerIntensity;
         
-        // Local normalized sticker coordinates & procedural geometric emblem evaluation
+        // Local normalized sticker coordinates & procedural geometric emblem evaluation (8 shapes)
         vec2 qSticker = surf.stickerLocal / max(0.1, surf.stickerRadius);
         vec2 emblem = evalStickerEmblem(qSticker, surf.stickerShape);
         float totalEmblem = clamp(emblem.x + emblem.y, 0.0, 1.0);
+        
+        // Deterministic optical foil mode per sticker cell:
+        // 0: Pure CD Rainbow Diffraction Foil
+        // 1: Prismatic Diamond-Dust Glitter Vinyl
+        // 2: Hybrid CD Rainbow + Prismatic Glitter Vinyl
+        int foilMode = int(floor(hash12(surf.stickerCell * 43.17 + vec2(11.3, 79.1)) * 3.0));
         
         // CD-ROM concentric circular diffraction tracks centered on the sticker
         vec2 dTrack = surf.stickerLocal;
@@ -1376,9 +1600,62 @@ void main() {
         float microDots = step(0.65, sin(qSticker.x * 85.0) * sin(qSticker.y * 85.0)) * 0.16;
         colFoil += cdRainbowA * microDots * 0.35 * holoPwr;
         
-        // Kinetic holographic emblem illumination
-        vec3 lightA = cdRainbowA * (cdFanA * 5.2 + cdBroad * 1.4) * holoPwr;
-        vec3 lightB = cdRainbowB * (cdFanB * 5.2 + cdBroad * 1.4) * holoPwr;
+        // Prismatic Diamond-Dust Glitter Vinyl Substrate (Active in Mode 1 & Mode 2)
+        if (foilMode >= 1 && NdotH > 0.01) {
+            float sFlakeFreq = flakeFreq * 1.4;
+            vec2 sFlakeCoord = surf.stickerLocal * sFlakeFreq;
+            vec2 sFlakeCell = floor(sFlakeCoord);
+            vec2 sFlakeJitter = (hash22(sFlakeCell * 63.7 + vec2(19.3, 81.1)) - 0.5) * 0.55;
+            vec2 sCellCenter = sFlakeCell + 0.5 + sFlakeJitter;
+            float sFlakeDist = length(sFlakeCoord - sCellCenter);
+            float sFlakeProfile = smoothstep(0.68, 0.10, sFlakeDist);
+            
+            float sTheta = hash12(sFlakeCell * 31.41) * 6.283185;
+            vec2 sRotSlopes = vec2(
+                cos(sTheta) * slopes.x - sin(sTheta) * slopes.y,
+                sin(sTheta) * slopes.x + cos(sTheta) * slopes.y
+            );
+            vec2 sUSlope = sRotSlopes / slopeScale;
+            
+            float sHA = hash12(sFlakeCell * 41.19);
+            float sHB = hash12(sFlakeCell * 93.37);
+            int sTripA = int(floor(sHA * 64.0));
+            int sTripB = int(floor(sHB * 64.0));
+            int sChA = int(floor(fract(sHA * 64.0) * 3.0));
+            int sChB = int(floor(fract(sHB * 64.0) * 3.0));
+            
+            float sOccupancy = step(0.32, hash12(sFlakeCell * 57.81));
+            
+            // Multiscale LOD estimation for sticker microflakes
+            vec2 sdCoordX = dFdx(sFlakeCoord);
+            vec2 sdCoordY = dFdy(sFlakeCoord);
+            float sFootprint = max(length(sdCoordX), length(sdCoordY));
+            float sLod = clamp(log2(max(1.0, sFootprint * 1.2)), 0.0, 15.0);
+            
+            // Multi-spectral chromatic scintillation for rainbow diamond dust
+            float sP1_G = sampleGlintMarginal(sUSlope.x, sTripA, sChA, sLod);
+            float sP2_G = sampleGlintMarginal(sUSlope.y, sTripB, sChB, sLod);
+            float sP1_R = sampleGlintMarginal(sUSlope.x * 0.94, sTripA, sChA, sLod);
+            float sP2_R = sampleGlintMarginal(sUSlope.y * 0.94, sTripB, sChB, sLod);
+            float sP1_B = sampleGlintMarginal(sUSlope.x * 1.06, sTripA, sChA, sLod);
+            float sP2_B = sampleGlintMarginal(sUSlope.y * 1.06, sTripB, sChB, sLod);
+            
+            vec3 sJointP = vec3(sP1_R * sP2_R, sP1_G * sP2_G, sP1_B * sP2_B);
+            vec3 sD_glint = sJointP / (slopeScale * slopeScale * max(0.0001, hz4));
+            
+            // Kinetic chromatic hue shift per flake facet
+            vec3 sRainbowTint = 0.5 + 0.5 * cos(6.28318 * (hash12(sFlakeCell * 17.9) + vec3(0.0, 0.33, 0.67)));
+            vec3 sGlintRadiance = (F_flake * G_smith * sD_glint) / (4.0 * NdotV);
+            vec3 stickerGlitter = sGlintRadiance * sRainbowTint * sOccupancy * sFlakeProfile * (foilMode == 1 ? 5.2 : 3.4) * holoPwr;
+            
+            colFoil += stickerGlitter;
+        }
+        
+        // Kinetic Holographic Emblem Illumination
+        // In Mode 0 & Mode 2, use dual-fan CD rainbow beams. In Mode 1, balance with prism glow.
+        float cdWeight = (foilMode == 1) ? 0.45 : 1.0;
+        vec3 lightA = cdRainbowA * (cdFanA * 5.2 + cdBroad * 1.4) * holoPwr * cdWeight;
+        vec3 lightB = cdRainbowB * (cdFanB * 5.2 + cdBroad * 1.4) * holoPwr * cdWeight;
         float emblemGlint = pow(max(0.0, dot(N, H_key)), 110.0) * 2.0;
         
         vec3 colEmblem = (lightA + vec3(emblemGlint)) * emblem.x +

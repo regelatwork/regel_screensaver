@@ -35,6 +35,8 @@ override_dh_auto_install:
 	install -m 644 engine/*.qml debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/qt6/qml/org/regel/engine/
 	install -m 644 engine/qmldir debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/qt6/qml/org/regel/engine/
 	install -m 644 engine/shaders/*.qsb debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/qt6/qml/org/regel/engine/shaders/
+	install -d debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/qt6/qml/org/regel/engine/textures
+	install -m 644 engine/textures/* debian/regel-screensaver/usr/lib/$(DEB_HOST_MULTIARCH)/qt6/qml/org/regel/engine/textures/
 
 	install -m 644 wallpaper/metadata.json debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/metadata.json
 	install -m 644 wallpaper/contents/ui/main.qml debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/ui/main.qml
@@ -44,6 +46,8 @@ override_dh_auto_install:
 	install -m 644 engine/*.qml debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/engine/
 	install -m 644 engine/qmldir debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/engine/
 	install -m 644 engine/shaders/*.qsb debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/engine/shaders/
+	install -d debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/engine/textures
+	install -m 644 engine/textures/* debian/regel-screensaver/usr/share/plasma/wallpapers/org.regel.wallpaper/contents/engine/textures/
 
 	install -m 644 lockscreen/metadata.json debian/regel-screensaver/usr/share/plasma/look-and-feel/org.regel.lockscreen/metadata.json
 	install -m 644 lockscreen/contents/lockscreen/LockScreenUi.qml debian/regel-screensaver/usr/share/plasma/look-and-feel/org.regel.lockscreen/contents/lockscreen/LockScreenUi.qml

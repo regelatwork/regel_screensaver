@@ -69,13 +69,13 @@
       <default>0</default>
     </entry>
     <entry name="koiWaterClarity" type="Double">
-      <label>Water Clarity & Caustics</label>
+      <label>Water Clarity &amp; Caustics</label>
       <default>1.0</default>
     </entry>
 
     <!-- Archetype 4: Cosmic Gravitational Sandbox -->
     <entry name="concept4Palette" type="Int">
-      <label>Celestial Object & Accretion Palette</label>
+      <label>Celestial Object &amp; Accretion Palette</label>
       <default>0</default>
     </entry>
     <entry name="cosmicLensStrength" type="Double">
@@ -97,7 +97,7 @@
       <default>0.65</default>
     </entry>
     <entry name="cityFogDensity" type="Double">
-      <label>Volumetric Smog & Fog Density</label>
+      <label>Volumetric Smog &amp; Fog Density</label>
       <default>0.85</default>
     </entry>
 
