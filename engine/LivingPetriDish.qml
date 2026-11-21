@@ -37,10 +37,41 @@ Item {
     property real vocalEnergy: 0.0
     property bool transientHit: false
 
-    // Mitosis division pulse on downbeats
+    // Audio energy above silence floor (0.0 when silent/idle, up to 1.0 on loud music)
+    readonly property real audioEnergy: Math.max(0.0, Math.min(1.0, (root.bass + root.mids + root.treble) * 0.45 - 0.14))
+    readonly property real audioGate: Math.min(1.0, root.audioEnergy * 4.5)
+
+    // Monotonically integrated, wrapped biological flow time (slow serene drift in silence, float32-safe)
+    property real _lastSimTime: -1.0
+    property real flowTime: 0.0
+
+    Component.onCompleted: {
+        _lastSimTime = root.simTime
+        flowTime = (root.simTime * Math.max(0.15, Math.abs(root.vortexSpeed)) * 0.45) % 4096.0
+    }
+
+    onSimTimeChanged: {
+        let baseSpeed = Math.max(0.15, Math.abs(root.vortexSpeed)) * 0.45
+        if (_lastSimTime < 0.0) {
+            _lastSimTime = root.simTime
+            flowTime = (root.simTime * baseSpeed) % 4096.0
+            return
+        }
+        let dt = root.simTime - _lastSimTime
+        _lastSimTime = root.simTime
+        if (dt > 0.0 && dt < 2.0) {
+            // Smoothly accelerate biological drift when audio is present; never reverse time
+            let speed = baseSpeed * (1.0 + root.audioEnergy * 1.15)
+            flowTime = (flowTime + dt * speed) % 4096.0
+        } else if (dt !== 0.0) {
+            flowTime = (root.simTime * baseSpeed) % 4096.0
+        }
+    }
+
+    // Gentle biological pulse on musical downbeats (strictly gated on real audio energy)
     property real mitosisPulse: 0.0
     onDownbeatChanged: {
-        if (downbeat) {
+        if (downbeat && root.audioEnergy > 0.12) {
             mitosisPulseAnim.restart()
         }
     }
@@ -51,20 +82,19 @@ Item {
         property: "mitosisPulse"
         from: 1.0
         to: 0.0
-        duration: 260
-        easing.type: Easing.OutQuad
+        duration: 420
+        easing.type: Easing.OutCubic
     }
 
     ShaderEffect {
         id: petriShader
         anchors.fill: parent
 
-        // Neural audio biological choreography
-        readonly property real effectiveVortex: root.vortexSpeed * (1.0 + 0.3 * Math.sin(Math.PI * 2.0 * root.beatPhase))
-        readonly property real effectiveShockwave: Math.max(root.shockwaveIntensity, root.mitosisPulse * 0.85)
-        readonly property real effectiveMids: root.mids + (root.isVocal ? root.vocalEnergy * 0.3 : 0.0)
-        readonly property real effectiveTreble: root.treble + (root.transientHit ? 0.25 : 0.0)
-        readonly property real vocalGlowFactor: root.isVocal ? root.vocalEnergy * 0.4 : 0.0
+        // Strictly audio-gated biological choreography (zero vibration in silence)
+        readonly property real effectiveBass: root.bass * root.audioGate
+        readonly property real effectiveMids: (root.mids + (root.isVocal ? root.vocalEnergy * 0.25 : 0.0)) * root.audioGate
+        readonly property real effectiveTreble: (root.treble + (root.transientHit ? 0.22 : 0.0)) * root.audioGate
+        readonly property real effectiveKeystroke: Math.max(root.keystrokeEnergy, root.mitosisPulse * 0.38 * root.audioEnergy)
 
         // Uniforms matching GLSL std140 uniform block in petri.frag
         property vector2d u_resolution: Qt.vector2d(Math.max(1.0, root.width), Math.max(1.0, root.height))
@@ -76,13 +106,13 @@ Item {
         property vector2d u_ambient_drift: Qt.vector2d(root.ambientDrift.x, root.ambientDrift.y)
         property color u_color_bg: root.colorBg
         property color u_color_membrane: root.colorMembrane
-        property color u_color_organelle: Qt.rgba(Math.min(1.0, root.colorOrganelle.r + vocalGlowFactor * 0.3), Math.min(1.0, root.colorOrganelle.g + vocalGlowFactor * 0.6), Math.min(1.0, root.colorOrganelle.b + vocalGlowFactor * 0.2), 1.0)
-        property color u_color_glow: Qt.rgba(Math.min(1.0, root.colorGlow.r + vocalGlowFactor * 0.5), Math.min(1.0, root.colorGlow.g + vocalGlowFactor * 0.2), Math.min(1.0, root.colorGlow.b + vocalGlowFactor * 0.6), 1.0)
-        property real u_time: root.simTime * (root.bpm / 120.0)
-        property real u_keystroke_energy: root.keystrokeEnergy
-        property real u_shockwave_intensity: effectiveShockwave
-        property real u_vortex_speed: effectiveVortex
-        property real u_bass: root.bass
+        property color u_color_organelle: root.colorOrganelle
+        property color u_color_glow: root.colorGlow
+        property real u_time: root.flowTime
+        property real u_keystroke_energy: effectiveKeystroke
+        property real u_shockwave_intensity: root.shockwaveIntensity
+        property real u_vortex_speed: root.vortexSpeed
+        property real u_bass: effectiveBass
         property real u_mids: effectiveMids
         property real u_treble: effectiveTreble
         property real u_aperture_mode: root.apertureMode
