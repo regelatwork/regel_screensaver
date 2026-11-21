@@ -1,3 +1,31 @@
+regel-screensaver (0.5.0-1) unstable; urgency=medium
+
+  * Release v0.5.0: Wave-Optics Diffraction, Deliot & Belcour 2023 Binomial
+    Glints, GPU Power Optimization, and Long-Running Precision Hardening.
+  * Pure-ALU Glint BRDF (Deliot & Belcour, HPG 2023): Replaced Chermain et al.
+    2020 dictionary texture lookups with O(1) constant-time distributed binomial
+    laws on an equilateral simplex grid with variance-preserving 2-LOD blending,
+    eliminating u_glint_dict texture memory and lookups.
+  * Thin-Film Iridescence (Belcour & Barla, SIGGRAPH 2017): Upgraded stone
+    iridescence to multi-bounce Airy reflectance integrated against O(1)
+    pre-scaled CIE XYZ Gaussian sensitivity curves.
+  * Multi-Order Kirchhoff Diffraction Gratings (Stam 1999 / Toisoul & Ghosh
+    SIGGRAPH 2017): Upgraded holographic CD and hybrid stickers with physical
+    L+V grating dispersion across orders m=1..4 and analytic CIE 1931 XYZ
+    spectral-to-RGB color conversion (Wyman et al., JCGT 2013).
+  * Optical Bloom & Tone Mapping: Added analytical in-shader specular flare
+    halos and soft-shoulder highlight tone mapping for high-contrast glints.
+  * Long-Running Precision Hardening: Added 64-bit CPU-wrapped skewed simplex
+    glitter scroll (mod 4096.0), scroll-free screen derivatives, sine-free
+    hash22 synchronized between QML and GLSL, periodic mod 256.0 noise2D,
+    wrapped trigonometric phases, and harmonic f32 clock wrapping in
+    regel-engine.
+  * GPU Power & Thermal Optimization: Resolved QML binding loops, optimized
+    idle lifecycle, and added patterned mineral veins and 8 procedural
+    holographic sticker archetypes across 3 foil modes.
+
+ -- Regel Project Contributors <info@regel.org>  Fri, 20 Nov 2026 19:45:00 -0500
+
 regel-screensaver (0.4.0-1) unstable; urgency=medium
 
   * Release v0.4.0: Concept 09 - The Embossed Glyph Matrix & Live Typography.
