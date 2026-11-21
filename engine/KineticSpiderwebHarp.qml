@@ -38,15 +38,38 @@ Item {
     property real vocalEnergy: 0.0
     property bool transientHit: false
 
+    // Noise-gated acoustic energy (idle defaults are bass=0.08, mids=0.05, treble=0.05)
+    readonly property real gatedBass: Math.max(0.0, (root.bass - 0.11) / 0.89)
+    readonly property real gatedMids: Math.max(0.0, (root.mids - 0.09) / 0.91)
+    readonly property real gatedTreble: Math.max(0.0, (root.treble - 0.09) / 0.91)
+    readonly property real audioActivity: Math.min(1.0, Math.max(gatedBass, Math.max(gatedMids, gatedTreble)))
+
+    // Damped physical impulse state (decays cleanly to 0 in silence)
+    property real beatImpulse: 0.0
+
+    onBeatChanged: {
+        if (beat && audioActivity > 0.02) {
+            root.beatImpulse = Math.min(1.0, Math.max(root.beatImpulse, 0.55 + 0.45 * gatedBass))
+        }
+    }
+
     onDownbeatChanged: {
-        if (downbeat) {
-            root.pluck(0.5, 0.5, 0.9)
+        if (downbeat && audioActivity > 0.02) {
+            root.beatImpulse = 1.0
+            root.pluck(0.5, 0.5, 0.65 + 0.35 * gatedBass)
         }
     }
 
     onTransientHitChanged: {
-        if (transientHit) {
-            root.pluck(0.2 + 0.6 * Math.random(), 0.2 + 0.6 * Math.random(), 0.6)
+        if (transientHit && audioActivity > 0.02) {
+            root.pluck(0.2 + 0.6 * Math.random(), 0.2 + 0.6 * Math.random(), 0.55)
+        }
+    }
+
+    onPointerVelChanged: {
+        var spd = Math.hypot(pointerVel.x, pointerVel.y)
+        if (spd > 0.02) {
+            root.pluck(pointerPos.x, pointerPos.y, Math.min(0.85, spd * 1.6))
         }
     }
 
@@ -62,35 +85,35 @@ Item {
             silk: "#e2e8f0",
             dew: "#67e8f9",
             resonance: "#38bdf8",
-            void: "#050814"
+            voidColor: "#050814"
         },
         {
             name: "Golden Laser Harp (Warm Amber & Radiant Topaz)",
             silk: "#fef08a",
             dew: "#facc15",
             resonance: "#f59e0b",
-            void: "#0c0a00"
+            voidColor: "#0c0a00"
         },
         {
             name: "Bioluminescent Abyssal (Deep Emerald & Sea Green)",
             silk: "#a7f3d0",
             dew: "#34d399",
             resonance: "#10b981",
-            void: "#022c22"
+            voidColor: "#022c22"
         },
         {
             name: "Electric Synapse (Neon Magenta & Plasma Violet)",
             silk: "#f472b6",
             dew: "#ec4899",
             resonance: "#a855f7",
-            void: "#18021a"
+            voidColor: "#18021a"
         },
         {
             name: "Frost Crystal Web (Ice Blue & Prismatic Rime)",
             silk: "#f0f9ff",
             dew: "#bae6fd",
             resonance: "#7dd3fc",
-            void: "#021220"
+            voidColor: "#021220"
         }
     ]
 
@@ -103,7 +126,7 @@ Item {
         colorSilk = Qt.color(p.silk)
         colorDew = Qt.color(p.dew)
         colorResonance = Qt.color(p.resonance)
-        colorVoid = Qt.color(p.void)
+        colorVoid = Qt.color(p.voidColor)
     }
 
     function pluck(px, py, amp) {
@@ -111,15 +134,22 @@ Item {
         pluckAmplitude = Math.max(pluckAmplitude, amp)
     }
 
-    // Physical mass-spring harmonic damping loop
+    // Physical mass-spring harmonic damping loop (decays all impulses to zero at rest)
     Timer {
         interval: 16
         running: root.visible
         repeat: true
         onTriggered: {
-            if (root.pluckAmplitude > 0.001) {
-                // Damped exponential decay
-                root.pluckAmplitude = Math.max(0.0, root.pluckAmplitude * Math.exp(-3.5 * 0.016))
+            if (root.pluckAmplitude > 0.0005) {
+                root.pluckAmplitude = root.pluckAmplitude * Math.exp(-3.2 * 0.016)
+            } else if (root.pluckAmplitude !== 0.0) {
+                root.pluckAmplitude = 0.0
+            }
+
+            if (root.beatImpulse > 0.0005) {
+                root.beatImpulse = root.beatImpulse * Math.exp(-4.8 * 0.016)
+            } else if (root.beatImpulse !== 0.0) {
+                root.beatImpulse = 0.0
             }
         }
     }
@@ -128,9 +158,9 @@ Item {
         id: harpShader
         anchors.fill: parent
 
-        // Neural audio resonance harp choreography
-        readonly property real vocalStandingWave: root.isVocal ? root.vocalEnergy * 0.45 : 0.0
-        readonly property real effectiveTension: root.tension * (1.0 + 0.28 * Math.cos(Math.PI * 2.0 * root.beatPhase))
+        // Neural audio resonance harp choreography (strictly zero when silent)
+        readonly property real vocalStandingWave: (root.isVocal && root.audioActivity > 0.02) ? root.vocalEnergy * 0.40 : 0.0
+        readonly property real effectiveTension: root.tension * (1.0 + 0.04 * root.beatImpulse)
         readonly property real effectivePluck: Math.max(root.pluckAmplitude, vocalStandingWave)
 
         // Uniforms matching GLSL std140 uniform block in harp.frag
@@ -143,23 +173,23 @@ Item {
         property vector2d u_ambient_drift: Qt.vector2d(root.ambientDrift.x, root.ambientDrift.y)
         property color u_color_silk: root.colorSilk
         property color u_color_dew: root.colorDew
-        property color u_color_resonance: Qt.rgba(Math.min(1.0, root.colorResonance.r + vocalStandingWave * 0.3), Math.min(1.0, root.colorResonance.g + vocalStandingWave * 0.4), Math.min(1.0, root.colorResonance.b + vocalStandingWave * 0.5), 1.0)
+        property color u_color_resonance: Qt.rgba(Math.min(1.0, root.colorResonance.r + vocalStandingWave * 0.25), Math.min(1.0, root.colorResonance.g + vocalStandingWave * 0.30), Math.min(1.0, root.colorResonance.b + vocalStandingWave * 0.35), 1.0)
         property color u_color_void: root.colorVoid
         property real u_time: root.simTime
         property real u_keystroke_energy: root.keystrokeEnergy
         property real u_shockwave_intensity: root.shockwaveIntensity
         property real u_vortex_speed: root.vortexSpeed
-        property real u_bass: root.bass
-        property real u_mids: root.mids + vocalStandingWave * 0.2
-        property real u_treble: root.treble + (root.transientHit ? 0.3 : 0.0)
+        property real u_bass: root.gatedBass
+        property real u_mids: root.gatedMids + vocalStandingWave * 0.18
+        property real u_treble: root.gatedTreble + ((root.transientHit && root.audioActivity > 0.02) ? 0.25 : 0.0)
         property real u_tension: effectiveTension
         property vector2d u_pluck_point: Qt.vector2d(root.pluckPoint.x, root.pluckPoint.y)
         property real u_pluck_amplitude: effectivePluck
         property real u_dew_density: root.dewDensity
         property real u_chromatic_dispersion: root.chromaticDispersion
         property real u_shatter_progress: root.shatterProgress
-        property real u_pad1: 0.0
-        property real u_pad2: 0.0
+        property real u_pad1: root.beatImpulse
+        property real u_pad2: root.audioActivity
 
         vertexShader: Qt.resolvedUrl("shaders/harp.vert.qsb")
         fragmentShader: Qt.resolvedUrl("shaders/harp.frag.qsb")

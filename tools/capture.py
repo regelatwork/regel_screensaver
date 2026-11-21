@@ -190,7 +190,8 @@ CONCEPTS = {
     7: {
         "name": "resonance_harp",
         "title": "Kinetic Spiderweb & Resonance Harp",
-        "snippet": """KineticSpiderwebHarp {
+        "snippet": """Palettes { id: harpPalettesRef }
+        KineticSpiderwebHarp {
             anchors.fill: parent
             simTime: parent.simTime
             bass: parent.bass
@@ -203,12 +204,12 @@ CONCEPTS = {
             isVocal: parent.isVocal
             vocalEnergy: parent.vocalEnergy
             transientHit: parent.transientHit
-            dewDensity: 0.8
-            tension: 1.1
-            colorSilk: "#c0d8ff"
-            colorDew: "#00ffff"
-            colorResonance: "#ff00aa"
-            colorVoid: "#050811"
+            dewDensity: 0.78
+            tension: 1.0
+            colorSilk: harpPalettesRef.harpPalettes[parent.paletteIdx % harpPalettesRef.harpPalettes.length].silk
+            colorDew: harpPalettesRef.harpPalettes[parent.paletteIdx % harpPalettesRef.harpPalettes.length].dew
+            colorResonance: harpPalettesRef.harpPalettes[parent.paletteIdx % harpPalettesRef.harpPalettes.length].resonance
+            colorVoid: harpPalettesRef.harpPalettes[parent.paletteIdx % harpPalettesRef.harpPalettes.length].voidColor
         }"""
     },
     8: {
