@@ -358,12 +358,47 @@ vec3 voronoi2D(vec2 p) {
     return vec3(rd1, rd2 - rd1, cid);
 }
 
+// --- Marschner et al. (SIGGRAPH 2005) Subsurface Wood Fiber Scattering BRDF ---
+// Models clearcoat air-lacquer refraction (Snell's law, IOR 1.50), Fresnel transmission,
+// and anisotropic subsurface reflection off tilted cylindrical wood fibers + cross-grain medullary rays.
+vec2 evalMarschnerWoodFiber(vec3 N, vec3 L, vec3 V, vec3 fiberAxis, float beta) {
+    float NdotL = max(0.001, dot(N, L));
+    float NdotV = max(0.001, dot(N, V));
+
+    // Schlick Fresnel transmission through dielectric clearcoat / wood surface (IOR 1.50 -> F0 = 0.04)
+    float F_in  = 0.04 + 0.96 * pow(1.0 - NdotL, 5.0);
+    float F_out = 0.04 + 0.96 * pow(1.0 - NdotV, 5.0);
+    float T_coat = (1.0 - F_in) * (1.0 - F_out);
+
+    // Snell-refracted inward light & view directions inside the wood medium
+    float invIor = 0.6666667; // 1.0 / 1.50
+    vec3 L_in = normalize(-refract(-L, N, invIor));
+    vec3 V_in = normalize(-refract(-V, N, invIor));
+
+    // Longitudinal fiber cone reflection (Marschner 2005 Eq. 2)
+    vec3 u = normalize(fiberAxis);
+    float thetaI = asin(clamp(dot(L_in, u), -0.995, 0.995));
+    float thetaO = asin(clamp(dot(V_in, u), -0.995, 0.995));
+    float thetaH = 0.5 * (thetaI + thetaO);
+    float cosThetaD = max(0.35, cos(0.5 * (thetaI - thetaO)));
+    float fiberLobe = exp(-(thetaH * thetaH) / (2.0 * beta * beta)) / (cosThetaD * cosThetaD);
+
+    // Cross-grain medullary ray scatter (radial fibers orthogonal to longitudinal axis u)
+    vec3 uRay = normalize(cross(N, u) + vec3(0.0, 0.0, 1e-4));
+    float rThetaH = 0.5 * (asin(clamp(dot(L_in, uRay), -0.995, 0.995)) + asin(clamp(dot(V_in, uRay), -0.995, 0.995)));
+    float rayLobe = exp(-(rThetaH * rThetaH) / (2.0 * 0.22 * 0.22));
+
+    return vec2(fiberLobe, rayLobe) * (T_coat * NdotL);
+}
+
 struct SubstrateSample {
     float height;      // Tactile relief offset for heightfield normal
     float albedoMix;   // 0..1 blend between u_color_stone and u_color_porcelain
     float accentMask;  // 0..1 highlight mask (Kintsugi gold, oil-spot, pyrite vein, flame, char)
     float gloss;       // 0..1 surface glossiness (0 = chalky matte, 1 = mirror lacquer/glaze)
-    float chatoyancy;  // -1..1 optical fiber tilt for Tiger-Flame Maple shimmer
+    vec3  fiberAxis;   // 3D subsurface wood fiber tangent u(pos) (Marschner 2005 / Liu et al. 2016)
+    float fiberStr;    // 0..1 subsurface fiber scattering weight (0 for non-wood substrates)
+    float rayMask;     // 0..1 medullary ray fleck mask (cross-grain radial shimmer)
 };
 
 SubstrateSample evalSubstrateById(vec2 pos, int id) {
@@ -372,7 +407,9 @@ SubstrateSample evalSubstrateById(vec2 pos, int id) {
     s.albedoMix = 0.0;
     s.accentMask = 0.0;
     s.gloss = 0.35;
-    s.chatoyancy = 0.0;
+    s.fiberAxis = vec3(1.0, 0.0, 0.0);
+    s.fiberStr = 0.0;
+    s.rayMask = 0.0;
 
     if (id == 0) {
         // 0: Song Celadon & Kintsugi Crackle Porcelain
@@ -463,32 +500,51 @@ SubstrateSample evalSubstrateById(vec2 pos, int id) {
         s.accentMask = smoothstep(0.55, 0.92, rings) * 0.72;
         s.gloss = 0.84;
     } else if (id == 7) {
-        // 7: Chatoyant Tiger-Flame Maple Lutherie (fine curly violin-grade maple)
-        vec2 wp = vec2(pos.x * 1.4, pos.y * 11.0);
-        float grainWarp = fbm3(vec2(pos.x * 0.9, pos.y * 2.8)) * 2.6;
-        float ring = sin(wp.y + grainWarp) * 0.5 + 0.5;
-        float latewood = smoothstep(0.62, 0.92, ring);
-        // Tighter organic curly maple flame (optical chatoyancy)
-        float flameWarp = sin(pos.y * 1.8) * 1.35 + fbm3(pos * 1.35) * 4.4;
-        float flame = sin(pos.x * 15.0 + flameWarp);
-        float fineFiber = noise2D(mod(vec2(pos.x * 8.0, pos.y * 52.0), 256.0));
-        s.height = (ring - 0.5) * 0.015 + flame * 0.007 + fineFiber * 0.009;
-        s.albedoMix = clamp((1.0 - latewood) * 0.48 + (flame * 0.5 + 0.5) * 0.24 + fineFiber * 0.08, 0.0, 1.0);
-        s.accentMask = clamp((flame * 0.5 + 0.5) * 0.55, 0.0, 1.0);
+        // 7: Chatoyant Tiger-Flame Maple Lutherie (Marschner 2005 + Liu et al. 2016)
+        vec2 wp = vec2(pos.x * 1.4, pos.y * 14.5);
+        float grainWarp = fbm3(vec2(pos.x * 0.85, pos.y * 2.4)) * 2.4;
+        float ringPhase = fract((wp.y + grainWarp) * 0.15915494);
+        // Subtle fine longitudinal growth rings (asymmetric earlywood/latewood sawtooth)
+        float latewood = smoothstep(0.74, 0.92, ringPhase) * smoothstep(1.0, 0.96, ringPhase);
+        // Velvety curly/flamed out-of-plane fiber wave (sinusoidal 3D tilt angle psi)
+        float flameWarp = sin(pos.y * 1.6) * 1.25 + fbm3(pos * 1.25) * 4.2;
+        float flamePhase = pos.x * 12.5 + flameWarp;
+        float psi = sin(flamePhase) * 0.44; // +/- 25 deg smooth out-of-plane fiber wave
+        float flameWave = sin(flamePhase);
+        float fineFiber = noise2D(mod(vec2(pos.x * 6.0, pos.y * 68.0), 256.0));
+        // Quarter-sawn medullary ray flecks (short radial flecks orthogonal to longitudinal grain)
+        float rayNoise = noise2D(mod(vec2(pos.x * 48.0, pos.y * 5.5), 256.0));
+        float rays = smoothstep(0.60, 0.88, rayNoise);
+        s.height = (ringPhase - 0.5) * 0.009 - latewood * 0.007 + flameWave * 0.004 + fineFiber * 0.010;
+        s.albedoMix = clamp((1.0 - latewood * 0.58) * 0.46 + (flameWave * 0.5 + 0.5) * 0.12 + fineFiber * 0.09, 0.0, 1.0);
+        s.accentMask = clamp((flameWave * 0.5 + 0.5) * 0.22 + rays * 0.26, 0.0, 1.0);
         s.gloss = 0.90;
-        s.chatoyancy = flame * 0.75;
+        s.fiberAxis = normalize(vec3(cos(psi), 0.10 * cos(pos.y * 1.6), sin(psi)));
+        s.fiberStr = 0.78;
+        s.rayMask = rays * 0.75;
     } else if (id == 8) {
-        // 8: Swirling Burl Walnut & French Polish (Luxury Wood)
-        vec3 bVor = voronoi2D(mod(pos * 1.15 + fbm3(pos * 0.9) * 0.5, 256.0));
-        float burlRing = sin(bVor.x * 24.0 + fbm3(pos * 2.2) * 4.5) * 0.5 + 0.5;
-        float knotCore = smoothstep(0.16, 0.02, bVor.x);
-        float pores = smoothstep(0.62, 0.88, noise2D(mod(vec2(pos.x * 8.0, pos.y * 44.0), 256.0)));
-        s.height = burlRing * 0.016 - pores * 0.014 - knotCore * 0.012;
-        s.albedoMix = clamp(burlRing * 0.62 * (1.0 - knotCore * 0.75) * (1.0 - pores * 0.5), 0.0, 1.0);
-        s.accentMask = smoothstep(0.72, 0.96, burlRing) * 0.45;
-        s.gloss = mix(0.88, 0.30, pores);
+        // 8: Swirling Burl Walnut & French Polish (Liu et al. 2016 burl vortices + open vessel pores)
+        vec2 bCoord = mod(pos * 1.15 + fbm3(pos * 0.9) * 0.5, 256.0);
+        vec3 bVor = voronoi2D(bCoord);
+        float burlPhase = fract((bVor.x * 3.8 + fbm3(pos * 2.2) * 0.72));
+        float burlRing = smoothstep(0.72, 0.92, burlPhase) * smoothstep(1.0, 0.95, burlPhase);
+        float burlSoft = sin(bVor.x * 24.0 + fbm3(pos * 2.2) * 4.5) * 0.5 + 0.5;
+        float knotCore = smoothstep(0.15, 0.02, bVor.x);
+        // Open dark walnut vessel pores breaking the French polish clearcoat
+        float pores = smoothstep(0.64, 0.88, noise2D(mod(vec2(pos.x * 9.0, pos.y * 46.0), 256.0)));
+        float rays = smoothstep(0.62, 0.90, noise2D(mod(vec2(pos.x * 38.0, pos.y * 6.5), 256.0)));
+        // Continuous 3D swirling burl fiber tangent (seamless across Voronoi cell boundaries)
+        float swirlAng = fbm3(pos * 1.6) * 5.2 + bVor.x * 9.0;
+        float burlTilt = sin(bVor.x * 19.0) * 0.42 * (1.0 - knotCore);
+        s.height = burlSoft * 0.015 - burlRing * 0.008 - pores * 0.015 - knotCore * 0.012;
+        s.albedoMix = clamp((burlSoft * 0.58 + (1.0 - burlRing) * 0.14) * (1.0 - knotCore * 0.78) * (1.0 - pores * 0.55), 0.0, 1.0);
+        s.accentMask = smoothstep(0.72, 0.96, burlSoft) * 0.35;
+        s.gloss = mix(0.90, 0.26, pores);
+        s.fiberAxis = normalize(vec3(cos(swirlAng) * cos(burlTilt), sin(swirlAng) * cos(burlTilt), sin(burlTilt)));
+        s.fiberStr = 0.78 * (1.0 - pores * 0.7);
+        s.rayMask = rays * 0.55 * (1.0 - pores);
     } else if (id == 9) {
-        // 9: Shou Sugi Ban Charred Japanese Cedar (Craft Wood)
+        // 9: Shou Sugi Ban Charred Japanese Cedar (alligator char + recessed cedar fiber sheen)
         vec2 charP = vec2(pos.x * 6.5, pos.y * 2.1);
         vec3 cVor = voronoi2D(mod(charP + vec2(fbm3(pos * 1.5) * 0.4, 0.0), 256.0));
         float charCrack = smoothstep(0.11, 0.015, cVor.y);
@@ -498,22 +554,30 @@ SubstrateSample evalSubstrateById(vec2 pos, int id) {
         s.albedoMix = clamp(charCrack * 0.85 + woodGrain * 0.18, 0.0, 1.0);
         s.accentMask = charCrack * woodGrain;
         s.gloss = mix(0.10, 0.55, charCrack);
+        s.fiberAxis = normalize(vec3(0.08, 0.98, sin(pos.x * 16.0) * 0.18));
+        s.fiberStr = charCrack * 0.45;
     } else if (id == 10) {
-        // 10: Raw Construction Pine / Knotted Lumber (Rustic Wood)
-        vec3 kVor = voronoi2D(mod(vec2(pos.x * 0.65, pos.y * 0.32), 256.0));
-        float knot = smoothstep(0.19, 0.04, kVor.x) * step(0.45, kVor.z);
-        float knotWarp = exp(-kVor.x * 5.5) * 2.4 * step(0.45, kVor.z);
-        float arch = sin(pos.x * 5.8 + fbm3(vec2(pos.x * 0.9, pos.y * 0.4)) * 4.2 + knotWarp);
-        // Asymmetric earlywood/latewood sawtooth profile
-        float latewood = smoothstep(0.55, 0.92, arch * 0.5 + 0.5);
-        float sawChatter = sin(pos.y * 38.0) * 0.005;
-        float fibrous = noise2D(mod(vec2(pos.x * 28.0, pos.y * 4.5), 256.0)) * 0.009;
-        s.height = (1.0 - latewood) * 0.014 - knot * 0.022 + sawChatter + fibrous;
-        s.albedoMix = clamp((1.0 - latewood) * 0.78 * (1.0 - knot * 0.88), 0.0, 1.0);
-        s.accentMask = knot * 0.25;
-        s.gloss = 0.08;
+        // 10: Raw Construction Pine / Knotted Lumber (Liu et al. crisp cathedral rings + elliptical knots)
+        vec3 kVor = voronoi2D(mod(vec2(pos.x * 0.95, pos.y * 0.52), 256.0));
+        float hasKnot = step(0.42, kVor.z);
+        float knot = smoothstep(0.17, 0.035, kVor.x) * hasKnot;
+        float knotRing = smoothstep(0.24, 0.12, kVor.x) * (1.0 - knot) * hasKnot;
+        float knotWarp = exp(-kVor.x * 5.8) * 5.2 * hasKnot;
+        float archPhase = fract((pos.x * 16.5 + fbm3(vec2(pos.x * 0.95, pos.y * 0.45)) * 7.5 + knotWarp) * 0.15915494);
+        // Crisp asymmetric earlywood/latewood sawtooth profile (Liu et al. 2016)
+        float latewood = smoothstep(0.66, 0.84, archPhase) * smoothstep(1.0, 0.91, archPhase);
+        float sawChatter = sin(pos.y * 42.0) * 0.004;
+        float fibrous = noise2D(mod(vec2(pos.x * 34.0, pos.y * 5.0), 256.0)) * 0.011;
+        // Fibers bend smoothly around knots and tilt slightly out-of-plane near knot collars
+        float knotTilt = exp(-kVor.x * 4.8) * 0.45 * hasKnot;
+        s.height = (1.0 - latewood) * 0.014 - knot * 0.026 + sawChatter + fibrous;
+        s.albedoMix = clamp((1.0 - latewood * 0.72) * 0.86 * (1.0 - knot * 0.90) * (1.0 - knotRing * 0.40), 0.0, 1.0);
+        s.accentMask = knot * 0.22;
+        s.gloss = 0.07;
+        s.fiberAxis = normalize(vec3(0.14 * sin(archPhase * 6.28318), cos(knotTilt), sin(knotTilt)));
+        s.fiberStr = 0.16 * (1.0 - knot * 0.85);
     } else {
-        // 11: Weathered Silver Driftwood (Rustic Sun-Bleached Wood)
+        // 11: Weathered Silver Driftwood (eroded latewood ridges + sun-bleached cellulose fiber sheen)
         float warp = fbm3(vec2(pos.x * 1.1, pos.y * 0.45)) * 3.0;
         float grooves = sin(pos.x * 14.0 + warp) * 0.5 + 0.5;
         float eroded = pow(grooves, 1.8);
@@ -523,7 +587,9 @@ SubstrateSample evalSubstrateById(vec2 pos, int id) {
         s.height = eroded * 0.040 - splitCrack * 0.048 + dryGrain;
         s.albedoMix = clamp(eroded * 0.72 * (1.0 - splitCrack * 0.92), 0.0, 1.0);
         s.accentMask = 0.0;
-        s.gloss = 0.05;
+        s.gloss = 0.06;
+        s.fiberAxis = normalize(vec3(0.12 * cos(warp), 0.98, 0.16 * (eroded - 0.5)));
+        s.fiberStr = 0.30 * (1.0 - splitCrack);
     }
     return s;
 }
@@ -539,7 +605,9 @@ SubstrateSample evalSubstrate(vec2 pos) {
         sA.albedoMix  = mix(sA.albedoMix,  sB.albedoMix,  b);
         sA.accentMask = mix(sA.accentMask, sB.accentMask, b);
         sA.gloss      = mix(sA.gloss,      sB.gloss,      b);
-        sA.chatoyancy = mix(sA.chatoyancy, sB.chatoyancy, b);
+        sA.fiberAxis  = normalize(mix(sA.fiberAxis, sB.fiberAxis, b) + vec3(1e-5, 0.0, 0.0));
+        sA.fiberStr   = mix(sA.fiberStr,   sB.fiberStr,   b);
+        sA.rayMask    = mix(sA.rayMask,    sB.rayMask,    b);
     }
     return sA;
 }
@@ -1999,6 +2067,11 @@ SurfaceData getSurface(vec2 uv) {
             // Bounded scale ensuring clearance margin between adjacent glyph boundaries
             float scale = 0.55 + hash12(c * 23.17) * 0.16;
             pLocal /= scale;
+
+            // Rotation-invariant bounding-circle early-out: skips cos/sin + 108-glyph SDF on ~7/9 cells
+            if (dot(pLocal, pLocal) > 0.62) {
+                continue;
+            }
             
             // Subtle random tilt angle
             float angle = (hash12(c * 37.91) - 0.5) * 0.28;
@@ -2161,16 +2234,24 @@ void main() {
     float subSpecPow = mix(14.0, 120.0, sub.gloss);
     float subSpec = pow(max(0.0, dot(N, H_key)), subSpecPow) * sub.gloss * 0.55;
 
-    // Optical chatoyancy for figured Tiger-Flame Maple: sinusoidal fiber tilt flips brightness as light orbits
-    float chatoyantSpec = 0.0;
-    if (abs(sub.chatoyancy) > 0.01) {
-        vec3 N_fiber = normalize(N + vec3(sub.chatoyancy * 0.42, 0.0, 0.0));
-        chatoyantSpec = pow(max(0.0, dot(N_fiber, H_key)), 24.0) * (0.55 + 0.45 * sub.chatoyancy);
+    // Marschner et al. (SIGGRAPH 2005) subsurface cylindrical wood-fiber scattering + medullary rays
+    vec3 woodSubsurface = vec3(0.0);
+    if (sub.fiberStr > 0.01) {
+        float fiberBeta = mix(0.38, 0.26, sub.gloss); // silky velvety cone under French polish / lacquer
+        vec2 mKey  = evalMarschnerWoodFiber(N, L_key,  V, sub.fiberAxis, fiberBeta);
+        vec2 mFill = evalMarschnerWoodFiber(N, L_fill, V, sub.fiberAxis, fiberBeta);
+        float fiberResp = (mKey.x + mFill.x * 0.35) * sub.fiberStr;
+        float rayResp   = (mKey.y + mFill.y * 0.40) * sub.rayMask;
+        // Warm golden-amber fiber highlight tinted by the wood's own porcelain/gold palette
+        vec3 fiberTint = mix(u_color_gold.rgb, u_color_porcelain.rgb, 0.38);
+        vec3 rayTint   = mix(u_color_gold.rgb, u_color_sheen.rgb, 0.35);
+        woodSubsurface = fiberTint * (fiberResp * 0.44) + rayTint * (rayResp * 0.30);
     }
 
     vec3 colMatte = subAlbedo * diffuse
                   + subAccentCol * (sub.accentMask * (0.45 + 0.75 * diffKey + subSpec * 1.6)) * 0.55
-                  + mix(vec3(1.0), u_color_gold.rgb, 0.35) * (subSpec + chatoyantSpec * 0.65);
+                  + mix(vec3(1.0), u_color_gold.rgb, 0.35) * subSpec
+                  + woodSubsurface;
     
     // --- Shading Phase 2: Translucent Porcelain & Subsurface Scattering (SSS) ---
     // Subsurface glow: light bleeding through thin carved edges
@@ -2185,7 +2266,8 @@ void main() {
     vec3 colPorcelain = mix(porcBase * (diffuse * 0.8 + 0.2), vec3(1.0), fresnelGlaze * 0.45) 
                         + u_color_sheen.rgb * sssTotal * 0.55
                         + subAccentCol * sub.accentMask * 0.45
-                        + vec3(1.0) * specKeyGloss * 0.75;
+                        + vec3(1.0) * specKeyGloss * 0.75
+                        + woodSubsurface * 0.78;
     
     // --- Shading Phase 3a: Theme-Aware Thin-Film Iridescence (Belcour & Barla, SIGGRAPH 2017) ---
     // Smoothly adapts film thickness and IOR per palette:
