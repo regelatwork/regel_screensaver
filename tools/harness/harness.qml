@@ -117,7 +117,7 @@ ApplicationWindow {
         { name: "Volcanic Obsidian & Prismatic Foil",            bg: "#090a0e", dye1: "#1c2430", dye2: "#66fcf1", dye3: "#c77dff" },
         { name: "Cybernetic Bismuth Monolith",                   bg: "#14181c", dye1: "#f0f3f5", dye2: "#ffb703", dye3: "#00b4d8" },
         { name: "Hammered Platinum & Starlight Diamond",         bg: "#11141b", dye1: "#f5f8fc", dye2: "#e2e8f0", dye3: "#67e8f9" },
-        { name: "Abalone Shell & Fire Opal Nacre",               bg: "#041c1e", dye1: "#ecfeff", dye2: "#2dd4bf", dye3: "#a78bfa" },
+        { name: "Abalone Shell & Fire Opal Nacre",               bg: "#041c1e", dye1: "#1a6b78", dye2: "#2dd4bf", dye3: "#a78bfa" },
         { name: "Tiger-Flame Maple Lutherie",                    bg: "#3b1f0e", dye1: "#f5dca4", dye2: "#d98a36", dye3: "#f6c270" },
         { name: "Burl Walnut & French Polish",                   bg: "#1d100a", dye1: "#6b3822", dye2: "#e2b15b", dye3: "#b87a4b" },
         { name: "Shou Sugi Ban Charred Cedar",                   bg: "#0f0c0b", dye1: "#7a4424", dye2: "#e8b04b", dye3: "#c96d3b" },

@@ -417,17 +417,29 @@ SubstrateSample evalSubstrateById(vec2 pos, int id) {
         s.accentMask = ridge * 0.65;
         s.gloss = mix(0.92, 0.45, ridge);
     } else if (id == 4) {
-        // 4: Stepped Hopper-Crystal Bismuth Terraces
-        vec2 pQ = mod(pos * 1.45, 256.0);
-        vec2 cell = floor(pQ);
-        vec2 f = fract(pQ) - 0.5;
-        float cheb = max(abs(f.x), abs(f.y));
-        float steps = floor(cheb * 7.0) / 7.0;
-        float bevel = smoothstep(0.06, 0.0, abs(fract(cheb * 7.0) - 0.5));
-        float cellH = hash12(mod(cell, 256.0) * 19.7);
-        s.height = (1.0 - steps) * 0.045 + cellH * 0.015 - bevel * 0.008;
-        s.albedoMix = clamp(steps * 0.45 + bevel * 0.25, 0.0, 1.0);
-        s.accentMask = clamp(bevel * 0.8 + (1.0 - steps) * 0.35, 0.0, 1.0);
+        // 4: Stepped Hopper-Crystal Bismuth Terraces (interlocking dual-scale crystal lattices)
+        vec2 pQ1 = mod(pos * 1.15, 256.0);
+        vec2 c1 = floor(pQ1);
+        vec2 j1 = hash22(mod(c1, 256.0) * 17.3) * 0.16;
+        vec2 f1 = fract(pQ1) - 0.5 + j1;
+        float cheb1 = max(abs(f1.x), abs(f1.y));
+        float steps1 = floor(cheb1 * 8.0) / 8.0;
+        float bev1 = smoothstep(0.055, 0.0, abs(fract(cheb1 * 8.0) - 0.5));
+
+        // Secondary offset crystal cluster at different scale for organic interlocking terraces
+        vec2 pQ2 = mod(pos * 1.85 + vec2(4.3, 7.1), 256.0);
+        vec2 c2 = floor(pQ2);
+        vec2 f2 = fract(pQ2) - 0.5;
+        float cheb2 = max(abs(f2.x), abs(f2.y));
+        float steps2 = floor(cheb2 * 6.0) / 6.0;
+        float mask2 = step(0.45, hash12(mod(c2, 256.0) * 29.1));
+
+        float steps = mix(steps1, min(steps1, steps2), mask2 * 0.65);
+        float bevel = max(bev1, smoothstep(0.055, 0.0, abs(fract(cheb2 * 6.0) - 0.5)) * mask2);
+        float cellH = hash12(mod(c1, 256.0) * 19.7);
+        s.height = (1.0 - steps) * 0.048 + cellH * 0.018 - bevel * 0.008;
+        s.albedoMix = clamp(steps * 0.42 + bevel * 0.25, 0.0, 1.0);
+        s.accentMask = clamp(bevel * 0.85 + (1.0 - steps) * 0.35, 0.0, 1.0);
         s.gloss = 0.88;
     } else if (id == 5) {
         // 5: Hand-Hammered Tsuchime Metal
@@ -440,29 +452,31 @@ SubstrateSample evalSubstrateById(vec2 pos, int id) {
         s.accentMask = rim * 0.55;
         s.gloss = 0.82;
     } else if (id == 6) {
-        // 6: Organic Abalone Nacre Growth Lamellae
-        float f = fbm3(pos * 1.15);
-        float rings = sin(pos.x * 2.2 + pos.y * 1.6 + f * 9.5) * 0.5 + 0.5;
-        float lamella = smoothstep(0.25, 0.85, rings);
-        float stepMicro = floor(rings * 5.0) / 5.0;
-        s.height = mix(lamella, stepMicro, 0.35) * 0.028;
-        s.albedoMix = lamella * 0.55;
-        s.accentMask = smoothstep(0.60, 0.95, rings);
-        s.gloss = 0.86;
+        // 6: Organic Abalone Nacre Growth Lamellae (rich layered aragonite bands, controlled luminance)
+        float f = fbm3(pos * 1.25);
+        float rings = sin(pos.x * 2.8 + pos.y * 2.1 + f * 11.5) * 0.5 + 0.5;
+        float fineBand = sin(pos.x * 9.0 + pos.y * 6.5 + f * 18.0) * 0.5 + 0.5;
+        float lamella = pow(rings, 1.8) * 0.72 + fineBand * 0.28;
+        float stepMicro = floor(rings * 6.0) / 6.0;
+        s.height = mix(lamella, stepMicro, 0.4) * 0.030;
+        s.albedoMix = clamp(lamella * 0.30, 0.0, 1.0);
+        s.accentMask = smoothstep(0.55, 0.92, rings) * 0.72;
+        s.gloss = 0.84;
     } else if (id == 7) {
-        // 7: Chatoyant Tiger-Flame Maple Lutherie (Luxury Wood)
-        vec2 wp = vec2(pos.x * 1.3, pos.y * 7.5);
-        float grainWarp = fbm3(vec2(pos.x * 0.8, pos.y * 2.2)) * 2.2;
+        // 7: Chatoyant Tiger-Flame Maple Lutherie (fine curly violin-grade maple)
+        vec2 wp = vec2(pos.x * 1.4, pos.y * 11.0);
+        float grainWarp = fbm3(vec2(pos.x * 0.9, pos.y * 2.8)) * 2.6;
         float ring = sin(wp.y + grainWarp) * 0.5 + 0.5;
-        float latewood = smoothstep(0.68, 0.94, ring);
-        // Sinusoidal perpendicular curly maple flame (optical chatoyancy)
-        float flame = sin(pos.x * 11.0 + fbm3(pos * 1.2) * 3.8);
-        float fineFiber = noise2D(mod(vec2(pos.x * 6.0, pos.y * 36.0), 256.0)) * 0.005;
-        s.height = (ring - 0.5) * 0.012 + flame * 0.008 + fineFiber;
-        s.albedoMix = clamp((1.0 - latewood) * 0.55 + (flame * 0.5 + 0.5) * 0.35, 0.0, 1.0);
-        s.accentMask = clamp(flame * 0.5 + 0.5, 0.0, 1.0);
+        float latewood = smoothstep(0.62, 0.92, ring);
+        // Tighter organic curly maple flame (optical chatoyancy)
+        float flameWarp = sin(pos.y * 1.8) * 1.35 + fbm3(pos * 1.35) * 4.4;
+        float flame = sin(pos.x * 15.0 + flameWarp);
+        float fineFiber = noise2D(mod(vec2(pos.x * 8.0, pos.y * 52.0), 256.0));
+        s.height = (ring - 0.5) * 0.015 + flame * 0.007 + fineFiber * 0.009;
+        s.albedoMix = clamp((1.0 - latewood) * 0.48 + (flame * 0.5 + 0.5) * 0.24 + fineFiber * 0.08, 0.0, 1.0);
+        s.accentMask = clamp((flame * 0.5 + 0.5) * 0.55, 0.0, 1.0);
         s.gloss = 0.90;
-        s.chatoyancy = flame;
+        s.chatoyancy = flame * 0.75;
     } else if (id == 8) {
         // 8: Swirling Burl Walnut & French Polish (Luxury Wood)
         vec3 bVor = voronoi2D(mod(pos * 1.15 + fbm3(pos * 0.9) * 0.5, 256.0));
@@ -1789,7 +1803,7 @@ StickerData getSticker(vec2 pos) {
     sd.radius = 0.65;
     sd.intensity = 0.0;
     
-    float sSpacing = 3.2;
+    float sSpacing = 2.65;
     
     // Evaluate active persistent medallion/sticker slots
     for (int i = 0; i < 8; ++i) {
@@ -1800,7 +1814,7 @@ StickerData getSticker(vec2 pos) {
         float intensity = slot.z;
         int sealStyle = clamp(int(floor(slot.w - 0.5)), 0, 4);
         
-        vec2 jitter = (hash22(c * 53.41 + vec2(8.1, 91.7)) - 0.5) * 0.55;
+        vec2 jitter = hash22(c * 53.41 + vec2(8.1, 91.7)) * 0.28;
         vec2 sCenter = (c + 0.5 + jitter) * sSpacing;
         vec2 pDiff = pos - sCenter;
         
@@ -2030,19 +2044,25 @@ SurfaceData getSurface(vec2 uv) {
             float stickerBevel = smoothstep(0.012, 0.0, abs(stk.dist)) * 0.012;
             stickerH = stickerStep + stickerBevel + embVal * 0.006;
         } else if (stk.sealStyle == 1) {
-            // Crimson Cinnabar Wax Seal: plump raised wax rim + recessed center + stamped emblem
-            float waxBody = smoothstep(0.025, -0.025, stk.dist) * 0.048;
-            float waxRim = smoothstep(0.09, 0.0, abs(stk.dist + 0.045)) * 0.026;
-            stickerH = waxBody + waxRim + embVal * 0.018;
+            // Crimson Cinnabar Wax Seal: plump 3D poured wax rim + recessed interior + stamped emblem
+            float waxBody = smoothstep(0.025, -0.035, stk.dist) * 0.115;
+            float waxRim = smoothstep(0.11, 0.0, abs(stk.dist + 0.055)) * 0.068;
+            stickerH = waxBody + waxRim + embVal * 0.042;
         } else if (stk.sealStyle == 2 || stk.sealStyle == 3) {
             // Flush Metal / Maki-e / Pietra Dura / Mother-of-Pearl Inlay: micro-recessed setting groove
-            float groutGroove = smoothstep(0.014, 0.0, abs(stk.dist)) * 0.018;
-            stickerH = -groutGroove + embVal * 0.007;
+            float groutGroove = smoothstep(0.016, 0.0, abs(stk.dist)) * 0.024;
+            stickerH = -groutGroove + embVal * 0.012;
         } else {
             // Hot-Iron Pyrography Brand: charred deeply INTO the wood grain
-            stickerH = -embVal * 0.032 * smoothstep(0.02, -0.02, stk.dist);
+            stickerH = -embVal * 0.042 * smoothstep(0.02, -0.02, stk.dist);
         }
     }
+
+    // Attenuate underlying carved glyphs under opaque medallions (wax seals, stickers, flush inlays)
+    // while keeping pyrography brands (sealStyle == 4) naturally conformed to the wood surface.
+    float medallionCover = (stk.intensity > 0.01 && stk.sealStyle != 4)
+                         ? smoothstep(0.014, -0.020, stk.dist) : 0.0;
+    glyphH *= (1.0 - medallionCover * 0.92);
     
     // --- 3. Procedural Geological / Porcelain / Metal / Wood Slab Substrate ---
     // Automatically attenuated under the fortune quote tablet to preserve typographic legibility
@@ -2175,16 +2195,23 @@ void main() {
     float cosThetaIrid = max(0.01, dot(H_key, V));
     float regime = clamp(u_film_regime, 0.0, 1.0);
     float filmEta = mix(1.85, 1.38, regime);
-    float filmWave = 0.5 + 0.5 * sin(phaseAux * 6.2831853 + mod(u_time * 0.15, 6.2831853));
+    // Couple substrate height & accent structure into film thickness so Bismuth hopper terraces
+    // and Abalone aragonite growth bands shift smoothly across the physical spectrum
+    float geomShift = sub.height * 6.5 + sub.accentMask * 0.35;
+    float filmWave = 0.5 + 0.5 * sin(phaseAux * 6.2831853 + geomShift * 4.2 + mod(u_time * 0.15, 6.2831853));
     float filmThicknessUm = mix(mix(0.18, 0.50, regime), mix(0.46, 1.06, regime), filmWave);
     vec3 iridBaseF0 = mix(u_color_sheen.rgb, vec3(0.85), 0.35);
     vec3 iridSpectrum = evalIridescence(cosThetaIrid, filmThicknessUm, filmEta, iridBaseF0);
     float iridWeight = clamp((0.25 + 0.75 * pow(1.0 - cosThetaN, 2.0)) * u_iridescence_strength, 0.0, 1.0);
-    vec3 colIridescent = mix(u_color_stone.rgb * diffuse, iridSpectrum * (0.45 + 0.85 * diffuse), iridWeight);
-    colIridescent += iridSpectrum * specKeyGloss * 1.45;
+    vec3 colIridescent = mix(subAlbedo * diffuse, iridSpectrum * (0.38 + 0.62 * diffuse), iridWeight);
+    colIridescent += iridSpectrum * specKeyGloss * 1.15;
     
     // --- Composite Base Surface Material ---
     vec3 finalColor = colMatte * wMatte + colPorcelain * wPorcelain + colIridescent * wIridescent;
+    // On high-iridescence substrates (Bismuth oxide, Abalone nacre, Obsidian), let the substrate's
+    // stepped terraces & lamellae carry a subtle continuous spectral sheen across the full slab
+    float continuousIrid = clamp((u_iridescence_strength - 1.35) * 0.45, 0.0, 0.40);
+    finalColor = mix(finalColor, finalColor * 0.72 + iridSpectrum * (0.34 + 0.58 * diffuse) * (0.45 + 0.55 * sub.accentMask), continuousIrid);
     
     // --- Surface Tangent Basis & Glint Slope Frame ---
     vec3 up_surf = abs(N.z) < 0.99 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
@@ -2287,7 +2314,7 @@ void main() {
     //   2: Flush Brushed Metal / Maki-e / Pietra Dura Inlays (6 designs)
     //   3: Luthier Mother-of-Pearl & Abalone Rosette Inlays (6 designs, Belcour & Barla iridescence)
     //   4: Hot-Iron Pyrography Wood Brands (6 designs, scorched grain carving)
-    if (surf.stickerIntensity > 0.01 && surf.stickerDist < 0.025) {
+    if (surf.stickerIntensity > 0.01 && surf.stickerDist < 0.065) {
         float stickerMask = smoothstep(0.010, -0.010, surf.stickerDist);
         float holoPwr = surf.stickerIntensity;
         vec2 qSticker = surf.stickerLocal / max(0.1, surf.stickerRadius);
@@ -2376,15 +2403,22 @@ void main() {
             finalColor = mix(finalColor, colSticker, stickerMask);
         } else if (surf.stickerStyle == 1) {
             // === STYLE 1: Crimson Cinnabar Wax / Rakkan Seal Stamp ===
-            vec3 waxBase = vec3(0.68, 0.12, 0.10);
-            vec3 waxDeep = vec3(0.34, 0.04, 0.04);
-            vec3 waxSSS  = vec3(0.95, 0.28, 0.16) * pow(clamp(dot(V, -L_key + N * 0.4), 0.0, 1.0), 2.5) * 0.45;
-            float waxRimAO = smoothstep(-0.08, 0.0, surf.stickerDist) * 0.35;
-            float waxSpec = pow(max(0.0, dot(N, H_key)), 48.0) * 0.65;
-            vec3 colWax = mix(waxBase, waxDeep, waxRimAO) * (diffuse * 0.85 + 0.25) + waxSSS + vec3(1.0, 0.85, 0.80) * waxSpec;
+            // Soft cast contact shadow on the ceramic slab outside the poured wax rim
+            float castShadow = smoothstep(0.060, 0.002, surf.stickerDist) * smoothstep(-0.006, 0.014, surf.stickerDist);
+            finalColor *= (1.0 - castShadow * 0.42);
+
+            vec3 waxBase = vec3(0.72, 0.11, 0.09);
+            vec3 waxDeep = vec3(0.28, 0.03, 0.03);
+            vec3 waxSSS  = vec3(0.98, 0.30, 0.16) * pow(clamp(dot(V, -L_key + N * 0.45), 0.0, 1.0), 2.2) * 0.52;
+            float waxRimAO = smoothstep(-0.10, 0.0, surf.stickerDist) * 0.48;
+            float waxRimHighlight = smoothstep(0.09, 0.0, abs(surf.stickerDist + 0.055));
+            float waxSpec = pow(max(0.0, dot(N, H_key)), 64.0) * 0.95 + pow(max(0.0, dot(N, H_fill)), 32.0) * 0.25;
+            vec3 colWax = mix(waxBase, waxDeep, waxRimAO) * (diffuse * 0.88 + 0.22)
+                        + waxSSS
+                        + vec3(1.0, 0.86, 0.80) * waxSpec * (0.75 + 0.45 * waxRimHighlight);
             // Subtle gilded powder rub on the raised stamped emblem ridges
-            vec3 emblemWax = mix(waxBase * 1.25 + waxSpec * 1.4, u_color_gold.rgb * (diffuse + 0.5), 0.32);
-            colWax = mix(colWax, emblemWax, totalEmblem * 0.85);
+            vec3 emblemWax = mix(waxBase * 1.32 + vec3(1.0, 0.88, 0.78) * waxSpec * 1.4, u_color_gold.rgb * (diffuse * 0.8 + 0.45), 0.36);
+            colWax = mix(colWax, emblemWax, totalEmblem * 0.88);
             finalColor = mix(finalColor, colWax, stickerMask);
         } else if (surf.stickerStyle == 2) {
             // === STYLE 2: Flush Brushed Metal / Maki-e / Pietra Dura Medallion Inlay ===
@@ -2401,24 +2435,29 @@ void main() {
             finalColor = mix(finalColor, colMetal, stickerMask);
         } else if (surf.stickerStyle == 3) {
             // === STYLE 3: Luthier Mother-of-Pearl & Abalone Rosette Inlay ===
-            vec3 ebonyPurfling = vec3(0.04, 0.03, 0.03) * (diffuse + 0.2);
-            float mopThick = 0.68 + 0.26 * fbm3(surf.stickerLocal * 6.5);
-            vec3 mopIrid = evalIridescence(max(0.05, dot(H_key, V)), mopThick, 1.38, vec3(0.85, 0.90, 0.94));
-            float mopSpec = pow(max(0.0, dot(N, H_key)), 140.0) * 1.5;
-            vec3 colPearl = mix(vec3(0.82, 0.88, 0.90), mopIrid * 1.35, 0.72) * (diffuse * 0.75 + 0.35) + vec3(1.0) * mopSpec;
-            // Dark ebony background setting with luminous mother-of-pearl inlay lines
-            float purfRing = smoothstep(0.030, 0.0, abs(surf.stickerDist + 0.015));
-            vec3 colInlay = mix(finalColor * 0.45 + ebonyPurfling * 0.55, colPearl, totalEmblem);
-            colInlay = mix(colInlay, ebonyPurfling, purfRing * 0.85);
+            vec3 ebonyPurfling = vec3(0.05, 0.035, 0.025) * (diffuse + 0.22);
+            float mopThick = 0.62 + 0.32 * fbm3(surf.stickerLocal * 7.5);
+            vec3 mopIrid = evalIridescence(max(0.05, dot(H_key, V)), mopThick, 1.38, vec3(0.88, 0.92, 0.96));
+            float mopSpec = pow(max(0.0, dot(N, H_key)), 120.0) * 1.65 + pow(max(0.0, dot(N, H_fill)), 48.0) * 0.45;
+            vec3 colPearl = mix(vec3(0.88, 0.92, 0.90), mopIrid * 1.55, 0.68) * (diffuse * 0.70 + 0.45) + vec3(1.0) * mopSpec;
+            vec3 colAbalone = mix(vec3(0.45, 0.88, 0.84), mopIrid * 1.75, 0.82) * (diffuse * 0.70 + 0.45) + vec3(0.95, 1.0, 1.0) * mopSpec;
+            // Preserve warm figured wood inside the rosette field, framed by crisp dark ebony purfling
+            float outerPurf = smoothstep(0.036, 0.0, abs(surf.stickerDist + 0.018));
+            float innerRingPurf = smoothstep(0.022, 0.0, abs(length(qSticker) - 0.72));
+            vec3 colInlay = finalColor * 0.82;
+            colInlay = mix(colInlay, ebonyPurfling, max(outerPurf * 0.90, innerRingPurf * 0.72));
+            colInlay = mix(colInlay, colPearl, emblem.x);
+            colInlay = mix(colInlay, colAbalone, emblem.y);
             finalColor = mix(finalColor, colInlay, stickerMask);
         } else {
             // === STYLE 4: Hot-Iron Pyrography Wood Brand (Scorched into Wood Grain) ===
-            float scorchHalo = smoothstep(0.08, -0.04, surf.stickerDist) * 0.22;
-            vec3 toastedWood = finalColor * vec3(0.68, 0.46, 0.30);
-            vec3 charredCarbon = finalColor * 0.14 + vec3(0.04, 0.025, 0.015) * diffuse;
-            vec3 colBrand = mix(finalColor, toastedWood, scorchHalo + totalEmblem * 0.35);
-            colBrand = mix(colBrand, charredCarbon, totalEmblem * 0.92);
-            finalColor = mix(finalColor, colBrand, stickerMask);
+            float outerScorch = smoothstep(0.055, -0.02, surf.stickerDist) * 0.26;
+            float strokeHalo = smoothstep(0.05, 0.55, totalEmblem) * 0.55;
+            vec3 toastedWood = finalColor * vec3(0.62, 0.40, 0.24);
+            vec3 charredCarbon = finalColor * 0.09 + vec3(0.03, 0.018, 0.010) * diffuse;
+            vec3 colBrand = mix(finalColor, toastedWood, clamp(outerScorch + strokeHalo, 0.0, 0.78));
+            colBrand = mix(colBrand, charredCarbon, smoothstep(0.18, 0.78, totalEmblem) * 0.94);
+            finalColor = mix(finalColor, colBrand, smoothstep(0.045, -0.010, surf.stickerDist));
         }
     }
     

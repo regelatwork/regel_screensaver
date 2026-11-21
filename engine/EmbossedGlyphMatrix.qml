@@ -488,10 +488,10 @@ Item {
     }
 
     function getStickerCenter(cx, cy) {
-        var sSpacing = 3.2;
+        var sSpacing = 2.65;
         var h = hash22(cx * 53.41 + 8.1, cy * 53.41 + 91.7);
-        var jitterX = (h[0] - 0.5) * 0.55;
-        var jitterY = (h[1] - 0.5) * 0.55;
+        var jitterX = h[0] * 0.28;
+        var jitterY = h[1] * 0.28;
         return [
             (cx + 0.5 + jitterX) * sSpacing,
             (cy + 0.5 + jitterY) * sSpacing
@@ -499,7 +499,10 @@ Item {
     }
 
     function updateStickerLifecycle() {
-        var aspect = Math.max(1.0, root.width) / Math.max(1.0, root.height);
+        // Wait until viewport geometry is laid out before initializing visible medallion cells
+        if (root.width <= 10 || root.height <= 10) return;
+
+        var aspect = root.width / root.height;
         var zoom = Math.max(0.25, root.glyphZoom);
         var scaleX = aspect * 3.8 * zoom;
         var scaleY = 3.8 * zoom;
@@ -528,7 +531,7 @@ Item {
         var minPosY = scrollVecY - 0.25 * scaleY;
         var maxPosY = scrollVecY + 1.30 * scaleY;
 
-        var sSpacing = 3.2;
+        var sSpacing = 2.65;
         var minCX = Math.floor(minPosX / sSpacing) - 1;
         var maxCX = Math.floor(maxPosX / sSpacing) + 1;
         var minCY = Math.floor(minPosY / sSpacing) - 1;
@@ -549,9 +552,9 @@ Item {
                     var cInit = getStickerCenter(initCX, initCY);
                     var initUX = (cInit[0] - scrollVecX) / scaleX;
                     var initUY = (cInit[1] - scrollVecY) / scaleY;
-                    if (themeHasHolo && initUX >= -0.20 && initUX <= 1.20 && initUY >= -0.20 && initUY <= 1.20) {
+                    if (themeHasHolo && initUX >= 0.05 && initUX <= 0.95 && initUY >= 0.05 && initUY <= 0.95) {
                         var hInit = hash12(initCX * 37.19 + 15.3, initCY * 37.19 + 71.9);
-                        if (hInit <= 0.58) {
+                        if (hInit <= 0.72) {
                             keptStickers.push({ cx: initCX, cy: initCY, intensity: curHolo, sealStyle: curSealStyle });
                         }
                     }
@@ -573,7 +576,7 @@ Item {
                         // Cell is entering from off-screen!
                         if (uvX >= 0.95 || uvY >= 0.95) {
                             var hCandidate = hash12(cx * 37.19 + 15.3, cy * 37.19 + 71.9);
-                            if (hCandidate <= 0.58 && themeHasHolo) {
+                            if (hCandidate <= 0.72 && themeHasHolo) {
                                 keptStickers.push({ cx: cx, cy: cy, intensity: curHolo, sealStyle: curSealStyle });
                             }
                         }
@@ -621,6 +624,8 @@ Item {
 
     onCurrentScrollTimeChanged: updateStickerLifecycle()
     onCurrentPaletteIndexChanged: updateStickerLifecycle()
+    onWidthChanged: if (!stickerLifecycleInitialized) updateStickerLifecycle()
+    onHeightChanged: if (!stickerLifecycleInitialized) updateStickerLifecycle()
 
     // Fallback safety timer if simulation time is paused
     Timer {
@@ -757,7 +762,11 @@ Item {
         if (p.filmRegime !== undefined) root.filmRegime = p.filmRegime
         if (p.substrateId !== undefined) {
             var nextSub = p.substrateId
-            if (nextSub !== root.substrateIdB) {
+            if (!root.isStarted) {
+                root.substrateIdA = nextSub
+                root.substrateIdB = nextSub
+                root.substrateBlend = 0.0
+            } else if (nextSub !== root.substrateIdB) {
                 if (substrateBlendAnim.running) {
                     root.substrateIdA = root.substrateIdB
                     substrateBlendAnim.stop()
