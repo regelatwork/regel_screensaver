@@ -396,7 +396,19 @@ Item {
     // Dynamic scroll tracking in quote coordinate space (scale 0.055, period 1.0)
     // Synchronized with the material coordinate displacement in glyph.frag
     readonly property real currentScrollTime: simTime * 0.035 * scrollSpeed * (0.8 + vortexSpeed * 0.4)
+    readonly property real currentScrollVecX: 0.10 * currentScrollTime + ambientDrift.x
     readonly property real currentScrollVecY: 0.32 * currentScrollTime + ambientDrift.y
+    // 64-bit precision-wrapped skewed simplex scroll offset for microflake glitter (mod 4096.0)
+    // Guarantees zero float32 drift or precision loss over indefinite scrolling runtimes
+    readonly property real glitterFlakeFreq: Math.max(48.0, (Math.max(1.0, height) / (3.8 * Math.max(0.25, glyphZoom))) / 1.35)
+    readonly property real glitterSkewScrollX: {
+        var sx = (currentScrollVecX - 0.57735027 * currentScrollVecY) * glitterFlakeFreq;
+        return ((sx % 4096.0) + 4096.0) % 4096.0;
+    }
+    readonly property real glitterSkewScrollY: {
+        var sy = (1.15470054 * currentScrollVecY) * glitterFlakeFreq;
+        return ((sy % 4096.0) + 4096.0) % 4096.0;
+    }
     readonly property real currentCenterPosY: 1.9 * Math.max(0.25, glyphZoom) + currentScrollVecY
     readonly property real currentQuoteCoordY: currentCenterPosY * 0.055 + 0.45
     readonly property int currentQuoteCycle: Math.floor(currentQuoteCoordY)
@@ -461,11 +473,17 @@ Item {
         return fract(x * y * 95.4337);
     }
 
+    // Sine-free 2D hash matching glyph.frag bit-for-bit (precision-safe at arbitrary coordinates)
     function hash22(px, py) {
-        var p0 = px * 127.1 + py * 311.7;
-        var p1 = px * 269.5 + py * 183.3;
-        var f0 = fract(Math.sin(p0) * 43758.5453123);
-        var f1 = fract(Math.sin(p1) * 43758.5453123);
+        var x = fract(px * 0.1031);
+        var y = fract(py * 0.1030);
+        var z = fract(px * 0.0973);
+        var d = x * (y + 33.33) + y * (z + 33.33) + z * (x + 33.33);
+        x += d;
+        y += d;
+        z += d;
+        var f0 = fract((x + y) * z);
+        var f1 = fract((x + z) * y);
         return [-1.0 + 2.0 * f0, -1.0 + 2.0 * f1];
     }
 
@@ -832,13 +850,6 @@ Item {
         smooth: true
     }
 
-    Image {
-        id: glintDictImage
-        source: Qt.resolvedUrl("textures/glint_dict.png")
-        visible: false
-        cache: true
-    }
-
     ShaderEffect {
         id: glyphShader
         anchors.fill: parent
@@ -881,8 +892,7 @@ Item {
         property real u_holo_mode: root.holoMode
         property real u_pad1: 0.0
         property vector2d u_quote_size: Qt.vector2d(root.quoteHalfW, root.quoteHalfH)
-        property real u_pad2: 0.0
-        property real u_pad3: 0.0
+        property vector2d u_glitter_scroll: Qt.vector2d(root.glitterSkewScrollX, root.glitterSkewScrollY)
 
         property vector4d u_sticker0: root.stickerSlot0
         property vector4d u_sticker1: root.stickerSlot1
@@ -894,7 +904,6 @@ Item {
         property vector4d u_sticker7: root.stickerSlot7
 
         property var u_text_texture: textSource
-        property var u_glint_dict: glintDictImage
 
         vertexShader: Qt.resolvedUrl("shaders/glyph.vert.qsb")
         fragmentShader: Qt.resolvedUrl("shaders/glyph.frag.qsb")

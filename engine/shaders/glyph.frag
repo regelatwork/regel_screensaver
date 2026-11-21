@@ -35,8 +35,7 @@ layout(std140, binding = 0) uniform buf {
     float u_holo_mode;           // 264..267 (Hologram sticker intensity / density)
     float u_pad1;                // 268..271
     vec2  u_quote_size;          // 272..279 (quote bounding half-width and half-height)
-    float u_pad2;                // 280..283
-    float u_pad3;                // 284..287
+    vec2  u_glitter_scroll;      // 280..287 (64-bit wrapped skewed simplex scroll mod 4096.0)
     vec4  u_sticker0;            // 288..303 (Active sticker slot 0: cx, cy, intensity, active)
     vec4  u_sticker1;            // 304..319 (Active sticker slot 1)
     vec4  u_sticker2;            // 320..335 (Active sticker slot 2)
@@ -48,7 +47,6 @@ layout(std140, binding = 0) uniform buf {
 };
 
 layout(binding = 1) uniform sampler2D u_text_texture;
-layout(binding = 2) uniform sampler2D u_glint_dict;
 
 // --- Fast GPU Noise & Hash Primitives ---
 float hash12(vec2 p) {
@@ -57,48 +55,263 @@ float hash12(vec2 p) {
     return fract(p.x * p.y * 95.4337);
 }
 
+// Sine-free 2D hash (precision-safe at arbitrary coordinates, matches QML CPU hash22)
 vec2 hash22(vec2 p) {
-    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
-    return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+    vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return -1.0 + 2.0 * fract((p3.xx + p3.yz) * p3.zy);
+}
+
+vec3 hash32(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yxz + 33.33);
+    return fract((p3.xxy + p3.yzz) * p3.zyx);
 }
 
 float noise2D(vec2 p) {
     vec2 i = floor(p);
     vec2 f = fract(p);
     vec2 u = f * f * (3.0 - 2.0 * f);
-    return mix(mix(dot(hash22(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0)),
-                   dot(hash22(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
-               mix(dot(hash22(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)),
-                   dot(hash22(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x), u.y);
+    // Periodic modulo 256.0 lattice wrapping prevents float precision degradation over long runtimes
+    vec2 i00 = mod(i + vec2(0.0, 0.0), 256.0);
+    vec2 i10 = mod(i + vec2(1.0, 0.0), 256.0);
+    vec2 i01 = mod(i + vec2(0.0, 1.0), 256.0);
+    vec2 i11 = mod(i + vec2(1.0, 1.0), 256.0);
+    return mix(mix(dot(hash22(i00), f - vec2(0.0, 0.0)),
+                   dot(hash22(i10), f - vec2(1.0, 0.0)), u.x),
+               mix(dot(hash22(i01), f - vec2(0.0, 1.0)),
+                   dot(hash22(i11), f - vec2(1.0, 1.0)), u.x), u.y);
 }
 
-// --- Procedural Physically Based BRDF for Real-Time Glints (Chermain et al. 2020) ---
-// Samples 1D marginal distributions from the multiscale dictionary (1024x64 texture atlas).
-// Texture layout: 16 LOD levels (0..15), each 64 columns x 64 rows.
-// 64 columns = 64 triplets = 192 marginal distributions per level.
-// Values are encoded with square-root curve: P = (texel * texel) * 25.0
-float sampleGlintMarginal(float u_slope, int triplet_idx, int channel_idx, float lod) {
-    // Dictionary covers slope u in [-1.5, 1.5] (range = 3.0)
-    float u_norm = clamp(u_slope / 3.0 + 0.5, 0.5 / 64.0, 1.0 - 0.5 / 64.0);
-    
-    int l0 = clamp(int(floor(lod)), 0, 15);
-    int l1 = min(l0 + 1, 15);
-    float fracLOD = fract(lod);
-    
-    float uCoord0 = (float(l0 * 64 + triplet_idx) + 0.5) / 1024.0;
-    float uCoord1 = (float(l1 * 64 + triplet_idx) + 0.5) / 1024.0;
-    
-    vec3 c0 = texture(u_glint_dict, vec2(uCoord0, u_norm)).rgb;
-    vec3 c1 = texture(u_glint_dict, vec2(uCoord1, u_norm)).rgb;
-    
-    // Decode square-root compression
-    vec3 p0 = c0 * c0 * 25.0;
-    vec3 p1 = c1 * c1 * 25.0;
-    
-    float val0 = (channel_idx == 0) ? p0.r : ((channel_idx == 1) ? p0.g : p0.b);
-    float val1 = (channel_idx == 0) ? p1.r : ((channel_idx == 1) ? p1.g : p1.b);
-    
-    return mix(val0, val1, fracLOD);
+// --- Real-Time Glinty Appearances via Distributed Binomial Laws (Deliot & Belcour, HPG 2023) ---
+// Pure-ALU O(1) constant-time procedural glint evaluation with zero texture lookups.
+// Uses equilateral simplex grid barycentric blending + bilinear slope-space binomial gating.
+// All simplex coordinates are wrapped seamlessly modulo a power-of-2 period (4096.0) to ensure
+// zero floating-point precision loss over indefinite scrolling runtimes.
+
+// Standard normal N(0, 1) sample via Box-Muller transform
+float sampleStdNormal(float u1, float u2) {
+    return sqrt(-2.0 * log(max(1e-4, u1))) * cos(6.2831853 * u2);
+}
+
+// Macro Beckmann 2D slope distribution P22(slope)
+float p22_beckmann(vec2 slope, float alpha) {
+    float a2 = alpha * alpha;
+    return exp(-dot(slope, slope) / a2) / (3.14159265 * a2);
+}
+
+// Equilateral simplex grid decomposition from pre-skewed coordinates with seamless periodic wrapping
+void evalGlintSimplexGridSkewed(vec2 skewed, float period, out vec2 v0, out vec2 v1, out vec2 v2, out vec3 bary) {
+    vec2 baseId = floor(skewed);
+    vec3 temp = vec3(fract(skewed), 0.0);
+    temp.z = 1.0 - temp.x - temp.y;
+    float s = step(0.0, -temp.z);
+    float s2 = 2.0 * s - 1.0;
+    v0 = mod(baseId + vec2(s, s), period);
+    v1 = mod(baseId + vec2(s, 1.0 - s), period);
+    v2 = mod(baseId + vec2(1.0 - s, s), period);
+    bary = vec3(-temp.z * s2, s - temp.y * s2, s - temp.x * s2);
+}
+
+// Evaluates a single slope-space corner's gated binomial microfacet count
+float evalBinomialSlopeCorner(vec2 sCell, vec2 vertexSeed, float oneHitProba, float smoothW, float meanHits, float stdHits, float N) {
+    vec3 r = hash32(sCell + vertexSeed);
+    float randB = r.x;
+    float randG = sampleStdNormal(r.y, r.z);
+    float gating = (smoothW > 1e-6)
+        ? clamp((oneHitProba + smoothW - randB) / (2.0 * smoothW), 0.0, 1.0)
+        : step(randB, oneHitProba);
+    float count = clamp(randG * stdHits + meanHits, 1.0, max(1.0, N));
+    return gating * count;
+}
+
+// Bilinearly interpolated angular binomial count for one surface simplex vertex
+float evalAngularBinomialCell(vec2 slope, vec2 vertexSeed, vec2 slopeOffset, float halfwaySlopeScale, float hitProba, float N) {
+    // Probability of hitting at least one microfacet in the footprint
+    float oneHitProba = (N < 1.0)
+        ? (hitProba * N)
+        : (1.0 - pow(max(1e-6, 1.0 - hitProba), N));
+    float meanHits = 1.0 + max(0.0, N - 1.0) * hitProba;
+    float stdHits  = sqrt(max(0.0, N - 1.0) * hitProba * (1.0 - hitProba));
+    float smoothW  = 0.1 * clamp(oneHitProba * 10.0, 0.0, 1.0) * clamp((1.0 - oneHitProba) * 10.0, 0.0, 1.0);
+
+    vec2 sCoord = slope * halfwaySlopeScale + slopeOffset * 97.31;
+    vec2 sCell  = floor(sCoord);
+    vec2 sLerp  = fract(sCoord);
+
+    float c00 = evalBinomialSlopeCorner(sCell + vec2(0.0, 0.0), vertexSeed, oneHitProba, smoothW, meanHits, stdHits, N);
+    float c10 = evalBinomialSlopeCorner(sCell + vec2(1.0, 0.0), vertexSeed, oneHitProba, smoothW, meanHits, stdHits, N);
+    float c01 = evalBinomialSlopeCorner(sCell + vec2(0.0, 1.0), vertexSeed, oneHitProba, smoothW, meanHits, stdHits, N);
+    float c11 = evalBinomialSlopeCorner(sCell + vec2(1.0, 1.0), vertexSeed, oneHitProba, smoothW, meanHits, stdHits, N);
+
+    return mix(mix(c00, c10, sLerp.x), mix(c01, c11, sLerp.x), sLerp.y);
+}
+
+// Evaluates one LOD level of the Deliot & Belcour (2023) simplex glint grid
+float sampleDeliotGlintSimplex(
+    vec2 screenSkewed, vec2 scrollSkewed, float div, float lodSeed, vec2 slope, float footprintArea,
+    float p22, float halfwaySlopeScale, float logDensity, float densityRand, float gridWeight
+) {
+    float period = max(1.0, 4096.0 / div);
+    vec2 skewed = (screenSkewed + scrollSkewed) / div;
+    vec2 v0, v1, v2;
+    vec3 bary;
+    evalGlintSimplexGridSkewed(skewed, period, v0, v1, v2, bary);
+
+    vec2 seedOff = vec2(lodSeed * 37.17, lodSeed * 91.53);
+    vec3 r0 = hash32(v0 + seedOff);
+    vec3 r1 = hash32(v1 + seedOff);
+    vec3 r2 = hash32(v2 + seedOff);
+
+    // Per-vertex stochastic microfacet density randomization (zeta)
+    float g0 = sampleStdNormal(r0.x, hash12(v0 * 13.7 + seedOff));
+    float g1 = sampleStdNormal(r1.x, hash12(v1 * 13.7 + seedOff));
+    float g2 = sampleStdNormal(r2.x, hash12(v2 * 13.7 + seedOff));
+
+    vec3 nTotal = exp(clamp(vec3(logDensity) + vec3(g0, g1, g2) * densityRand, 0.0, 18.0));
+    vec3 nFootprint = nTotal * footprintArea;
+    vec3 nWeighted  = nFootprint * gridWeight;
+
+    float slopeCellArea = 1.0 / (halfwaySlopeScale * halfwaySlopeScale);
+    float hitProba = clamp(p22 * slopeCellArea, 0.0, 0.999);
+
+    float k0 = evalAngularBinomialCell(slope, v0 * 19.31 + seedOff, r0.yz, halfwaySlopeScale, hitProba, nWeighted.x);
+    float k1 = evalAngularBinomialCell(slope, v1 * 19.31 + seedOff, r1.yz, halfwaySlopeScale, hitProba, nWeighted.y);
+    float k2 = evalAngularBinomialCell(slope, v2 * 19.31 + seedOff, r2.yz, halfwaySlopeScale, hitProba, nWeighted.z);
+
+    // Strictly energy-conserving slope distribution estimate P22_hat
+    vec3 p22Hat = vec3(k0, k1, k2) / max(vec3(1e-4), nFootprint * slopeCellArea);
+    return dot(p22Hat, bary);
+}
+
+// Multiscale 2-LOD Deliot & Belcour (2023) glint slope distribution P22_glint
+// Takes scroll-free screenSkewed, 64-bit-wrapped scrollSkewed (mod 4096.0), and scroll-free footprintLen.
+float evalDeliotGlintP22(
+    vec2 screenSkewed, vec2 scrollSkewed, float footprintLen,
+    vec2 slope, float alpha, float halfwaySlopeScale,
+    float logDensity, float densityRand, float screenSpaceScale
+) {
+    float p22 = p22_beckmann(slope, alpha);
+    if (p22 < 1e-4) return 0.0;
+
+    float lod = clamp(log2(max(1e-5, footprintLen * screenSpaceScale)), -4.0, 10.0);
+    float lod0 = floor(lod);
+    float lodFrac = fract(lod);
+    float div0 = exp2(lod0);
+    float div1 = div0 * 2.0;
+
+    float area0 = div0 * div0;
+    float area1 = div1 * div1;
+
+    float s0 = sampleDeliotGlintSimplex(screenSkewed, scrollSkewed, div0, lod0,       slope, area0, p22, halfwaySlopeScale, logDensity, densityRand, 1.0 - lodFrac);
+    float s1 = sampleDeliotGlintSimplex(screenSkewed, scrollSkewed, div1, lod0 + 1.0, slope, area1, p22, halfwaySlopeScale, logDensity, densityRand, lodFrac);
+    return s0 + s1;
+}
+
+// --- Wave-Optics Thin-Film Iridescence & Multi-Order Diffraction Gratings ---
+// 1. Thin-film iridescence: Belcour & Barla (SIGGRAPH 2017), Airy summation + CIE XYZ Gaussian sensitivity.
+// 2. Spectral conversion: Wyman, Sloan & Shirley (JCGT 2013), analytic CIE 1931 XYZ color matching.
+// 3. Holographic grating: Stam (1999) / Toisoul & Ghosh (SIGGRAPH 2017), multi-order Kirchhoff equation.
+
+const mat3 XYZ_TO_REC709 = mat3(
+     3.2404542, -0.9692660,  0.0556434,
+    -1.5371385,  1.8760108, -0.2040259,
+    -0.4985314,  0.0415560,  1.0572252
+);
+
+// Analytic Fourier transform of the CIE XYZ sensitivity curves (Belcour & Barla 2017, Eq. 9)
+// Pre-scaled to O(1) micrometer units for full float32/float16 numerical safety.
+vec3 evalSensitivity(float opd_um, vec3 shift) {
+    float phase = 6.2831853 * opd_um;
+    float phase2 = phase * phase;
+    vec3 amp = vec3(0.846590, 1.000222, 1.001122);
+    vec3 pos = vec3(1.6810, 1.7953, 2.2084);
+    vec3 var = vec3(0.004328, 0.009305, 0.006612);
+
+    vec3 xyz = amp * cos(pos * phase + shift) * exp(-var * phase2);
+    xyz.x += 0.153868 * cos(2.2399 * phase + shift.x) * exp(-0.004528 * phase2);
+    return XYZ_TO_REC709 * xyz;
+}
+
+// Dielectric Fresnel reflectance and reflection phase shift at thin-film interface
+void fresnelDielectric(float ct1, float n1, float n2, out float R, out float phi) {
+    float st1 = 1.0 - ct1 * ct1;
+    float nr = n1 / n2;
+    if (nr * nr * st1 > 1.0) {
+        R = 1.0;
+        phi = 0.0;
+        return;
+    }
+    float ct2 = sqrt(max(0.0, 1.0 - nr * nr * st1));
+    float rs = (n1 * ct1 - n2 * ct2) / max(1e-5, n1 * ct1 + n2 * ct2);
+    float rp = (n2 * ct1 - n1 * ct2) / max(1e-5, n2 * ct1 + n1 * ct2);
+    R = 0.5 * (rs * rs + rp * rp);
+    phi = (n1 < n2) ? 3.14159265 : 0.0;
+}
+
+// Physically based thin-film iridescence reflectance in linear RGB (Belcour & Barla 2017)
+// cosTheta1: dot(H, V), dinc_um: film thickness in micrometers (0.20..0.95), eta2: film IOR (~1.3..1.8)
+vec3 evalIridescence(float cosTheta1, float dinc_um, float eta2, vec3 baseF0) {
+    float eta1 = 1.0;
+    float sinTheta2Sq = (eta1 / eta2) * (eta1 / eta2) * (1.0 - cosTheta1 * cosTheta1);
+    float cosTheta2 = sqrt(max(0.001, 1.0 - sinTheta2Sq));
+
+    float opd_um = 2.0 * eta2 * dinc_um * cosTheta2;
+
+    float R12, phi12;
+    fresnelDielectric(cosTheta1, eta1, eta2, R12, phi12);
+    float T121 = 1.0 - R12;
+
+    vec3 R23 = baseF0 + (vec3(1.0) - baseF0) * pow(clamp(1.0 - cosTheta2, 0.0, 1.0), 5.0);
+    vec3 phi23 = vec3(3.14159265);
+
+    vec3 phi21 = vec3(3.14159265 - phi12);
+    vec3 phi = phi21 + phi23;
+
+    vec3 R123 = clamp(R12 * R23, vec3(1e-5), vec3(0.9999));
+    vec3 r123 = sqrt(R123);
+    vec3 Rs = (T121 * T121) * R23 / (vec3(1.0) - R123);
+
+    // DC reflectance + Airy multi-bounce interference orders m = 1, 2
+    vec3 I = vec3(R12) + Rs;
+    vec3 Cm = (Rs - vec3(T121)) * r123;
+    I += 2.0 * Cm * evalSensitivity(opd_um, phi);
+    Cm *= r123;
+    I += 2.0 * Cm * evalSensitivity(2.0 * opd_um, 2.0 * phi);
+
+    return max(vec3(0.0), I);
+}
+
+// Analytic CIE 1931 XYZ color-matching approximation (Wyman, Sloan & Shirley, JCGT 2013)
+// Converts physical wavelength lambda_nm in [380, 750] nm to linear sRGB.
+vec3 wavelengthToRGB(float lambda_nm) {
+    if (lambda_nm < 380.0 || lambda_nm > 750.0) return vec3(0.0);
+    float t1 = (lambda_nm - 442.0) * ((lambda_nm < 442.0) ? 0.0624 : 0.0374);
+    float t2 = (lambda_nm - 599.8) * ((lambda_nm < 599.8) ? 0.0264 : 0.0323);
+    float t3 = (lambda_nm - 501.1) * ((lambda_nm < 501.1) ? 0.0490 : 0.0382);
+    float x = 0.362 * exp(-0.5 * t1 * t1) + 1.056 * exp(-0.5 * t2 * t2) - 0.065 * exp(-0.5 * t3 * t3);
+
+    float u1 = (lambda_nm - 568.8) * ((lambda_nm < 568.8) ? 0.0213 : 0.0247);
+    float u2 = (lambda_nm - 530.9) * ((lambda_nm < 530.9) ? 0.0613 : 0.0322);
+    float y = 0.821 * exp(-0.5 * u1 * u1) + 0.286 * exp(-0.5 * u2 * u2);
+
+    float v1 = (lambda_nm - 437.0) * ((lambda_nm < 437.0) ? 0.0845 : 0.0278);
+    float v2 = (lambda_nm - 459.0) * ((lambda_nm < 459.0) ? 0.0385 : 0.0725);
+    float z = 1.217 * exp(-0.5 * v1 * v1) + 0.681 * exp(-0.5 * v2 * v2);
+
+    return max(vec3(0.0), XYZ_TO_REC709 * vec3(x, y, z));
+}
+
+// Multi-order Kirchhoff diffraction grating (Stam 1999 / Toisoul & Ghosh SIGGRAPH 2017)
+// Solves d * |dot(T, L + V) + radialMod| = m * lambda across orders m = 1..4.
+vec3 evalDiffractionGrating(vec3 T_grating, vec3 L, vec3 V, float d_nm, float radialMod) {
+    float opticalPath = d_nm * abs(dot(T_grating, L + V) + radialMod);
+    vec3 spectrum = vec3(0.0);
+    spectrum += wavelengthToRGB(opticalPath)          * 1.00;
+    spectrum += wavelengthToRGB(opticalPath * 0.5000) * 0.62;
+    spectrum += wavelengthToRGB(opticalPath * 0.3333) * 0.40;
+    spectrum += wavelengthToRGB(opticalPath * 0.2500) * 0.26;
+    return spectrum;
 }
 
 // --- 2D Signed Distance Field (SDF) Primitives ---
@@ -1315,19 +1528,19 @@ SurfaceData getSurface(vec2 uv) {
     }
     
     // --- 3. Rock Slab Micro-Grain (Affixed to Scrolling Material Space) ---
-    float microGrain = noise2D(pos * 16.0) * 0.014;
+    float microGrain = noise2D(mod(pos * 16.0, 256.0)) * 0.014;
     
     // --- 4. Interactive Tactile Cursor Deformation (Modifying Embossing) ---
     vec2 ptrDistVec = (uv - u_pointer) * vec2(aspect, 1.0);
     float ptrDist = length(ptrDistVec);
     float cursorIndent = -0.32 * exp(-(ptrDist * ptrDist) / 0.018);
     float ptrSpeed = length(u_pointer_vel);
-    float wake = sin(ptrDist * 32.0 - u_time * 7.0) * exp(-ptrDist * 10.0) * ptrSpeed * 0.35;
+    float wake = sin(ptrDist * 32.0 - mod(u_time * 7.0, 6.2831853)) * exp(-ptrDist * 10.0) * ptrSpeed * 0.35;
     
     // Keystroke ripple / shockwave displacement
     vec2 kDiff = (uv - u_keystroke_pos) * vec2(aspect, 1.0);
     float kDist = length(kDiff);
-    float ripple = sin(kDist * 32.0 - u_time * 8.0) * exp(-kDist * 4.0) * u_shockwave_intensity * 0.08;
+    float ripple = sin(kDist * 32.0 - mod(u_time * 8.0, 6.2831853)) * exp(-kDist * 4.0) * u_shockwave_intensity * 0.08;
     
     float totalH = 0.5 + glyphH + textH + stickerH + microGrain + cursorIndent + wake + ripple;
     
@@ -1371,8 +1584,8 @@ void main() {
     vec3 V = normalize(vec3(0.5 - uv.x, 0.5 - uv.y, 1.4));
     
     // --- Material Phase Mapping (Affixed to Scrolling Material Space) ---
-    // The material textures move in lockstep with the glyphs and stone slab!
-    vec2 matCoord = pos * 0.42 + vec2(u_time * 0.008, u_time * 0.004);
+    // Periodic mod 256.0 matches noise2D lattice period, preventing float precision loss forever
+    vec2 matCoord = mod(pos * 0.42 + vec2(mod(u_time * 0.008, 256.0), mod(u_time * 0.004, 256.0)), 256.0);
     float warp = noise2D(matCoord * 2.0);
     float phaseNoise = noise2D(matCoord + vec2(warp * 0.42, -warp * 0.32)) * 0.5 + 0.5;
     float phaseAux   = noise2D(matCoord * 1.6 + vec2(19.2, 54.7)) * 0.5 + 0.5;
@@ -1384,7 +1597,7 @@ void main() {
     float wIridescent = smoothstep(0.55, 0.78, phaseNoise);
     
     // --- Directional Ambient & Key Light (Soft, Elegant, No Blinding Glare) ---
-    float lightAng = u_time * 0.32;
+    float lightAng = mod(u_time * 0.32, 6.2831853);
     vec3 L_key = normalize(vec3(cos(lightAng) * 0.55 - 0.25, sin(lightAng) * 0.45 + 0.4, 0.85));
     vec3 H_key = normalize(L_key + V);
     
@@ -1409,15 +1622,17 @@ void main() {
                         + u_color_sheen.rgb * sssTotal * 0.6
                         + vec3(1.0) * specKeyGloss * 0.75;
     
-    // --- Shading Phase 3a: Thin-Film Iridescent Interference (Wave Optics) ---
-    float cosTheta = max(0.0, dot(N, V));
-    float filmThickness = 380.0 + 340.0 * sin(phaseAux * 6.28318 + u_time * 0.15);
-    float opd = 2.0 * 1.48 * filmThickness * sqrt(max(0.01, 1.0 - (1.0 - cosTheta * cosTheta) / (1.48 * 1.48)));
-    vec3 lambda = vec3(650.0, 530.0, 440.0);
-    vec3 iridSpectrum = 0.5 + 0.5 * cos(6.28318 * (opd / lambda));
-    float iridFresnel = pow(1.0 - cosTheta, 2.5);
-    vec3 colIridescent = mix(u_color_stone.rgb * diffuse, iridSpectrum * u_color_sheen.rgb * 1.8, iridFresnel * u_iridescence_strength);
-    colIridescent += iridSpectrum * specKeyGloss * 1.1;
+    // --- Shading Phase 3a: Thin-Film Iridescent Interference (Belcour & Barla, SIGGRAPH 2017) ---
+    // Analytically integrates Airy multi-bounce reflectance against CIE XYZ Gaussian sensitivity curves
+    // using the microfacet incidence angle cos(theta_1) = dot(H, V).
+    float cosThetaN = max(0.0, dot(N, V));
+    float cosThetaIrid = max(0.01, dot(H_key, V));
+    float filmThicknessUm = 0.42 + 0.34 * sin(phaseAux * 6.2831853 + mod(u_time * 0.15, 6.2831853));
+    vec3 iridBaseF0 = mix(u_color_sheen.rgb, vec3(0.85), 0.35);
+    vec3 iridSpectrum = evalIridescence(cosThetaIrid, filmThicknessUm, 1.48, iridBaseF0);
+    float iridWeight = clamp((0.25 + 0.75 * pow(1.0 - cosThetaN, 2.0)) * u_iridescence_strength, 0.0, 1.0);
+    vec3 colIridescent = mix(u_color_stone.rgb * diffuse, iridSpectrum * (0.45 + 0.85 * diffuse), iridWeight);
+    colIridescent += iridSpectrum * specKeyGloss * 1.45;
     
     // --- Composite Base Surface Material ---
     vec3 finalColor = colMatte * wMatte + colPorcelain * wPorcelain + colIridescent * wIridescent;
@@ -1438,8 +1653,6 @@ void main() {
     vec2 slopes = -vec2(hx, hy) / max(0.0001, hz);
     
     float alphaGlitter = 0.36;
-    float alphaDict = 0.5;
-    float slopeScale = alphaGlitter / alphaDict;
     float hz4 = hz * hz * hz * hz;
     
     // Smith Masking-Shadowing for Beckmann distribution
@@ -1453,20 +1666,19 @@ void main() {
     vec3 F0_flake = mix(u_color_gold.rgb, vec3(1.0), 0.35);
     vec3 F_flake = F0_flake + (vec3(1.0) - F0_flake) * pow(clamp(1.0 - VdotH, 0.0, 1.0), 5.0);
     
-    // Screen-Resolution Proportional Microflake Density (Chermain et al. 2020)
+    // Screen-Resolution Proportional Microflake Density (Deliot & Belcour, HPG 2023)
     float targetPixelsPerFlake = 1.35;
     float zoomScale = max(0.25, u_glyph_zoom);
     float pixelsPerMaterialUnit = u_resolution.y / (3.8 * zoomScale);
     float flakeFreq = max(48.0, pixelsPerMaterialUnit / targetPixelsPerFlake);
 
-    // --- Shading Phase 4: Patterned Physically Based Microflake Glints (Chermain et al. 2020) ---
-    // Rather than an isotropic uniform noise carpet, glitter is patterned:
-    // 1. Organic mineral veins (flowing pyrite & calcite seams in lapis/marble)
-    // 2. Chiseled glyph inlays (powdered gold leaf in carved runes via u_holo_mode)
-    // 3. Fortune tablet clearance (preserving typographical legibility)
+    // --- Shading Phase 4: Patterned Physically Based Microflake Glints (Deliot & Belcour, HPG 2023) ---
+    // Pure-ALU O(1) distributed binomial law on an equilateral simplex grid (zero texture lookups).
+    // Uses scroll-free screen derivatives and 64-bit-wrapped u_glitter_scroll (mod 4096.0)
+    // to guarantee full float32 precision over indefinite scrolling runtimes.
     if (u_glitter_density > 0.01 && NdotH > 0.01) {
-        // Veined mineral distribution
-        float veinNoise = noise2D(pos * 0.55 + vec2(warp * 0.40, -warp * 0.30));
+        // Veined mineral distribution (wrapped mod 256.0 to match periodic noise2D lattice)
+        float veinNoise = noise2D(mod(pos * 0.55, 256.0) + vec2(warp * 0.40, -warp * 0.30));
         float mineralVein = smoothstep(0.38, 0.72, veinNoise);
         
         // Concentrated gold inlay inside carved glyph crevices and raised bevels
@@ -1478,57 +1690,28 @@ void main() {
         // Suppress stone glitter inside fortune text area so typography remains crisp and clear
         stoneGlitterMask *= (1.0 - surf.textMask * 0.88);
         
-        vec2 flakeCoord = pos * flakeFreq;
-        vec2 flakeCell = floor(flakeCoord);
+        // Scroll-free screen-space flake coordinates and derivatives (always bounded in [0, ~3000])
+        vec2 screenFlakeUV = (uv * vec2(aspect, 1.0)) * (3.8 * zoomScale * flakeFreq);
+        float stoneFootprintLen = max(length(dFdx(screenFlakeUV)), length(dFdy(screenFlakeUV)));
+        vec2 screenSkewed = vec2(screenFlakeUV.x - 0.57735027 * screenFlakeUV.y, 1.15470054 * screenFlakeUV.y);
         
-        // Multiscale footprint estimation via hardware screen-space derivatives
-        vec2 dCoordX = dFdx(flakeCoord);
-        vec2 dCoordY = dFdy(flakeCoord);
-        float footprint = max(length(dCoordX), length(dCoordY));
-        float lod = clamp(log2(max(1.0, footprint * 1.2)), 0.0, 15.0);
+        float stoneLogDensity = mix(0.9, 2.2, clamp(u_glitter_density * stoneGlitterMask, 0.0, 1.0));
         
-        vec2 flakeJitter = (hash22(flakeCell * 71.3) - 0.5) * 0.55;
-        vec2 cellCenter = flakeCell + 0.5 + flakeJitter;
-        float flakeDist = length(flakeCoord - cellCenter);
-        float flakeProfile = smoothstep(0.65, 0.12, flakeDist);
+        // Evaluate Deliot & Belcour (2023) distributed binomial slope distribution P22_glint
+        float p22_G = evalDeliotGlintP22(screenSkewed, u_glitter_scroll, stoneFootprintLen, slopes,        alphaGlitter, 14.0, stoneLogDensity, 1.6, 1.4);
+        float p22_R = evalDeliotGlintP22(screenSkewed, u_glitter_scroll, stoneFootprintLen, slopes * 0.98, alphaGlitter, 14.0, stoneLogDensity, 1.6, 1.4);
+        float p22_B = evalDeliotGlintP22(screenSkewed, u_glitter_scroll, stoneFootprintLen, slopes * 1.02, alphaGlitter, 14.0, stoneLogDensity, 1.6, 1.4);
         
-        float theta = hash12(flakeCell * 19.31) * 6.283185;
-        float cosT = cos(theta);
-        float sinT = sin(theta);
-        vec2 rotSlopes = vec2(
-            cosT * slopes.x - sinT * slopes.y,
-            sinT * slopes.x + cosT * slopes.y
-        );
-        vec2 uSlope = rotSlopes / slopeScale;
+        vec3 D_glint = vec3(p22_R, p22_G, p22_B) / max(0.0001, hz4);
+        vec3 glintRadiance = (F_flake * G_smith * D_glint) / (4.0 * NdotV);
         
-        float hA = hash12(flakeCell * 37.71);
-        float hB = hash12(flakeCell * 89.23);
-        int tripletA = int(floor(hA * 64.0));
-        int tripletB = int(floor(hB * 64.0));
-        int chanA = int(floor(fract(hA * 64.0) * 3.0));
-        int chanB = int(floor(fract(hB * 64.0) * 3.0));
+        // Analytical HDR optical bloom synthesis for high-intensity specular peaks
+        float glintMag = max(glintRadiance.r, max(glintRadiance.g, glintRadiance.b));
+        float flareIntensity = pow(clamp(glintMag * 0.14, 0.0, 1.0), 0.6);
+        vec3 flareColor = mix(u_color_gold.rgb, vec3(1.0), 0.45);
+        vec3 luminousGlint = glintRadiance + flareColor * (flareIntensity * 1.6);
         
-        // Cellular occupancy mask controlled by patterned glitter density
-        float cellHash = hash12(flakeCell * 53.11);
-        float cellActive = step(1.0 - (u_glitter_density * stoneGlitterMask * 0.72), cellHash);
-        
-        if (cellActive > 0.0 || lod > 2.0) {
-            float maskWeight = mix(cellActive, 1.0, smoothstep(2.0, 6.0, lod));
-            float activeProfile = mix(flakeProfile, 1.0, smoothstep(1.5, 4.0, lod));
-            
-            float P1_G = sampleGlintMarginal(uSlope.x, tripletA, chanA, lod);
-            float P2_G = sampleGlintMarginal(uSlope.y, tripletB, chanB, lod);
-            float P1_R = sampleGlintMarginal(uSlope.x * 0.985, tripletA, chanA, lod);
-            float P2_R = sampleGlintMarginal(uSlope.y * 0.985, tripletB, chanB, lod);
-            float P1_B = sampleGlintMarginal(uSlope.x * 1.015, tripletA, chanA, lod);
-            float P2_B = sampleGlintMarginal(uSlope.y * 1.015, tripletB, chanB, lod);
-            
-            vec3 jointP = vec3(P1_R * P2_R, P1_G * P2_G, P1_B * P2_B);
-            vec3 D_glint = jointP / (slopeScale * slopeScale * max(0.0001, hz4));
-            vec3 glintRadiance = (F_flake * G_smith * D_glint) / (4.0 * NdotV);
-            
-            finalColor += glintRadiance * maskWeight * activeProfile * (u_glitter_density * stoneGlitterMask * 2.2);
-        }
+        finalColor += luminousGlint * (u_glitter_density * stoneGlitterMask * 1.15);
     }
     
     // --- Shading Phase 5: Gilded Inlay on Embossed Ridges ---
@@ -1562,27 +1745,20 @@ void main() {
         float rTrack = length(dTrack);
         vec3 T_disc = normalize(vec3(-dTrack.y, dTrack.x, 0.001));
         
-        // Channel A Tangent Frame (Concentric circular grooves)
+        // Channel A Tangent Frame (Concentric circular grooves: periodic spacing along radial B_cdA)
         vec3 T_cdA = normalize(T_disc - N * dot(N, T_disc));
         vec3 B_cdA = normalize(cross(N, T_cdA));
         
-        float u_cdA = dot(T_cdA, L_key - V);
-        float v_cdA = dot(B_cdA, H_key);
+        // Multi-order Kirchhoff diffraction grating (Stam 1999 / Toisoul & Ghosh 2017) + CIE XYZ spectral color
+        float gratingSweep = 0.08 * sin(mod(u_time * 0.45, 6.2831853));
+        float v_cdA = dot(T_cdA, H_key);
+        vec3 cdRainbowA = evalDiffractionGrating(B_cdA, L_key, V, 2150.0, rTrack * 0.18 + gratingSweep);
+        float cdFanA = exp(-(v_cdA * v_cdA) / (2.0 * 0.055 * 0.055)) * pow(max(0.0, dot(N, H_key)), 12.0);
         
-        float cdPhaseA = u_cdA * 26.0 + rTrack * 16.0 + u_time * 0.18;
-        vec3 cdRainbowA = 0.5 + 0.5 * cos(6.28318 * (cdPhaseA + vec3(0.0, 0.33, 0.67)));
-        float cdFanA = exp(-(v_cdA * v_cdA) / (2.0 * 0.045 * 0.045)) * pow(max(0.0, dot(N, H_key)), 14.0);
-        
-        // Channel B Tangent Frame (Orthogonal kinetic color-flip grating)
-        vec3 T_cdB = B_cdA;
-        vec3 B_cdB = -T_cdA;
-        
-        float u_cdB = dot(T_cdB, L_key - V);
-        float v_cdB = dot(B_cdB, H_key);
-        
-        float cdPhaseB = u_cdB * 26.0 + rTrack * 22.0 + 1.5708 + u_time * 0.18;
-        vec3 cdRainbowB = 0.5 + 0.5 * cos(6.28318 * (cdPhaseB + vec3(0.0, 0.33, 0.67)));
-        float cdFanB = exp(-(v_cdB * v_cdB) / (2.0 * 0.045 * 0.045)) * pow(max(0.0, dot(N, H_key)), 14.0);
+        // Channel B Tangent Frame (Orthogonal etched grating: periodic spacing along T_cdA)
+        float v_cdB = dot(B_cdA, H_key);
+        vec3 cdRainbowB = evalDiffractionGrating(T_cdA, L_key, V, 1750.0, rTrack * 0.24 - gratingSweep);
+        float cdFanB = exp(-(v_cdB * v_cdB) / (2.0 * 0.055 * 0.055)) * pow(max(0.0, dot(N, H_key)), 12.0);
         
         float cdBroad = pow(max(0.0, dot(N, H_key)), 34.0) * 0.6;
         
@@ -1600,53 +1776,33 @@ void main() {
         float microDots = step(0.65, sin(qSticker.x * 85.0) * sin(qSticker.y * 85.0)) * 0.16;
         colFoil += cdRainbowA * microDots * 0.35 * holoPwr;
         
-        // Prismatic Diamond-Dust Glitter Vinyl Substrate (Active in Mode 1 & Mode 2)
+        // Prismatic Diamond-Dust Glitter Vinyl Substrate (Deliot & Belcour HPG 2023, Active in Mode 1 & Mode 2)
         if (foilMode >= 1 && NdotH > 0.01) {
             float sFlakeFreq = flakeFreq * 1.4;
+            // surf.stickerLocal is already sticker-local [-1, 1], never accumulating scroll
             vec2 sFlakeCoord = surf.stickerLocal * sFlakeFreq;
-            vec2 sFlakeCell = floor(sFlakeCoord);
-            vec2 sFlakeJitter = (hash22(sFlakeCell * 63.7 + vec2(19.3, 81.1)) - 0.5) * 0.55;
-            vec2 sCellCenter = sFlakeCell + 0.5 + sFlakeJitter;
-            float sFlakeDist = length(sFlakeCoord - sCellCenter);
-            float sFlakeProfile = smoothstep(0.68, 0.10, sFlakeDist);
+            float sFootprintLen = max(length(dFdx(sFlakeCoord)), length(dFdy(sFlakeCoord)));
+            vec2 sSkewed = vec2(sFlakeCoord.x - 0.57735027 * sFlakeCoord.y, 1.15470054 * sFlakeCoord.y);
             
-            float sTheta = hash12(sFlakeCell * 31.41) * 6.283185;
-            vec2 sRotSlopes = vec2(
-                cos(sTheta) * slopes.x - sin(sTheta) * slopes.y,
-                sin(sTheta) * slopes.x + cos(sTheta) * slopes.y
-            );
-            vec2 sUSlope = sRotSlopes / slopeScale;
+            // Multi-spectral chromatic scintillation via Deliot & Belcour (2023) distributed binomial law
+            float sP22_G = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes,        alphaGlitter, 18.0, 1.25, 1.8, 1.4);
+            float sP22_R = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes * 0.93, alphaGlitter, 18.0, 1.25, 1.8, 1.4);
+            float sP22_B = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes * 1.07, alphaGlitter, 18.0, 1.25, 1.8, 1.4);
             
-            float sHA = hash12(sFlakeCell * 41.19);
-            float sHB = hash12(sFlakeCell * 93.37);
-            int sTripA = int(floor(sHA * 64.0));
-            int sTripB = int(floor(sHB * 64.0));
-            int sChA = int(floor(fract(sHA * 64.0) * 3.0));
-            int sChB = int(floor(fract(sHB * 64.0) * 3.0));
+            vec3 sD_glint = vec3(sP22_R, sP22_G, sP22_B) / max(0.0001, hz4);
             
-            float sOccupancy = step(0.32, hash12(sFlakeCell * 57.81));
+            // Kinetic Chromatic Dispersion: Hue sweeps across the rainbow as view/light angle shifts
+            float sDispersionPhase = dot(slopes, vec2(14.0, 9.5)) + hash12(floor(sFlakeCoord) * 17.9) * 6.28318;
+            vec3 sRainbowTint = 0.5 + 0.5 * cos(sDispersionPhase + vec3(0.0, 2.094, 4.189));
             
-            // Multiscale LOD estimation for sticker microflakes
-            vec2 sdCoordX = dFdx(sFlakeCoord);
-            vec2 sdCoordY = dFdy(sFlakeCoord);
-            float sFootprint = max(length(sdCoordX), length(sdCoordY));
-            float sLod = clamp(log2(max(1.0, sFootprint * 1.2)), 0.0, 15.0);
-            
-            // Multi-spectral chromatic scintillation for rainbow diamond dust
-            float sP1_G = sampleGlintMarginal(sUSlope.x, sTripA, sChA, sLod);
-            float sP2_G = sampleGlintMarginal(sUSlope.y, sTripB, sChB, sLod);
-            float sP1_R = sampleGlintMarginal(sUSlope.x * 0.94, sTripA, sChA, sLod);
-            float sP2_R = sampleGlintMarginal(sUSlope.y * 0.94, sTripB, sChB, sLod);
-            float sP1_B = sampleGlintMarginal(sUSlope.x * 1.06, sTripA, sChA, sLod);
-            float sP2_B = sampleGlintMarginal(sUSlope.y * 1.06, sTripB, sChB, sLod);
-            
-            vec3 sJointP = vec3(sP1_R * sP2_R, sP1_G * sP2_G, sP1_B * sP2_B);
-            vec3 sD_glint = sJointP / (slopeScale * slopeScale * max(0.0001, hz4));
-            
-            // Kinetic chromatic hue shift per flake facet
-            vec3 sRainbowTint = 0.5 + 0.5 * cos(6.28318 * (hash12(sFlakeCell * 17.9) + vec3(0.0, 0.33, 0.67)));
             vec3 sGlintRadiance = (F_flake * G_smith * sD_glint) / (4.0 * NdotV);
-            vec3 stickerGlitter = sGlintRadiance * sRainbowTint * sOccupancy * sFlakeProfile * (foilMode == 1 ? 5.2 : 3.4) * holoPwr;
+            
+            // Analytical optical flare halo for diamond-dust sticker glitter
+            float sGlintMag = max(sGlintRadiance.r, max(sGlintRadiance.g, sGlintRadiance.b));
+            float sFlare = pow(clamp(sGlintMag * 0.16, 0.0, 1.0), 0.55);
+            vec3 sLuminousGlint = sGlintRadiance * sRainbowTint + (sRainbowTint + vec3(0.75)) * (sFlare * 1.9);
+            
+            vec3 stickerGlitter = sLuminousGlint * (foilMode == 1 ? 2.4 : 1.6) * holoPwr;
             
             colFoil += stickerGlitter;
         }
@@ -1677,7 +1833,7 @@ void main() {
     
     // --- Active Keystroke Shockwave & Energy Vein Glow ---
     if (u_keystroke_energy > 0.01) {
-        float kPulse = sin(surf.glyphDist * 40.0 - u_time * 12.0) * 0.5 + 0.5;
+        float kPulse = sin(surf.glyphDist * 40.0 - mod(u_time * 12.0, 6.2831853)) * 0.5 + 0.5;
         float energyVein = smoothstep(0.04, -0.02, surf.glyphDist) * u_keystroke_energy * kPulse;
         finalColor += u_color_sheen.rgb * energyVein * 1.4;
     }
@@ -1686,6 +1842,11 @@ void main() {
     vec2 vigUV = uv * (1.0 - uv.yx);
     float vignette = clamp(vigUV.x * vigUV.y * 22.0, 0.0, 1.0);
     finalColor = mix(u_color_void.rgb, finalColor, vignette);
+    
+    // Soft-shoulder tone mapping: preserves saturated color in intense specular glints
+    // Prevents hard channel clipping to flat white while keeping shadows and midtones pristine
+    vec3 mappedColor = finalColor / (vec3(1.0) + finalColor * 0.18);
+    finalColor = mix(finalColor, mappedColor, smoothstep(0.7, 2.5, max(finalColor.r, max(finalColor.g, finalColor.b))));
     
     fragColor = vec4(finalColor, 1.0) * qt_Opacity;
 }

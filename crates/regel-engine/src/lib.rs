@@ -306,7 +306,10 @@ impl EngineCore {
             return; // Zero CPU/GPU work when obscured or screen off
         }
 
-        self.state.time += dt;
+        // Wrap modulo 100 * (2*PI / 0.06) (~2.9 hours), an exact common period of all
+        // engine harmonics (0.06, 0.30, 0.42), preventing f32 precision loss over long runtimes.
+        const TIME_WRAP_PERIOD: f32 = 100.0 * std::f32::consts::TAU / 0.06;
+        self.state.time = (self.state.time + dt) % TIME_WRAP_PERIOD;
         self.state.delta_time = dt;
 
         // 1. Physical decay of transient impulses
