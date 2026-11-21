@@ -31,10 +31,14 @@ Item {
     property real vocalEnergy: 0.0
     property bool transientHit: false
 
-    // Relativistic synchrotron jet flare on downbeats
+    // Audio activity gate (0.0 during silence / idle fallback, ramps smoothly to 1.0 with real audio)
+    readonly property real audioLevel: Math.max(root.bass, root.mids, root.treble)
+    readonly property real audioActivity: Math.max(0.0, Math.min(1.0, (audioLevel - 0.11) / 0.30))
+
+    // Relativistic synchrotron jet flare on real audio downbeats
     property real jetFlare: 0.0
     onDownbeatChanged: {
-        if (downbeat) {
+        if (downbeat && root.audioActivity > 0.05) {
             jetFlareAnim.restart()
         }
     }
@@ -224,10 +228,13 @@ Item {
         id: cosmicShader
         anchors.fill: parent
 
-        // Neural audio astrophysical choreography
-        readonly property real effectiveLens: root.lensStrength * (1.0 + 0.22 * Math.sin(Math.PI * 2.0 * root.beatPhase))
-        readonly property real effectiveAccretion: root.accretionRate * (1.0 + 0.2 * Math.cos(Math.PI * 2.0 * root.beatPhase))
-        readonly property real vocalPlasma: root.isVocal ? root.vocalEnergy * 0.4 : 0.0
+        // Neural audio astrophysical choreography (gated on real audio energy so silence stays calm)
+        readonly property real activeBass: Math.max(0.0, root.bass - 0.10) * 1.12
+        readonly property real activeMids: Math.max(0.0, root.mids - 0.10) * 1.12
+        readonly property real activeTreble: Math.max(0.0, root.treble - 0.10) * 1.12
+        readonly property real effectiveLens: root.lensStrength * (1.0 + 0.18 * root.audioActivity * Math.sin(Math.PI * 2.0 * root.beatPhase))
+        readonly property real effectiveAccretion: root.accretionRate * (1.0 + 0.16 * root.audioActivity * Math.cos(Math.PI * 2.0 * root.beatPhase))
+        readonly property real vocalPlasma: (root.isVocal && root.audioActivity > 0.05) ? root.vocalEnergy * 0.4 : 0.0
 
         // Uniforms matching GLSL std140 uniform block in cosmic.frag
         property vector2d u_resolution: Qt.vector2d(Math.max(1.0, root.width), Math.max(1.0, root.height))
@@ -245,9 +252,9 @@ Item {
         property real u_keystroke_energy: root.keystrokeEnergy
         property real u_shockwave_intensity: root.shockwaveIntensity
         property real u_vortex_speed: root.vortexSpeed
-        property real u_bass: root.bass + root.jetFlare * 0.35
-        property real u_mids: root.mids + vocalPlasma * 0.25
-        property real u_treble: root.treble + (root.transientHit ? 0.25 : 0.0)
+        property real u_bass: activeBass + root.jetFlare * 0.35
+        property real u_mids: activeMids + vocalPlasma * 0.25
+        property real u_treble: activeTreble + ((root.transientHit && root.audioActivity > 0.05) ? 0.25 : 0.0)
         property real u_lens_strength: effectiveLens
         property vector2d u_camera_offset: Qt.vector2d(root.cameraOffset.x, root.cameraOffset.y)
         property real u_disk_tilt: root.diskTilt
