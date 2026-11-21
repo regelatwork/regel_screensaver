@@ -130,17 +130,18 @@ CONCEPTS = {
             vocalEnergy: parent.vocalEnergy
             transientHit: parent.transientHit
             lensStrength: 1.2
-            autoHyperspace: true
-            colorCore: "#000000"
-            colorDisk: "#ff6600"
-            colorJets: "#00eeff"
-            colorNebula: "#220044"
+            autoHyperspace: false
+            colorCore: "#38bdf8"
+            colorDisk: "#f97316"
+            colorJets: "#a855f7"
+            colorNebula: "#0f172a"
         }"""
     },
     5: {
         "name": "synthwave_megacity",
         "title": "Procedural Synthwave Megacity",
-        "snippet": """SynthwaveMegacity {
+        "snippet": """Palettes { id: cityPalettesRef }
+        SynthwaveMegacity {
             anchors.fill: parent
             simTime: parent.simTime
             bass: parent.bass
@@ -153,12 +154,12 @@ CONCEPTS = {
             isVocal: parent.isVocal
             vocalEnergy: parent.vocalEnergy
             transientHit: parent.transientHit
-            rainDensity: 0.7
-            fogDensity: 0.85
-            colorSky: "#1a052e"
-            colorNeon1: "#ff007f"
-            colorNeon2: "#00ffd5"
-            colorGrid: "#ff0055"
+            rainDensity: 0.65
+            fogDensity: 0.80
+            colorSky: cityPalettesRef.cityPalettes[parent.paletteIdx % cityPalettesRef.cityPalettes.length].sky
+            colorNeon1: cityPalettesRef.cityPalettes[parent.paletteIdx % cityPalettesRef.cityPalettes.length].neon1
+            colorNeon2: cityPalettesRef.cityPalettes[parent.paletteIdx % cityPalettesRef.cityPalettes.length].neon2
+            colorGrid: cityPalettesRef.cityPalettes[parent.paletteIdx % cityPalettesRef.cityPalettes.length].grid
         }"""
     },
     6: {
@@ -317,7 +318,7 @@ class CaptureEngine:
             cur_sim = warmup + t * duration
             # Audio simulation curve
             if audio_sim == "none":
-                b, m, tr = 0.1, 0.1, 0.1
+                b, m, tr = 0.0, 0.0, 0.0
             else:
                 phase = t * 2 * math.pi
                 b = max(0.12, min(1.0, 0.55 + 0.42 * math.sin(phase * 2)))
@@ -332,11 +333,11 @@ class CaptureEngine:
                 root.setProperty("treble", tr)
                 root.setProperty("rms", max(b, m, tr) * 0.85)
                 root.setProperty("beatPhase", (cur_sim * 2.0) % 1.0)
-                root.setProperty("beat", ((cur_sim * 2.0) % 1.0) < 0.15)
-                root.setProperty("downbeat", ((cur_sim * 0.5) % 1.0) < 0.15)
-                root.setProperty("vocalEnergy", m * 0.9)
-                root.setProperty("isVocal", m > 0.4)
-                root.setProperty("transientHit", b > 0.8)
+                root.setProperty("beat", False if audio_sim == "none" else (((cur_sim * 2.0) % 1.0) < 0.15))
+                root.setProperty("downbeat", False if audio_sim == "none" else (((cur_sim * 0.5) % 1.0) < 0.15))
+                root.setProperty("vocalEnergy", 0.0 if audio_sim == "none" else m * 0.9)
+                root.setProperty("isVocal", False if audio_sim == "none" else (m > 0.4))
+                root.setProperty("transientHit", False if audio_sim == "none" else (b > 0.8))
 
             self.wait(int(1000 / fps))
             frame_img = self.grab_current_frame()
