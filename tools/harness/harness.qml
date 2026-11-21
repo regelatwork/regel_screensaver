@@ -108,17 +108,21 @@ ApplicationWindow {
         { name: "Cyberpunk Deck (Obsidian & Amber)",        bg: "#0a0a0f", dye1: "#fed7aa", dye2: "#1f1d2b", dye3: "#261304" }
     ]
 
-    // Concept 9 Palettes (The Embossed Glyph Matrix)
+    // Concept 9 Palettes (The Embossed Glyph Matrix — 13 Procedural Substrates & Medallion Crafts)
     readonly property var glyphPalettes: [
-        { name: "Imperial Jade & Porcelain (Default)", bg: "#081c15", dye1: "#edf6f9", dye2: "#d4af37", dye3: "#52b788" },
-        { name: "Obsidian & Iridescent Oil-Slick",      bg: "#0b0c10", dye1: "#1f2833", dye2: "#66fcf1", dye3: "#c77dff" },
-        { name: "Alabaster & Rose Gold",              bg: "#2b2024", dye1: "#fff1e6", dye2: "#e07a5f", dye3: "#f4a261" },
-        { name: "Lapislazuli & Celestial Gold",       bg: "#0d1b2a", dye1: "#e0e1dd", dye2: "#e0a96d", dye3: "#415a77" },
-        { name: "Cybernetic Bismuth Monolith",         bg: "#161a1d", dye1: "#f5f3f4", dye2: "#ffb703", dye3: "#00b4d8" },
-        { name: "Starlight Diamond & Platinum (Ultra Glitter)", bg: "#0c0e14", dye1: "#ffffff", dye2: "#e2e8f0", dye3: "#67e8f9" },
-        { name: "Prismatic Opal & Hologram (Ultra Iridescent / CD Hologram)", bg: "#12101e", dye1: "#fdfbf7", dye2: "#f472b6", dye3: "#38bdf8" },
-        { name: "Cosmic Nebula & Amethyst (Glitter & Iridescence)", bg: "#13091f", dye1: "#f3e8ff", dye2: "#d946ef", dye3: "#06b6d4" },
-        { name: "Abalone Shell & Oceanic Nacre",       bg: "#041c1e", dye1: "#ecfeff", dye2: "#2dd4bf", dye3: "#a78bfa" }
+        { name: "Song Celadon & Kintsugi Porcelain (Default)",   bg: "#0a241c", dye1: "#e6f2ec", dye2: "#d4af37", dye3: "#52b788" },
+        { name: "Tenmoku Oil-Spot Ceramic",                      bg: "#0e0a0d", dye1: "#2c2220", dye2: "#d6944b", dye3: "#4ea8de" },
+        { name: "Carrara Marble & Rose Gold",                    bg: "#2a2124", dye1: "#fdf2e9", dye2: "#e07a5f", dye3: "#f4a261" },
+        { name: "Lapislazuli & Pyrite Seals",                    bg: "#0d1b2a", dye1: "#e0e1dd", dye2: "#e5b05c", dye3: "#415a77" },
+        { name: "Volcanic Obsidian & Prismatic Foil",            bg: "#090a0e", dye1: "#1c2430", dye2: "#66fcf1", dye3: "#c77dff" },
+        { name: "Cybernetic Bismuth Monolith",                   bg: "#14181c", dye1: "#f0f3f5", dye2: "#ffb703", dye3: "#00b4d8" },
+        { name: "Hammered Platinum & Starlight Diamond",         bg: "#11141b", dye1: "#f5f8fc", dye2: "#e2e8f0", dye3: "#67e8f9" },
+        { name: "Abalone Shell & Fire Opal Nacre",               bg: "#041c1e", dye1: "#ecfeff", dye2: "#2dd4bf", dye3: "#a78bfa" },
+        { name: "Tiger-Flame Maple Lutherie",                    bg: "#3b1f0e", dye1: "#f5dca4", dye2: "#d98a36", dye3: "#f6c270" },
+        { name: "Burl Walnut & French Polish",                   bg: "#1d100a", dye1: "#6b3822", dye2: "#e2b15b", dye3: "#b87a4b" },
+        { name: "Shou Sugi Ban Charred Cedar",                   bg: "#0f0c0b", dye1: "#7a4424", dye2: "#e8b04b", dye3: "#c96d3b" },
+        { name: "Workshop Pine & Holo Stickers",                 bg: "#5e472f", dye1: "#c9ad86", dye2: "#d9a05b", dye3: "#8a6d4b" },
+        { name: "Weathered Silver Driftwood",                    bg: "#3c3b38", dye1: "#a6a298", dye2: "#9e8c74", dye3: "#7d858c" }
     ]
 
     property int selectedPalette: 0

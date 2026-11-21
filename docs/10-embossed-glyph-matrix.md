@@ -208,25 +208,31 @@ To avoid visual fatigue, loss of focus, and the "wet asphalt / metallic car pain
 
 ---
 
-## 4. Color Themes & Material Palettes
+## 4. Color Themes, Procedural Substrates & Artisanal Medallion Crafts (13 Themes)
 
-| Preset | Stone (Matte) | Porcelain (SSS) | Gold Inlay / Glint | Sheen / Tint | Deep Void | Primary Characteristic |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **01: Imperial Jade & Porcelain (Default)** | `#081c15` (Deep Jade) | `#edf6f9` (Milky Porcelain) | `#d4af37` (Imperial Gold) | `#52b788` (Emerald Sheen) | `#020907` | Balanced Classical Bas-Relief |
-| **02: Obsidian & Prismatic Foil Stickers** | `#0b0c10` (Volcanic Basalt) | `#1f2833` (Smoked Glass) | `#66fcf1` (Cyan Diamond) | `#c77dff` (Peacock Violet) | `#000000` | Prismatic Holographic Foil Stickers |
-| **03: Alabaster & Rose Gold** | `#2b2024` (Porphyry Stone) | `#fff1e6` (Warm Alabaster) | `#e07a5f` (Rose Gold) | `#f4a261` (Topaz Sheen) | `#140d10` | Warm Classical Marble |
-| **04: Lapislazuli & Celestial Gold Seals** | `#0d1b2a` (Ultramarine Slate)| `#e0e1dd` (Pearl Vein) | `#e0a96d` (Pyrite Sparkle) | `#415a77` (Celestial Azure) | `#050a12` | Gilded Semi-Precious Mineral & Seals |
-| **05: Cybernetic Bismuth & Hologram Stickers** | `#161a1d` (Carbon Substrate) | `#f5f3f4` (Glazed Enamel) | `#ffb703` (Gold Circuit) | `#00b4d8` (Anodized Bismuth)| `#0b090a` | Cybernetic Processor Badges |
-| **06: Starlight Diamond & Platinum (Ultra Glitter)** | `#0c0e14` (Deep Charcoal) | `#ffffff` (Pure Diamond Crystal) | `#e2e8f0` (Polished Platinum) | `#67e8f9` (Electric Cyan) | `#030408` | Diamond-Dust Glitter Vinyl Badges |
-| **07: Prismatic Opal & Hologram Stickers (CD Diffraction)** | `#12101e` (Midnight Indigo) | `#fdfbf7` (Australian Fire Opal) | `#f472b6` (Laser Magenta) | `#38bdf8` (Prismatic Sky) | `#08060f` | Maximum CD Hologram Grating |
-| **08: Cosmic Nebula & Amethyst (Glitter & Holograms)** | `#13091f` (Deep Violet Abyss) | `#f3e8ff` (Amethyst Quartz) | `#d946ef` (Fuchsia Star-dust) | `#06b6d4` (Nebular Teal) | `#06020a` | Alchemical Astrolabe Holograms |
-| **09: Abalone Shell & Oceanic Nacre** | `#041c1e` (Dark Abyss Trench) | `#ecfeff` (Pauwa Shell Nacre) | `#2dd4bf` (Oceanic Turquoise) | `#a78bfa` (Lavender Pearl) | `#020d0e` | Multi-layered Organic Pearl Nacre |
+Each theme pairs a dedicated pure-ALU periodic procedural substrate (12 archetypes, smoothly cross-faded via `u_substrate`) with a material-authentic persistent medallion style (5 physical craft media totaling 32 distinct SDF emblem designs):
+
+| Preset | Procedural Substrate | Medallion / Seal Style | Thin-Film Regime | Primary Characteristic |
+| :--- | :--- | :--- | :---: | :--- |
+| **01: Song Celadon & Kintsugi Porcelain (Default)** | Crackle Celadon Porcelain | Crimson Cinnabar Wax / *Rakkan* Seals (6 designs) | `0.45` | Polygonal glaze crazing inlaid with Kintsugi gold |
+| **02: Tenmoku Oil-Spot Ceramic** | Tenmoku Hare's Fur & Oil-Spot | Flush Gilded *Maki-e* / Bronze Inlays (6 designs) | `0.18` | Stretched kiln glaze streaks & metallic bronze-blue oil spots |
+| **03: Carrara Marble & Rose Gold** | Veined Marble / Alabaster | Flush Rose-Gold *Pietra Dura* Inlays (6 designs) | `0.55` | Ridged branching calcite veins & honed stone contrast |
+| **04: Lapislazuli & Pyrite Seals** | Veined Mineral & Pyrite | Holographic Foil Stickers (8 designs, 3 foil modes) | `0.40` | Ultramarine stone, calcite seams & pyrite diamond glints |
+| **05: Volcanic Obsidian & Prismatic Foil** | Conchoidal Obsidian Glass | Holographic Foil Stickers (8 designs, 3 foil modes) | `0.12` | Curved volcanic glass fracture ripples & prismatic foil |
+| **06: Cybernetic Bismuth Monolith** | Stepped Hopper-Crystal Bismuth | Holographic Foil Stickers (8 designs, 3 foil modes) | `0.05` | Stair-stepped rectangular terraces & high-IOR oxide iridescence |
+| **07: Hammered Platinum & Starlight Diamond** | Hand-Hammered *Tsuchime* Metal | Holographic Foil Stickers (8 designs, 3 foil modes) | `0.30` | Concave hammer dimples & ultra-high diamond-dust sparkle |
+| **08: Abalone Shell & Fire Opal Nacre** | Organic Nacre Growth Lamellae | Holographic Foil Stickers (8 designs, 3 foil modes) | `1.00` | Flowing aragonite rings & thick-film pearlescent iridescence |
+| **09: Tiger-Flame Maple Lutherie** | Chatoyant Figured Curly Maple | Luthier Mother-of-Pearl Rosette Inlays (6 designs) | `0.35` | Oscillating fiber-tilt chatoyancy & iridescent MOP rosettes |
+| **10: Burl Walnut & French Polish** | Swirling Burl Walnut & Pores | Antique Brass Marquetry Escutcheons (6 designs) | `0.25` | Vortex burl knots & open pores under mirror shellac |
+| **11: *Shou Sugi Ban* Charred Cedar** | Charred Alligator-Skin Cedar | Holographic Foil Stickers (8 designs, 3 foil modes) | `0.15` | Matte carbon char crackle scales over brushed bronze cedar |
+| **12: Workshop Pine & Holo Stickers** | Raw Knotted Pine Lumber | Holographic Foil Stickers (8 designs, 3 foil modes) | `0.60` | Matte cathedral arches, deflected knots & sawmill chatter |
+| **13: Weathered Silver Driftwood** | Sun-Bleached Grooved Driftwood | Hot-Iron Pyrography Wood Brands (6 designs) | `0.70` | Deeply eroded grain channels, checking splits & scorched brands |
 
 ---
 
 ## 5. Technical Specifications & Performance
 * **Shader Pipeline**: Single-pass Qt 6 RHI fragment shader compiled via `qsb` (`--glsl "100 es,120,330"`).
-* **Buffer Layout**: std140 uniform block with 416-byte alignment (including 8 dynamic active sticker uniform vector slots `u_sticker0..7` at offsets 288..415) + `sampler2D u_text_texture` binding at slot 1.
+* **Buffer Layout**: std140 uniform block with 432-byte alignment (including `u_film_regime`, `u_glitter_scroll`, 8 persistent medallion slots `u_sticker0..7` packing `sealStyle` in `.w`, and `u_substrate` at offsets 416..431) + `sampler2D u_text_texture` binding at slot 1.
 * **Frame Budget**: Evaluates in $<0.6\text{ ms}$ on modern integrated GPUs and $<0.20\text{ ms}$ on discrete GPUs (pure ALU $O(1)$ binomial glints with zero glint texture fetches).
 * **Memory Footprint**: 1 lightweight offscreen texture (512 KB) for dynamic command typography (0 KB glint texture overhead).
 * **Daemon Integration**: `tools/fortune-stream.sh` periodically updates `/tmp/regel_fortune.txt` with atomic replacement, ensuring zero stutter during file reads.

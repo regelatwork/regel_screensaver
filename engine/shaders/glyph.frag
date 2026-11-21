@@ -43,7 +43,8 @@ layout(std140, binding = 0) uniform buf {
     vec4  u_sticker4;            // 352..367 (Active sticker slot 4)
     vec4  u_sticker5;            // 368..383 (Active sticker slot 5)
     vec4  u_sticker6;            // 384..399 (Active sticker slot 6)
-    vec4  u_sticker7;            // 400..415 (Active sticker slot 7, total 416 bytes, 16-byte aligned)
+    vec4  u_sticker7;            // 400..415 (Active sticker slot 7)
+    vec4  u_substrate;           // 416..431 (idA, idB, blend, detailStrength; total 432 bytes, 16-byte aligned)
 };
 
 layout(binding = 1) uniform sampler2D u_text_texture;
@@ -312,6 +313,221 @@ vec3 evalDiffractionGrating(vec3 T_grating, vec3 L, vec3 V, float d_nm, float ra
     spectrum += wavelengthToRGB(opticalPath * 0.3333) * 0.34;
     spectrum += wavelengthToRGB(opticalPath * 0.2500) * 0.20;
     return spectrum;
+}
+
+// --- Multi-Substrate Pure-ALU Periodic Procedural Material Library (12 Archetypes) ---
+// All coordinates are wrapped modulo 256.0 so indefinite scrolling never loses float32 precision.
+
+float fbm3(vec2 p) {
+    float v = 0.0;
+    float a = 0.5;
+    vec2 q = mod(p, 256.0);
+    for (int i = 0; i < 3; ++i) {
+        v += a * noise2D(q);
+        q = mod(q * 2.03 + vec2(17.1, 31.7), 256.0);
+        a *= 0.5;
+    }
+    return v;
+}
+
+// Fast 3x3 periodic Voronoi returning vec3(d1, edgeDist = d2 - d1, cellHash)
+vec3 voronoi2D(vec2 p) {
+    vec2 n = floor(p);
+    vec2 f = fract(p);
+    float d1 = 8.0;
+    float d2 = 8.0;
+    float cid = 0.0;
+    for (int j = -1; j <= 1; ++j) {
+        for (int i = -1; i <= 1; ++i) {
+            vec2 g = vec2(float(i), float(j));
+            vec2 cell = mod(n + g, 256.0);
+            vec2 o = 0.5 + 0.42 * hash22(cell);
+            vec2 r = g + o - f;
+            float d = dot(r, r);
+            if (d < d1) {
+                d2 = d1;
+                d1 = d;
+                cid = hash12(cell * 13.7 + vec2(4.1, 9.3));
+            } else if (d < d2) {
+                d2 = d;
+            }
+        }
+    }
+    float rd1 = sqrt(d1);
+    float rd2 = sqrt(d2);
+    return vec3(rd1, rd2 - rd1, cid);
+}
+
+struct SubstrateSample {
+    float height;      // Tactile relief offset for heightfield normal
+    float albedoMix;   // 0..1 blend between u_color_stone and u_color_porcelain
+    float accentMask;  // 0..1 highlight mask (Kintsugi gold, oil-spot, pyrite vein, flame, char)
+    float gloss;       // 0..1 surface glossiness (0 = chalky matte, 1 = mirror lacquer/glaze)
+    float chatoyancy;  // -1..1 optical fiber tilt for Tiger-Flame Maple shimmer
+};
+
+SubstrateSample evalSubstrateById(vec2 pos, int id) {
+    SubstrateSample s;
+    s.height = 0.0;
+    s.albedoMix = 0.0;
+    s.accentMask = 0.0;
+    s.gloss = 0.35;
+    s.chatoyancy = 0.0;
+
+    if (id == 0) {
+        // 0: Song Celadon & Kintsugi Crackle Porcelain
+        vec2 warp = vec2(fbm3(pos * 1.1), fbm3(pos * 1.1 + vec2(11.4, 7.2))) * 0.45;
+        vec3 vor = voronoi2D(mod(pos * 1.65 + warp, 256.0));
+        float crack = smoothstep(0.055, 0.008, vor.y);
+        float fineCrack = smoothstep(0.032, 0.004, voronoi2D(mod(pos * 3.8 + warp * 1.4, 256.0)).y);
+        float kintsugi = crack * smoothstep(0.35, 0.72, vor.z);
+        float glazePool = fbm3(pos * 0.9) * 0.5 + 0.5;
+        s.height = -crack * 0.032 - fineCrack * 0.012 + glazePool * 0.010;
+        s.albedoMix = clamp(glazePool * 0.42 + fineCrack * 0.15, 0.0, 1.0);
+        s.accentMask = kintsugi;
+        s.gloss = mix(0.88, 0.25, crack);
+    } else if (id == 1) {
+        // 1: Tenmoku Oil-Spot & Hare's Fur Ceramic
+        vec2 streakP = vec2(pos.x * 9.5, pos.y * 1.6);
+        float fur = fbm3(streakP + vec2(0.0, fbm3(pos * 1.4) * 1.8)) * 0.5 + 0.5;
+        vec3 spotVor = voronoi2D(mod(pos * 4.2, 256.0));
+        float oilSpot = smoothstep(0.28, 0.08, spotVor.x) * step(0.42, spotVor.z);
+        s.height = (fur - 0.5) * 0.018 + oilSpot * 0.016;
+        s.albedoMix = fur * 0.35;
+        s.accentMask = clamp(oilSpot * 1.15 + smoothstep(0.68, 0.92, fur) * 0.35, 0.0, 1.0);
+        s.gloss = mix(0.75, 0.96, oilSpot);
+    } else if (id == 2) {
+        // 2: Domain-Warped Veined Marble / Lapislazuli Mineral
+        vec2 w1 = vec2(fbm3(pos * 0.85), fbm3(pos * 0.85 + vec2(5.2, 13.8)));
+        float ridge = 1.0 - abs(noise2D(mod(pos * 1.4 + w1 * 1.65, 256.0)));
+        float vein = pow(clamp(ridge, 0.0, 1.0), 6.0);
+        float cloud = fbm3(pos * 1.9 + w1) * 0.5 + 0.5;
+        float fineGrain = noise2D(mod(pos * 18.0, 256.0)) * 0.008;
+        s.height = cloud * 0.018 - vein * 0.015 + fineGrain;
+        s.albedoMix = clamp(cloud * 0.45 + vein * 0.65, 0.0, 1.0);
+        s.accentMask = vein * 0.75;
+        s.gloss = mix(0.32, 0.78, vein);
+    } else if (id == 3) {
+        // 3: Conchoidal Volcanic Obsidian Glass
+        vec3 vor = voronoi2D(mod(pos * 1.35 + fbm3(pos * 0.7) * 0.35, 256.0));
+        float ripple = sin(vor.x * 26.0 + fbm3(pos * 2.4) * 3.0) * 0.5 + 0.5;
+        float ridge = smoothstep(0.14, 0.01, vor.y);
+        s.height = ripple * 0.022 + ridge * 0.026;
+        s.albedoMix = clamp(ripple * 0.25 + ridge * 0.35, 0.0, 1.0);
+        s.accentMask = ridge * 0.65;
+        s.gloss = mix(0.92, 0.45, ridge);
+    } else if (id == 4) {
+        // 4: Stepped Hopper-Crystal Bismuth Terraces
+        vec2 pQ = mod(pos * 1.45, 256.0);
+        vec2 cell = floor(pQ);
+        vec2 f = fract(pQ) - 0.5;
+        float cheb = max(abs(f.x), abs(f.y));
+        float steps = floor(cheb * 7.0) / 7.0;
+        float bevel = smoothstep(0.06, 0.0, abs(fract(cheb * 7.0) - 0.5));
+        float cellH = hash12(mod(cell, 256.0) * 19.7);
+        s.height = (1.0 - steps) * 0.045 + cellH * 0.015 - bevel * 0.008;
+        s.albedoMix = clamp(steps * 0.45 + bevel * 0.25, 0.0, 1.0);
+        s.accentMask = clamp(bevel * 0.8 + (1.0 - steps) * 0.35, 0.0, 1.0);
+        s.gloss = 0.88;
+    } else if (id == 5) {
+        // 5: Hand-Hammered Tsuchime Metal
+        vec3 vor = voronoi2D(mod(pos * 3.4, 256.0));
+        float dimple = vor.x * vor.x;
+        float rim = smoothstep(0.12, 0.01, vor.y);
+        float brush = noise2D(mod(vec2(pos.x * 42.0, pos.y * 6.0), 256.0)) * 0.004;
+        s.height = (dimple - 0.35) * 0.055 + rim * 0.012 + brush;
+        s.albedoMix = clamp(0.18 + (1.0 - dimple) * 0.32 + rim * 0.22, 0.0, 1.0);
+        s.accentMask = rim * 0.55;
+        s.gloss = 0.82;
+    } else if (id == 6) {
+        // 6: Organic Abalone Nacre Growth Lamellae
+        float f = fbm3(pos * 1.15);
+        float rings = sin(pos.x * 2.2 + pos.y * 1.6 + f * 9.5) * 0.5 + 0.5;
+        float lamella = smoothstep(0.25, 0.85, rings);
+        float stepMicro = floor(rings * 5.0) / 5.0;
+        s.height = mix(lamella, stepMicro, 0.35) * 0.028;
+        s.albedoMix = lamella * 0.55;
+        s.accentMask = smoothstep(0.60, 0.95, rings);
+        s.gloss = 0.86;
+    } else if (id == 7) {
+        // 7: Chatoyant Tiger-Flame Maple Lutherie (Luxury Wood)
+        vec2 wp = vec2(pos.x * 1.3, pos.y * 7.5);
+        float grainWarp = fbm3(vec2(pos.x * 0.8, pos.y * 2.2)) * 2.2;
+        float ring = sin(wp.y + grainWarp) * 0.5 + 0.5;
+        float latewood = smoothstep(0.68, 0.94, ring);
+        // Sinusoidal perpendicular curly maple flame (optical chatoyancy)
+        float flame = sin(pos.x * 11.0 + fbm3(pos * 1.2) * 3.8);
+        float fineFiber = noise2D(mod(vec2(pos.x * 6.0, pos.y * 36.0), 256.0)) * 0.005;
+        s.height = (ring - 0.5) * 0.012 + flame * 0.008 + fineFiber;
+        s.albedoMix = clamp((1.0 - latewood) * 0.55 + (flame * 0.5 + 0.5) * 0.35, 0.0, 1.0);
+        s.accentMask = clamp(flame * 0.5 + 0.5, 0.0, 1.0);
+        s.gloss = 0.90;
+        s.chatoyancy = flame;
+    } else if (id == 8) {
+        // 8: Swirling Burl Walnut & French Polish (Luxury Wood)
+        vec3 bVor = voronoi2D(mod(pos * 1.15 + fbm3(pos * 0.9) * 0.5, 256.0));
+        float burlRing = sin(bVor.x * 24.0 + fbm3(pos * 2.2) * 4.5) * 0.5 + 0.5;
+        float knotCore = smoothstep(0.16, 0.02, bVor.x);
+        float pores = smoothstep(0.62, 0.88, noise2D(mod(vec2(pos.x * 8.0, pos.y * 44.0), 256.0)));
+        s.height = burlRing * 0.016 - pores * 0.014 - knotCore * 0.012;
+        s.albedoMix = clamp(burlRing * 0.62 * (1.0 - knotCore * 0.75) * (1.0 - pores * 0.5), 0.0, 1.0);
+        s.accentMask = smoothstep(0.72, 0.96, burlRing) * 0.45;
+        s.gloss = mix(0.88, 0.30, pores);
+    } else if (id == 9) {
+        // 9: Shou Sugi Ban Charred Japanese Cedar (Craft Wood)
+        vec2 charP = vec2(pos.x * 6.5, pos.y * 2.1);
+        vec3 cVor = voronoi2D(mod(charP + vec2(fbm3(pos * 1.5) * 0.4, 0.0), 256.0));
+        float charCrack = smoothstep(0.11, 0.015, cVor.y);
+        float woodGrain = sin(pos.x * 16.0 + fbm3(pos * 1.8) * 3.5) * 0.5 + 0.5;
+        float charScale = (1.0 - charCrack) * (0.65 + 0.35 * cVor.z);
+        s.height = charScale * 0.036 - charCrack * 0.025 + woodGrain * 0.008;
+        s.albedoMix = clamp(charCrack * 0.85 + woodGrain * 0.18, 0.0, 1.0);
+        s.accentMask = charCrack * woodGrain;
+        s.gloss = mix(0.10, 0.55, charCrack);
+    } else if (id == 10) {
+        // 10: Raw Construction Pine / Knotted Lumber (Rustic Wood)
+        vec3 kVor = voronoi2D(mod(vec2(pos.x * 0.65, pos.y * 0.32), 256.0));
+        float knot = smoothstep(0.19, 0.04, kVor.x) * step(0.45, kVor.z);
+        float knotWarp = exp(-kVor.x * 5.5) * 2.4 * step(0.45, kVor.z);
+        float arch = sin(pos.x * 5.8 + fbm3(vec2(pos.x * 0.9, pos.y * 0.4)) * 4.2 + knotWarp);
+        // Asymmetric earlywood/latewood sawtooth profile
+        float latewood = smoothstep(0.55, 0.92, arch * 0.5 + 0.5);
+        float sawChatter = sin(pos.y * 38.0) * 0.005;
+        float fibrous = noise2D(mod(vec2(pos.x * 28.0, pos.y * 4.5), 256.0)) * 0.009;
+        s.height = (1.0 - latewood) * 0.014 - knot * 0.022 + sawChatter + fibrous;
+        s.albedoMix = clamp((1.0 - latewood) * 0.78 * (1.0 - knot * 0.88), 0.0, 1.0);
+        s.accentMask = knot * 0.25;
+        s.gloss = 0.08;
+    } else {
+        // 11: Weathered Silver Driftwood (Rustic Sun-Bleached Wood)
+        float warp = fbm3(vec2(pos.x * 1.1, pos.y * 0.45)) * 3.0;
+        float grooves = sin(pos.x * 14.0 + warp) * 0.5 + 0.5;
+        float eroded = pow(grooves, 1.8);
+        float splitRidge = 1.0 - abs(noise2D(mod(vec2(pos.x * 4.5 + warp * 0.25, pos.y * 0.7), 256.0)));
+        float splitCrack = pow(clamp(splitRidge, 0.0, 1.0), 10.0);
+        float dryGrain = noise2D(mod(vec2(pos.x * 32.0, pos.y * 6.0), 256.0)) * 0.012;
+        s.height = eroded * 0.040 - splitCrack * 0.048 + dryGrain;
+        s.albedoMix = clamp(eroded * 0.72 * (1.0 - splitCrack * 0.92), 0.0, 1.0);
+        s.accentMask = 0.0;
+        s.gloss = 0.05;
+    }
+    return s;
+}
+
+SubstrateSample evalSubstrate(vec2 pos) {
+    int idA = clamp(int(floor(u_substrate.x + 0.5)), 0, 11);
+    int idB = clamp(int(floor(u_substrate.y + 0.5)), 0, 11);
+    float b = clamp(u_substrate.z, 0.0, 1.0);
+    SubstrateSample sA = evalSubstrateById(pos, idA);
+    if (b > 0.001 && idA != idB) {
+        SubstrateSample sB = evalSubstrateById(pos, idB);
+        sA.height     = mix(sA.height,     sB.height,     b);
+        sA.albedoMix  = mix(sA.albedoMix,  sB.albedoMix,  b);
+        sA.accentMask = mix(sA.accentMask, sB.accentMask, b);
+        sA.gloss      = mix(sA.gloss,      sB.gloss,      b);
+        sA.chatoyancy = mix(sA.chatoyancy, sB.chatoyancy, b);
+    }
+    return sA;
 }
 
 // --- 2D Signed Distance Field (SDF) Primitives ---
@@ -1291,12 +1507,260 @@ vec2 evalStickerEmblem(vec2 q, int shape) {
     return clamp(emblem, 0.0, 1.0);
 }
 
-// --- Procedural Holographic Security Stickers (Independent Persistent Layer) ---
+// --- Craft-Authentic Artisanal Medallion Emblem Libraries (24 Designs across 4 Media) ---
+// Returns vec2(border/frame channel, central motif channel).
+// sealStyle 0: Holographic Stickers (8 designs in evalStickerEmblem)
+// sealStyle 1: Crimson Cinnabar Wax / Rakkan Seals (6 designs)
+// sealStyle 2: Flush Metal / Maki-e / Pietra Dura Inlays (6 designs)
+// sealStyle 3: Luthier Mother-of-Pearl & Abalone Rosettes (6 designs)
+// sealStyle 4: Hot-Iron Pyrography Wood Brands (6 designs)
+vec2 evalArtisanalEmblem(vec2 q, int sealStyle, int shape) {
+    if (sealStyle == 0) return evalStickerEmblem(q, shape);
+
+    int dIdx = int(mod(float(shape), 6.0));
+    float r = length(q);
+    float theta = atan(q.y, q.x);
+    vec2 aq = abs(q);
+    vec2 emb = vec2(0.0);
+
+    if (sealStyle == 1) {
+        // === STYLE 1: Crimson Cinnabar Wax / Rakkan Seals (6 Designs) ===
+        if (dIdx == 0) {
+            // 0: Imperial Square Chop (archaic labyrinthine tensho seal-script grid)
+            float frame = smoothstep(0.025, 0.0, abs(max(aq.x, aq.y) - 0.78));
+            float inner = smoothstep(0.022, 0.0, abs(max(aq.x, aq.y) - 0.64));
+            float vBars = smoothstep(0.032, 0.0, abs(fract(q.x * 2.6 + 0.5) - 0.5) * 0.38) * step(max(aq.x, aq.y), 0.58);
+            float hBars = smoothstep(0.032, 0.0, abs(fract(q.y * 2.6 + 0.5) - 0.5) * 0.38) * step(max(aq.x, aq.y), 0.58);
+            float breakMask = step(0.38, hash12(floor(q * 2.6) * 19.3 + vec2(3.1, 7.7)));
+            emb.x = max(frame, inner);
+            emb.y = max(vBars * breakMask, hBars * (1.0 - breakMask));
+        } else if (dIdx == 1) {
+            // 1: 8-Petal Blooming Lotus Crest
+            float rim = smoothstep(0.024, 0.0, abs(r - 0.78));
+            float a8 = mod(theta + 0.3927, 0.7854) - 0.3927;
+            float petal = smoothstep(0.028, 0.0, abs(r - (0.34 + 0.32 * cos(a8 * 2.4)))) * step(0.22, r);
+            float pod = smoothstep(0.022, 0.0, abs(r - 0.20)) + smoothstep(0.06, 0.0, r);
+            emb.x = rim;
+            emb.y = max(petal, pod);
+        } else if (dIdx == 2) {
+            // 2: Auspicious Endless Knot (Pan Chang geometric weave)
+            float rim = smoothstep(0.024, 0.0, abs(r - 0.80));
+            vec2 p45 = vec2(q.x - q.y, q.x + q.y) * 0.707107;
+            vec2 ap = abs(p45);
+            float k1 = smoothstep(0.028, 0.0, abs(sdBox(p45, vec2(0.46, 0.22))));
+            float k2 = smoothstep(0.028, 0.0, abs(sdBox(p45, vec2(0.22, 0.46))));
+            float k3 = smoothstep(0.026, 0.0, abs(max(ap.x, ap.y) - 0.14));
+            emb.x = rim;
+            emb.y = max(max(k1, k2), k3);
+        } else if (dIdx == 3) {
+            // 3: Crescent Moon & Twin Orbital Stars
+            float rim = smoothstep(0.024, 0.0, abs(r - 0.80));
+            float dots = smoothstep(0.045, 0.0, length(vec2(r - 0.68, sin(theta * 12.0) * 0.06)));
+            float moonOut = smoothstep(0.02, 0.0, length(q - vec2(-0.06, 0.0)) - 0.42);
+            float moonCut = smoothstep(0.02, 0.0, length(q - vec2(0.14, 0.08)) - 0.36);
+            float crescent = clamp(moonOut - moonCut, 0.0, 1.0);
+            float star1 = smoothstep(0.07, 0.0, length(q - vec2(0.26, 0.22)));
+            float star2 = smoothstep(0.05, 0.0, length(q - vec2(0.34, -0.14)));
+            emb.x = max(rim, dots);
+            emb.y = max(crescent, max(star1, star2));
+        } else if (dIdx == 4) {
+            // 4: 16-Petal Imperial Chrysanthemum (Kiku Rosette)
+            float rim = smoothstep(0.024, 0.0, abs(r - 0.80));
+            float kiku = smoothstep(0.026, 0.0, abs(r - (0.58 + 0.12 * cos(theta * 16.0)))) * step(0.18, r);
+            float spokes = smoothstep(0.020, 0.0, abs(sin(theta * 8.0)) * r) * step(0.18, r) * step(r, 0.68);
+            float stamen = smoothstep(0.022, 0.0, abs(r - 0.17)) + smoothstep(0.07, 0.0, r);
+            emb.x = rim;
+            emb.y = max(max(kiku, spokes), stamen);
+        } else {
+            // 5: Double-Lobed Gourd Stamp enclosing Mountain & Sun
+            float topLobe = length(q - vec2(0.0, 0.30)) - 0.32;
+            float botLobe = length(q - vec2(0.0, -0.22)) - 0.46;
+            float gourdRim = smoothstep(0.028, 0.0, abs(min(topLobe, botLobe)));
+            float sun = smoothstep(0.022, 0.0, abs(length(q - vec2(0.0, 0.30)) - 0.14));
+            float peak1 = smoothstep(0.026, 0.0, sdSegment(q, vec2(-0.30, -0.34), vec2(0.0, -0.02)));
+            float peak2 = smoothstep(0.026, 0.0, sdSegment(q, vec2(0.0, -0.02), vec2(0.30, -0.34)));
+            float base = smoothstep(0.024, 0.0, sdSegment(q, vec2(-0.32, -0.34), vec2(0.32, -0.34)));
+            emb.x = gourdRim;
+            emb.y = max(sun, max(base, max(peak1, peak2)));
+        }
+    } else if (sealStyle == 2) {
+        // === STYLE 2: Flush Metal / Maki-e / Pietra Dura Inlays (6 Designs) ===
+        if (dIdx == 0) {
+            // 0: Florentine 8-Point Compass Star
+            float r1 = smoothstep(0.020, 0.0, abs(r - 0.80));
+            float r2 = smoothstep(0.016, 0.0, abs(r - 0.66));
+            float a8 = mod(theta + 0.3927, 0.7854) - 0.3927;
+            float star = smoothstep(0.022, 0.0, abs(a8) * r - (0.64 - r) * 0.26) * step(r, 0.66);
+            float center = smoothstep(0.11, 0.0, r);
+            emb.x = max(r1, r2);
+            emb.y = max(star, center);
+        } else if (dIdx == 1) {
+            // 1: Art Deco Stepped Sunburst Fan
+            float frame = smoothstep(0.022, 0.0, abs(sdBox(q, vec2(0.76, 0.64))));
+            float stepIn = smoothstep(0.018, 0.0, abs(sdBox(q, vec2(0.62, 0.50))));
+            float rays = smoothstep(0.024, 0.0, abs(sin(theta * 7.0)) * r) * step(0.16, r) * step(r, 0.56);
+            float chev = smoothstep(0.020, 0.0, abs(abs(q.x) + abs(q.y) * 1.15 - 0.42));
+            emb.x = max(frame, stepIn);
+            emb.y = max(rays, chev);
+        } else if (dIdx == 2) {
+            // 2: 8-Fold Rub el Hizb Rosette (Interlocking Rotated Squares)
+            float rim = smoothstep(0.020, 0.0, abs(r - 0.82));
+            float sq1 = smoothstep(0.024, 0.0, abs(max(aq.x, aq.y) - 0.50));
+            vec2 p45 = vec2(q.x - q.y, q.x + q.y) * 0.707107;
+            float sq2 = smoothstep(0.024, 0.0, abs(max(abs(p45.x), abs(p45.y)) - 0.50));
+            float jewel = smoothstep(0.13, 0.0, r);
+            emb.x = rim;
+            emb.y = max(max(sq1, sq2), jewel);
+        } else if (dIdx == 3) {
+            // 3: Byzantine Flared Cross & Corner Trefoils
+            float rim = smoothstep(0.022, 0.0, abs(r - 0.80));
+            float armH = smoothstep(0.022, 0.0, aq.y - (0.06 + aq.x * 0.24)) * step(aq.x, 0.62);
+            float armV = smoothstep(0.022, 0.0, aq.x - (0.06 + aq.y * 0.24)) * step(aq.y, 0.62);
+            float tref = smoothstep(0.075, 0.0, length(aq - vec2(0.38, 0.38)));
+            emb.x = rim;
+            emb.y = max(max(armH, armV), tref);
+        } else if (dIdx == 4) {
+            // 4: Armillary Meridian Astrolabe
+            float rim = smoothstep(0.022, 0.0, abs(r - 0.80));
+            float e1 = smoothstep(0.020, 0.0, abs(length(vec2(q.x * 1.85, q.y)) - 0.62));
+            float e2 = smoothstep(0.020, 0.0, abs(length(vec2(q.x, q.y * 1.85)) - 0.62));
+            float axis = smoothstep(0.018, 0.0, sdSegment(q, vec2(-0.55, -0.55), vec2(0.55, 0.55)));
+            float core = smoothstep(0.09, 0.0, r);
+            emb.x = rim;
+            emb.y = max(max(e1, e2), max(axis, core));
+        } else {
+            // 5: Roman Laurel Medallion & Central Lozenge
+            float rim = smoothstep(0.020, 0.0, abs(r - 0.82));
+            float leaf = smoothstep(0.028, 0.0, abs(r - 0.64)) * step(0.15, abs(sin(theta * 9.0))) * step(-0.75, q.y);
+            float loz = smoothstep(0.022, 0.0, abs(sdRhombus(q, vec2(0.34, 0.46))));
+            float dotC = smoothstep(0.08, 0.0, r);
+            emb.x = max(rim, leaf);
+            emb.y = max(loz, dotC);
+        }
+    } else if (sealStyle == 3) {
+        // === STYLE 3: Luthier Mother-of-Pearl & Abalone Rosettes (6 Designs) ===
+        if (dIdx == 0) {
+            // 0: Classical Guitar Soundhole Rosette (mosaic purfling + chevron band)
+            float pOut = smoothstep(0.018, 0.0, abs(r - 0.82));
+            float pIn  = smoothstep(0.018, 0.0, abs(r - 0.46));
+            float zig  = smoothstep(0.026, 0.0, abs(r - (0.64 + 0.07 * abs(fract(theta * 3.82) * 2.0 - 1.0))));
+            float innerRing = smoothstep(0.018, 0.0, abs(r - 0.34));
+            emb.x = max(pOut, pIn);
+            emb.y = max(zig, innerRing);
+        } else if (dIdx == 1) {
+            // 1: Vintage Fretboard Split-Diamond Crown
+            float rim = smoothstep(0.020, 0.0, abs(sdRhombus(q, vec2(0.82, 0.62))));
+            float dL = smoothstep(0.020, 0.0, sdRhombus(q - vec2(-0.24, 0.0), vec2(0.24, 0.36)));
+            float dR = smoothstep(0.020, 0.0, sdRhombus(q - vec2( 0.24, 0.0), vec2(0.24, 0.36)));
+            float dC = smoothstep(0.020, 0.0, sdRhombus(q, vec2(0.14, 0.24)));
+            emb.x = rim;
+            emb.y = max(max(dL, dR), dC);
+        } else if (dIdx == 2) {
+            // 2: Vine of Life Mirrored Tendril Scroll
+            float rim = smoothstep(0.020, 0.0, abs(r - 0.80));
+            float vine = smoothstep(0.028, 0.0, abs(q.x - 0.22 * sin(q.y * 5.2))) * step(aq.y, 0.64);
+            float leaf1 = smoothstep(0.09, 0.0, length(aq - vec2(0.28, 0.28)));
+            float leaf2 = smoothstep(0.08, 0.0, length(aq - vec2(0.26, -0.22)));
+            float bud = smoothstep(0.08, 0.0, length(q - vec2(0.0, 0.56)));
+            emb.x = rim;
+            emb.y = max(vine, max(bud, max(leaf1, leaf2)));
+        } else if (dIdx == 3) {
+            // 3: Art Nouveau Winged Crest & Abalone Heart
+            float rim = smoothstep(0.020, 0.0, abs(r - 0.82));
+            float wing1 = smoothstep(0.026, 0.0, abs(length(vec2(aq.x - 0.34, q.y * 1.45 - 0.14)) - 0.32)) * step(0.12, aq.x);
+            float wing2 = smoothstep(0.024, 0.0, abs(length(vec2(aq.x - 0.28, q.y * 1.55 + 0.12)) - 0.24)) * step(0.10, aq.x);
+            float heart = smoothstep(0.16, 0.0, length(vec2(aq.x, q.y + 0.05 - aq.x * 0.45)));
+            emb.x = rim;
+            emb.y = max(max(wing1, wing2), heart);
+        } else if (dIdx == 4) {
+            // 4: Celtic Triquetra 3-Fold Knot
+            float rim = smoothstep(0.020, 0.0, abs(r - 0.80));
+            float a3 = mod(theta + 1.0472, 2.0944) - 1.0472;
+            vec2 q3 = vec2(cos(a3), sin(a3)) * r;
+            float arc3 = smoothstep(0.030, 0.0, abs(length(q3 - vec2(0.26, 0.0)) - 0.36)) * step(r, 0.66);
+            float cab = smoothstep(0.10, 0.0, r);
+            emb.x = rim;
+            emb.y = max(arc3, cab);
+        } else {
+            // 5: Baroque Fleur-de-Lis
+            float rim = smoothstep(0.020, 0.0, abs(r - 0.80));
+            float centerPetal = smoothstep(0.024, 0.0, length(vec2(aq.x * 2.2, q.y - 0.10)) - 0.38);
+            float sidePetal = smoothstep(0.024, 0.0, abs(length(vec2(aq.x - 0.32, q.y - 0.04)) - 0.24)) * step(-0.22, q.y);
+            float collar = smoothstep(0.026, 0.0, sdSegment(q, vec2(-0.34, -0.20), vec2(0.34, -0.20)));
+            emb.x = rim;
+            emb.y = max(centerPetal, max(sidePetal, collar));
+        }
+    } else {
+        // === STYLE 4: Hot-Iron Pyrography Wood Brands (6 Designs) ===
+        if (dIdx == 0) {
+            // 0: Maritime Anchor & Rope Ring
+            float rope = smoothstep(0.032, 0.0, abs(r - 0.78 + 0.025 * sin(theta * 24.0)));
+            float shank = smoothstep(0.030, 0.0, sdSegment(q, vec2(0.0, -0.46), vec2(0.0, 0.44)));
+            float stock = smoothstep(0.028, 0.0, sdSegment(q, vec2(-0.26, 0.28), vec2(0.26, 0.28)));
+            float fluke = smoothstep(0.030, 0.0, abs(length(q - vec2(0.0, -0.08)) - 0.40)) * step(q.y, -0.08);
+            float eye = smoothstep(0.024, 0.0, abs(length(q - vec2(0.0, 0.50)) - 0.09));
+            emb.x = rope;
+            emb.y = max(max(shank, stock), max(fluke, eye));
+        } else if (dIdx == 1) {
+            // 1: Nordic Vegvisir Wayfinder Staves
+            float rim = smoothstep(0.028, 0.0, abs(r - 0.80));
+            float a8 = mod(theta + 0.3927, 0.7854) - 0.3927;
+            vec2 q8 = vec2(cos(a8), sin(a8)) * r;
+            float stave = smoothstep(0.026, 0.0, abs(q8.y)) * step(0.0, q8.x) * step(q8.x, 0.64);
+            float crossBar = smoothstep(0.024, 0.0, abs(q8.x - 0.48)) * step(abs(q8.y), 0.14);
+            float hub = smoothstep(0.09, 0.0, r);
+            emb.x = rim;
+            emb.y = max(max(stave, crossBar), hub);
+        } else if (dIdx == 2) {
+            // 2: Cooperage Barrel Maker's Mark
+            float rim = smoothstep(0.030, 0.0, abs(r - 0.78));
+            float barT = smoothstep(0.028, 0.0, sdSegment(q, vec2(-0.52, 0.26), vec2(0.52, 0.26)));
+            float barB = smoothstep(0.028, 0.0, sdSegment(q, vec2(-0.52, -0.26), vec2(0.52, -0.26)));
+            float x1 = smoothstep(0.028, 0.0, sdSegment(q, vec2(-0.34, -0.44), vec2(0.34, 0.44)));
+            float x2 = smoothstep(0.028, 0.0, sdSegment(q, vec2(0.34, -0.44), vec2(-0.34, 0.44)));
+            emb.x = rim;
+            emb.y = max(max(barT, barB), max(x1, x2));
+        } else if (dIdx == 3) {
+            // 3: Alpine Peaks & Conifer Tree
+            float rim = smoothstep(0.028, 0.0, abs(r - 0.80));
+            float m1 = smoothstep(0.028, 0.0, sdSegment(q, vec2(-0.54, -0.22), vec2(-0.14, 0.38)));
+            float m2 = smoothstep(0.028, 0.0, sdSegment(q, vec2(-0.14, 0.38), vec2(0.24, -0.22)));
+            float m3 = smoothstep(0.028, 0.0, sdSegment(q, vec2(0.02, 0.06), vec2(0.28, 0.42)));
+            float m4 = smoothstep(0.028, 0.0, sdSegment(q, vec2(0.28, 0.42), vec2(0.56, -0.22)));
+            float base = smoothstep(0.028, 0.0, sdSegment(q, vec2(-0.56, -0.22), vec2(0.56, -0.22)));
+            float trunk = smoothstep(0.024, 0.0, sdSegment(q, vec2(0.0, -0.54), vec2(0.0, -0.22)));
+            emb.x = rim;
+            emb.y = max(max(max(m1, m2), max(m3, m4)), max(base, trunk));
+        } else if (dIdx == 4) {
+            // 4: Blacksmith Guild Shield & Crossed Bars
+            float shield = smoothstep(0.030, 0.0, abs(sdBox(q, vec2(0.58, 0.64))));
+            float c1 = smoothstep(0.030, 0.0, sdSegment(q, vec2(-0.38, -0.38), vec2(0.38, 0.38)));
+            float c2 = smoothstep(0.030, 0.0, sdSegment(q, vec2(0.38, -0.38), vec2(-0.38, 0.38)));
+            float anvil = smoothstep(0.028, 0.0, sdBox(q - vec2(0.0, -0.02), vec2(0.24, 0.10)));
+            emb.x = shield;
+            emb.y = max(anvil, max(c1, c2));
+        } else {
+            // 5: Solar Disc & Branching Antler Crest
+            float rim = smoothstep(0.028, 0.0, abs(r - 0.80));
+            float disc = smoothstep(0.028, 0.0, abs(length(q - vec2(0.0, -0.18)) - 0.24));
+            float antMain = smoothstep(0.028, 0.0, sdSegment(vec2(aq.x, q.y), vec2(0.14, 0.04), vec2(0.46, 0.48)));
+            float antTine1 = smoothstep(0.026, 0.0, sdSegment(vec2(aq.x, q.y), vec2(0.26, 0.20), vec2(0.16, 0.46)));
+            float antTine2 = smoothstep(0.026, 0.0, sdSegment(vec2(aq.x, q.y), vec2(0.36, 0.34), vec2(0.52, 0.30)));
+            emb.x = rim;
+            emb.y = max(disc, max(antMain, max(antTine1, antTine2)));
+        }
+    }
+
+    return clamp(emb, 0.0, 1.0);
+}
+
+// --- Procedural Persistent Medallions, Wax Seals, Inlays & Holographic Stickers ---
 struct StickerData {
     float dist;
     vec2  local;
     vec2  cell;
     int   shape;
+    int   sealStyle;
     float angle;
     float radius;
     float intensity;
@@ -1320,25 +1784,27 @@ StickerData getSticker(vec2 pos) {
     sd.local = vec2(0.0);
     sd.cell = vec2(0.0);
     sd.shape = 0;
+    sd.sealStyle = 0;
     sd.angle = 0.0;
     sd.radius = 0.65;
     sd.intensity = 0.0;
     
     float sSpacing = 3.2;
     
-    // Evaluate active persistent sticker slots
+    // Evaluate active persistent medallion/sticker slots
     for (int i = 0; i < 8; ++i) {
         vec4 slot = getStickerSlot(i);
         if (slot.w < 0.5) continue; // Inactive / empty slot
         
         vec2 c = slot.xy;
         float intensity = slot.z;
+        int sealStyle = clamp(int(floor(slot.w - 0.5)), 0, 4);
         
         vec2 jitter = (hash22(c * 53.41 + vec2(8.1, 91.7)) - 0.5) * 0.55;
         vec2 sCenter = (c + 0.5 + jitter) * sSpacing;
         vec2 pDiff = pos - sCenter;
         
-        // Fast bounding rejection against sticker maximum radius (~0.85)
+        // Fast bounding rejection against maximum radius (~0.85)
         if (abs(pDiff.x) > 1.2 || abs(pDiff.y) > 1.2) continue;
         
         float ang = hash12(c * 67.23) * 6.28318;
@@ -1346,49 +1812,85 @@ StickerData getSticker(vec2 pos) {
         vec2 pRot = vec2(cosA * pDiff.x - sinA * pDiff.y, sinA * pDiff.x + cosA * pDiff.y);
         
         float sRad = 0.55 + hash12(c * 83.11) * 0.28;
-        int shapeType = int(floor(hash12(c * 97.43) * 8.0)); // 8 distinct shapes (0..7)
+        int shapeType = int(floor(hash12(c * 97.43) * 8.0));
         
         float d = 1e5;
-        if (shapeType == 0) {
-            // Circular seal with fine notched / serrated gear edge
-            float r = length(pRot);
-            float teeth = sin(atan(pRot.y, pRot.x) * 22.0) * (sRad * 0.035);
-            d = (r - sRad) + teeth;
-        } else if (shapeType == 1) {
-            // Rounded rectangular security badge
-            vec2 bSize = vec2(sRad * 1.15, sRad * 0.72);
-            d = sdBox(pRot, bSize) - 0.08;
-        } else if (shapeType == 2) {
-            // Hexagonal prism sticker
-            vec2 q = abs(pRot);
-            d = max(q.x * 0.866025 + q.y * 0.5, q.y) - sRad;
-        } else if (shapeType == 3) {
-            // 8-Pointed Starburst Hologram Seal (classic "AUTHENTIC" sticker)
-            float b1 = sdBox(pRot, vec2(sRad, sRad * 0.42));
-            float b2 = sdBox(pRot, vec2(sRad * 0.42, sRad));
-            vec2 p45 = vec2(pRot.x - pRot.y, pRot.x + pRot.y) * 0.707107;
-            float b3 = sdBox(p45, vec2(sRad, sRad * 0.42));
-            float b4 = sdBox(p45, vec2(sRad * 0.42, sRad));
-            d = min(min(b1, b2), min(b3, b4)) - 0.04;
-        } else if (shapeType == 4) {
-            // Diamond Lozenge & Eye of Providence (Faceted Rhombus)
-            d = sdRhombus(pRot, vec2(sRad * 1.18, sRad * 0.76)) - 0.03;
-        } else if (shapeType == 5) {
-            // Scalloped Gothic Archway & Sacred Tree of Life
-            float archCap = length(vec2(pRot.x, max(0.0, pRot.y - sRad * 0.15))) - sRad * 0.65;
-            float archBox = sdBox(pRot + vec2(0.0, sRad * 0.22), vec2(sRad * 0.65, sRad * 0.60));
-            d = min(archCap, archBox) - 0.025;
-        } else if (shapeType == 6) {
-            // Cyberspace Chamfered Octagon & Quantum Biohazard Reactor
-            vec2 q6 = abs(pRot);
-            float dBox6 = max(q6.x, q6.y);
-            float dDiag6 = (q6.x + q6.y) * 0.707107;
-            d = max(dBox6, dDiag6) - sRad;
+        if (sealStyle == 0) {
+            // Holographic security stickers (8 distinct silhouettes)
+            if (shapeType == 0) {
+                float r = length(pRot);
+                float teeth = sin(atan(pRot.y, pRot.x) * 22.0) * (sRad * 0.035);
+                d = (r - sRad) + teeth;
+            } else if (shapeType == 1) {
+                vec2 bSize = vec2(sRad * 1.15, sRad * 0.72);
+                d = sdBox(pRot, bSize) - 0.08;
+            } else if (shapeType == 2) {
+                vec2 q = abs(pRot);
+                d = max(q.x * 0.866025 + q.y * 0.5, q.y) - sRad;
+            } else if (shapeType == 3) {
+                float b1 = sdBox(pRot, vec2(sRad, sRad * 0.42));
+                float b2 = sdBox(pRot, vec2(sRad * 0.42, sRad));
+                vec2 p45 = vec2(pRot.x - pRot.y, pRot.x + pRot.y) * 0.707107;
+                float b3 = sdBox(p45, vec2(sRad, sRad * 0.42));
+                float b4 = sdBox(p45, vec2(sRad * 0.42, sRad));
+                d = min(min(b1, b2), min(b3, b4)) - 0.04;
+            } else if (shapeType == 4) {
+                d = sdRhombus(pRot, vec2(sRad * 1.18, sRad * 0.76)) - 0.03;
+            } else if (shapeType == 5) {
+                float archCap = length(vec2(pRot.x, max(0.0, pRot.y - sRad * 0.15))) - sRad * 0.65;
+                float archBox = sdBox(pRot + vec2(0.0, sRad * 0.22), vec2(sRad * 0.65, sRad * 0.60));
+                d = min(archCap, archBox) - 0.025;
+            } else if (shapeType == 6) {
+                vec2 q6 = abs(pRot);
+                float dBox6 = max(q6.x, q6.y);
+                float dDiag6 = (q6.x + q6.y) * 0.707107;
+                d = max(dBox6, dDiag6) - sRad;
+            } else {
+                float a12 = mod(atan(pRot.y, pRot.x) + 0.261799, 0.523599) - 0.261799;
+                float r12 = length(pRot);
+                d = (r12 - sRad) + cos(a12 * 6.0) * (sRad * 0.06);
+            }
+        } else if (sealStyle == 1) {
+            // Crimson Cinnabar Wax / Rakkan Seal silhouettes with organic wax-drip edge wobble
+            int dIdx = int(mod(float(shapeType), 6.0));
+            float aWax = atan(pRot.y, pRot.x);
+            float waxWobble = (sin(aWax * 3.0 + c.x * 4.1) * 0.045 + cos(aWax * 5.0 - c.y * 2.7) * 0.025) * sRad;
+            if (dIdx == 0) {
+                d = sdBox(pRot, vec2(sRad * 0.85, sRad * 0.85)) - 0.04 + waxWobble * 0.35;
+            } else if (dIdx == 5) {
+                float topL = length(pRot - vec2(0.0, sRad * 0.30)) - sRad * 0.40;
+                float botL = length(pRot - vec2(0.0, -sRad * 0.22)) - sRad * 0.55;
+                d = min(topL, botL) + waxWobble * 0.4;
+            } else {
+                d = length(pRot) - sRad + waxWobble;
+            }
+        } else if (sealStyle == 2) {
+            // Flush Metal / Maki-e / Pietra Dura Inlay silhouettes
+            int dIdx = int(mod(float(shapeType), 6.0));
+            if (dIdx == 1) {
+                d = sdBox(pRot, vec2(sRad * 0.88, sRad * 0.75)) - 0.04;
+            } else if (dIdx == 2) {
+                vec2 qm = abs(pRot);
+                d = max(max(qm.x, qm.y), (qm.x + qm.y) * 0.707107) - sRad * 0.92;
+            } else {
+                d = length(pRot) - sRad * 0.92;
+            }
+        } else if (sealStyle == 3) {
+            // Luthier Mother-of-Pearl & Abalone Rosette silhouettes
+            int dIdx = int(mod(float(shapeType), 6.0));
+            if (dIdx == 1) {
+                d = sdRhombus(pRot, vec2(sRad * 0.95, sRad * 0.74)) - 0.02;
+            } else {
+                d = length(pRot) - sRad * 0.92;
+            }
         } else {
-            // 12-Pointed Solar Medallion & Celestial Astrolabe
-            float a12 = mod(atan(pRot.y, pRot.x) + 0.261799, 0.523599) - 0.261799;
-            float r12 = length(pRot);
-            d = (r12 - sRad) + cos(a12 * 6.0) * (sRad * 0.06);
+            // Hot-Iron Pyrography Brand silhouettes
+            int dIdx = int(mod(float(shapeType), 6.0));
+            if (dIdx == 4) {
+                d = sdBox(pRot, vec2(sRad * 0.72, sRad * 0.80)) - 0.05;
+            } else {
+                d = length(pRot) - sRad * 0.92;
+            }
         }
         
         if (d < sd.dist) {
@@ -1396,6 +1898,7 @@ StickerData getSticker(vec2 pos) {
             sd.local = pRot;
             sd.cell = c;
             sd.shape = shapeType;
+            sd.sealStyle = sealStyle;
             sd.angle = ang;
             sd.radius = sRad;
             sd.intensity = intensity;
@@ -1416,7 +1919,9 @@ struct SurfaceData {
     vec2  stickerCell;
     float stickerRadius;
     int   stickerShape;
+    int   stickerStyle;
     float stickerIntensity;
+    SubstrateSample substrate;
 };
 
 SurfaceData getSurface(vec2 uv) {
@@ -1508,27 +2013,41 @@ SurfaceData getSurface(vec2 uv) {
     float groove = smoothstep(0.012, 0.0, abs(minGlyphDist + 0.012)) * 0.06;
     glyphH -= groove * glyphSign;
     
-    // --- 2. Independent Holographic Stickers (Physical Raised Film) ---
-    // Can appear anywhere on the monolith and can overlap glyphs and quotes!
+    // --- 2. Independent Persistent Medallions, Wax Seals, Inlays, Brands & Holographic Stickers ---
     StickerData stk = getSticker(pos);
     float stickerH = 0.0;
     if (stk.intensity > 0.01) {
-        float stickerStep = smoothstep(0.015, -0.015, stk.dist) * 0.035;
-        float stickerBevel = smoothstep(0.012, 0.0, abs(stk.dist)) * 0.012;
-        
-        // Micro-relief embossing of the holographic design on the foil film
-        float embH = 0.0;
-        if (stk.dist < 0.005) {
+        float embVal = 0.0;
+        if (stk.dist < 0.01) {
             vec2 qNorm = stk.local / max(0.1, stk.radius);
-            vec2 emb = evalStickerEmblem(qNorm, stk.shape);
-            embH = (emb.x + emb.y) * 0.006;
+            vec2 emb = evalArtisanalEmblem(qNorm, stk.sealStyle, stk.shape);
+            embVal = clamp(emb.x + emb.y, 0.0, 1.0);
         }
-        
-        stickerH = stickerStep + stickerBevel + embH;
+
+        if (stk.sealStyle == 0) {
+            // Holographic security foil: raised glossy sticker film + micro-emboss
+            float stickerStep = smoothstep(0.015, -0.015, stk.dist) * 0.035;
+            float stickerBevel = smoothstep(0.012, 0.0, abs(stk.dist)) * 0.012;
+            stickerH = stickerStep + stickerBevel + embVal * 0.006;
+        } else if (stk.sealStyle == 1) {
+            // Crimson Cinnabar Wax Seal: plump raised wax rim + recessed center + stamped emblem
+            float waxBody = smoothstep(0.025, -0.025, stk.dist) * 0.048;
+            float waxRim = smoothstep(0.09, 0.0, abs(stk.dist + 0.045)) * 0.026;
+            stickerH = waxBody + waxRim + embVal * 0.018;
+        } else if (stk.sealStyle == 2 || stk.sealStyle == 3) {
+            // Flush Metal / Maki-e / Pietra Dura / Mother-of-Pearl Inlay: micro-recessed setting groove
+            float groutGroove = smoothstep(0.014, 0.0, abs(stk.dist)) * 0.018;
+            stickerH = -groutGroove + embVal * 0.007;
+        } else {
+            // Hot-Iron Pyrography Brand: charred deeply INTO the wood grain
+            stickerH = -embVal * 0.032 * smoothstep(0.02, -0.02, stk.dist);
+        }
     }
     
-    // --- 3. Rock Slab Micro-Grain (Affixed to Scrolling Material Space) ---
-    float microGrain = noise2D(mod(pos * 16.0, 256.0)) * 0.014;
+    // --- 3. Procedural Geological / Porcelain / Metal / Wood Slab Substrate ---
+    // Automatically attenuated under the fortune quote tablet to preserve typographic legibility
+    SubstrateSample sub = evalSubstrate(pos);
+    float substrateH = sub.height * (1.0 - textMask * 0.85);
     
     // --- 4. Interactive Tactile Cursor Deformation (Modifying Embossing) ---
     vec2 ptrDistVec = (uv - u_pointer) * vec2(aspect, 1.0);
@@ -1542,7 +2061,7 @@ SurfaceData getSurface(vec2 uv) {
     float kDist = length(kDiff);
     float ripple = sin(kDist * 32.0 - mod(u_time * 8.0, 6.2831853)) * exp(-kDist * 4.0) * u_shockwave_intensity * 0.08;
     
-    float totalH = 0.5 + glyphH + textH + stickerH + microGrain + cursorIndent + wake + ripple;
+    float totalH = 0.5 + glyphH + textH + stickerH + substrateH + cursorIndent + wake + ripple;
     
     SurfaceData sd;
     sd.height = totalH;
@@ -1555,7 +2074,9 @@ SurfaceData getSurface(vec2 uv) {
     sd.stickerCell = stk.cell;
     sd.stickerRadius = stk.radius;
     sd.stickerShape = stk.shape;
+    sd.stickerStyle = stk.sealStyle;
     sd.stickerIntensity = stk.intensity;
+    sd.substrate = sub;
     return sd;
 }
 
@@ -1608,10 +2129,28 @@ void main() {
     // Ambient Occlusion in carved/sunken crevices
     float ao = clamp(smoothstep(-0.06, 0.03, surf.glyphDist) * 0.45 + 0.55, 0.0, 1.0);
     
-    // --- Shading Phase 1: Matte Bas-Relief Stone / Basalt ---
+    // --- Shading Phase 1: Procedural Substrate Base (Porcelain / Stone / Metal / Wood) ---
+    SubstrateSample sub = surf.substrate;
     float diffKey = max(0.0, dot(N, L_key));
-    float diffuse = (diffKey * 0.75 + 0.25) * ao;
-    vec3 colMatte = u_color_stone.rgb * diffuse;
+    float diffFill = max(0.0, dot(N, L_fill)) * 0.25;
+    float diffuse = (diffKey * 0.72 + diffFill + 0.22) * ao;
+
+    vec3 subAlbedo = mix(u_color_stone.rgb, u_color_porcelain.rgb, sub.albedoMix * 0.78);
+    // Kintsugi gold seams, oil-spot highlights, calcite veins, or brushed flame accents
+    vec3 subAccentCol = mix(u_color_gold.rgb, u_color_sheen.rgb, 0.28);
+    float subSpecPow = mix(14.0, 120.0, sub.gloss);
+    float subSpec = pow(max(0.0, dot(N, H_key)), subSpecPow) * sub.gloss * 0.55;
+
+    // Optical chatoyancy for figured Tiger-Flame Maple: sinusoidal fiber tilt flips brightness as light orbits
+    float chatoyantSpec = 0.0;
+    if (abs(sub.chatoyancy) > 0.01) {
+        vec3 N_fiber = normalize(N + vec3(sub.chatoyancy * 0.42, 0.0, 0.0));
+        chatoyantSpec = pow(max(0.0, dot(N_fiber, H_key)), 24.0) * (0.55 + 0.45 * sub.chatoyancy);
+    }
+
+    vec3 colMatte = subAlbedo * diffuse
+                  + subAccentCol * (sub.accentMask * (0.45 + 0.75 * diffKey + subSpec * 1.6)) * 0.55
+                  + mix(vec3(1.0), u_color_gold.rgb, 0.35) * (subSpec + chatoyantSpec * 0.65);
     
     // --- Shading Phase 2: Translucent Porcelain & Subsurface Scattering (SSS) ---
     // Subsurface glow: light bleeding through thin carved edges
@@ -1619,11 +2158,13 @@ void main() {
     float sssKey = pow(clamp(dot(V, -L_key + N * 0.35), 0.0, 1.0), 3.5) * exp(-sssThickness * 2.5);
     float sssTotal = sssKey * 1.6;
     
-    // Vitreous glossy clearcoat highlight (very low roughness)
-    float specKeyGloss = pow(max(0.0, dot(N, H_key)), 96.0);
-    float fresnelGlaze = pow(1.0 - max(0.0, dot(N, V)), 4.0);
-    vec3 colPorcelain = mix(u_color_porcelain.rgb * (diffuse * 0.8 + 0.2), vec3(1.0), fresnelGlaze * 0.5) 
-                        + u_color_sheen.rgb * sssTotal * 0.6
+    // Vitreous glossy clearcoat highlight modulated by substrate gloss
+    float specKeyGloss = pow(max(0.0, dot(N, H_key)), mix(28.0, 108.0, sub.gloss)) * (0.35 + 0.65 * sub.gloss);
+    float fresnelGlaze = pow(1.0 - max(0.0, dot(N, V)), 4.0) * (0.25 + 0.75 * sub.gloss);
+    vec3 porcBase = mix(u_color_porcelain.rgb, subAlbedo, 0.38);
+    vec3 colPorcelain = mix(porcBase * (diffuse * 0.8 + 0.2), vec3(1.0), fresnelGlaze * 0.45) 
+                        + u_color_sheen.rgb * sssTotal * 0.55
+                        + subAccentCol * sub.accentMask * 0.45
                         + vec3(1.0) * specKeyGloss * 0.75;
     
     // --- Shading Phase 3a: Theme-Aware Thin-Film Iridescence (Belcour & Barla, SIGGRAPH 2017) ---
@@ -1739,118 +2280,146 @@ void main() {
         finalColor = mix(finalColor, goldShade, goldMask * 0.5);
     }
     
-    // --- Shading Phase 6: Independent Holographic Stickers (CD Foil, Glitter Vinyl & Hybrid) ---
-    // Physical metallic holographic foil stickers affixed to the monolith.
-    // 8 distinct geometric shapes, 3 optical foil modes: CD foil, Prismatic Glitter vinyl, or Hybrid.
-    if (surf.stickerIntensity > 0.01 && surf.stickerDist < 0.018) {
-        float stickerMask = smoothstep(0.008, -0.008, surf.stickerDist);
+    // --- Shading Phase 6: Independent Persistent Medallions, Wax Seals, Inlays, Brands & Holographic Stickers ---
+    // Dispatches on surf.stickerStyle:
+    //   0: Holographic Security Foil Stickers (8 shapes, 3 foil modes)
+    //   1: Crimson Cinnabar Wax / Rakkan Seals (6 designs, organic wax SSS)
+    //   2: Flush Brushed Metal / Maki-e / Pietra Dura Inlays (6 designs)
+    //   3: Luthier Mother-of-Pearl & Abalone Rosette Inlays (6 designs, Belcour & Barla iridescence)
+    //   4: Hot-Iron Pyrography Wood Brands (6 designs, scorched grain carving)
+    if (surf.stickerIntensity > 0.01 && surf.stickerDist < 0.025) {
+        float stickerMask = smoothstep(0.010, -0.010, surf.stickerDist);
         float holoPwr = surf.stickerIntensity;
-        
-        // Local normalized sticker coordinates & procedural geometric emblem evaluation (8 shapes)
         vec2 qSticker = surf.stickerLocal / max(0.1, surf.stickerRadius);
-        vec2 emblem = evalStickerEmblem(qSticker, surf.stickerShape);
+        vec2 emblem = evalArtisanalEmblem(qSticker, surf.stickerStyle, surf.stickerShape);
         float totalEmblem = clamp(emblem.x + emblem.y, 0.0, 1.0);
-        
-        // Deterministic optical foil mode per sticker cell:
-        // 0: Pure CD Rainbow Diffraction Foil
-        // 1: Prismatic Diamond-Dust Glitter Vinyl
-        // 2: Hybrid CD Rainbow + Prismatic Glitter Vinyl
-        int foilMode = int(floor(hash12(surf.stickerCell * 43.17 + vec2(11.3, 79.1)) * 3.0));
-        
-        // CD-ROM concentric circular diffraction tracks centered on the sticker
-        vec2 dTrack = surf.stickerLocal;
-        float rTrack = length(dTrack);
-        vec3 T_disc = normalize(vec3(-dTrack.y, dTrack.x, 0.001));
-        
-        // Channel A Tangent Frame (Concentric circular grooves: periodic spacing along radial B_cdA)
-        vec3 T_cdA = normalize(T_disc - N * dot(N, T_disc));
-        vec3 B_cdA = normalize(cross(N, T_cdA));
-        
-        // Multi-order Kirchhoff diffraction grating (Stam 1999 / Toisoul & Ghosh 2017) + CIE XYZ spectral color
-        // Channel A: 1480 nm CD-ROM / security foil pitch (vivid 1st-order laser rainbow + 2nd-order magenta/cyan)
-        float gratingSweep = 0.08 * sin(mod(u_time * 0.45, 6.2831853));
-        float v_cdA = dot(T_cdA, H_key);
-        vec3 cdRainbowA = evalDiffractionGrating(B_cdA, L_key, V, 1480.0, rTrack * 0.18 + gratingSweep);
-        float cdFanA = exp(-(v_cdA * v_cdA) / (2.0 * 0.048 * 0.048)) * pow(max(0.0, dot(N, H_key)), 12.0);
-        
-        // Channel B: 1120 nm orthogonal DVD/micro-grating pitch (wider spectral spread & contrasting color-flip)
-        float v_cdB = dot(B_cdA, H_key);
-        vec3 cdRainbowB = evalDiffractionGrating(T_cdA, L_key, V, 1120.0, rTrack * 0.24 - gratingSweep);
-        float cdFanB = exp(-(v_cdB * v_cdB) / (2.0 * 0.048 * 0.048)) * pow(max(0.0, dot(N, H_key)), 12.0);
-        
-        float cdBroad = pow(max(0.0, dot(N, H_key)), 34.0) * 0.6;
-        
-        // Cut-edge bevel glint and drop shadow
-        float edgeGlint = pow(max(0.0, dot(N, H_key)), 36.0) * smoothstep(0.02, 0.0, abs(surf.stickerDist)) * 1.4;
-        float edgeShadow = smoothstep(-0.005, 0.02, surf.stickerDist) * smoothstep(0.035, 0.01, surf.stickerDist) * 0.45;
-        
-        // Metallic foil substrate (silver chrome or royal gold foil)
-        float isGoldFoil = step(0.48, hash12(surf.stickerCell * 19.3));
-        vec3 foilMetal = mix(vec3(0.92, 0.94, 0.97), u_color_gold.rgb * 1.35, isGoldFoil);
-        float foilSpec = pow(max(0.0, dot(N, H_key)), 42.0) * 0.85;
-        vec3 colFoil = foilMetal * (diffuse * 0.35 + 0.65) * (1.0 - edgeShadow) + foilMetal * foilSpec;
-        
-        // Negative space security watermark: subtle micro-dot lattice in background foil
-        float microDots = step(0.65, sin(qSticker.x * 85.0) * sin(qSticker.y * 85.0)) * 0.16;
-        colFoil += cdRainbowA * microDots * 0.35 * holoPwr;
-        
-        // Prismatic Diamond-Dust Glitter Vinyl Substrate (Deliot & Belcour HPG 2023, Active in Mode 1 & Mode 2)
-        if (foilMode >= 1 && NdotH > 0.01) {
-            float sFlakeFreq = flakeFreq * 1.4;
-            // surf.stickerLocal is already sticker-local [-1, 1], never accumulating scroll
-            vec2 sFlakeCoord = surf.stickerLocal * sFlakeFreq;
-            float sFootprintLen = max(length(dFdx(sFlakeCoord)), length(dFdy(sFlakeCoord)));
-            vec2 sSkewed = vec2(sFlakeCoord.x - 0.57735027 * sFlakeCoord.y, 1.15470054 * sFlakeCoord.y);
+
+        if (surf.stickerStyle == 0) {
+            // === STYLE 0: Holographic Security Foil Stickers (CD / Diamond-Dust Vinyl / Hybrid) ===
+            int foilMode = int(floor(hash12(surf.stickerCell * 43.17 + vec2(11.3, 79.1)) * 3.0));
             
-            // High-contrast razor-sharp diamond-dust scintillation (slopeScale = 24.0, zeta = 2.0)
-            float sP22_G = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes,        alphaGlitter, 24.0, 1.05, 2.0, 1.4);
-            float sP22_R = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes * 0.93, alphaGlitter, 24.0, 1.05, 2.0, 1.4);
-            float sP22_B = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes * 1.07, alphaGlitter, 24.0, 1.05, 2.0, 1.4);
+            vec2 dTrack = surf.stickerLocal;
+            float rTrack = length(dTrack);
+            vec3 T_disc = normalize(vec3(-dTrack.y, dTrack.x, 0.001));
             
-            vec3 sD_glint = vec3(sP22_R, sP22_G, sP22_B) / max(0.0001, hz4);
+            vec3 T_cdA = normalize(T_disc - N * dot(N, T_disc));
+            vec3 B_cdA = normalize(cross(N, T_cdA));
             
-            // Secondary rim fill prismatic sparkle
-            float sP22_fill = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopesFill, alphaGlitter, 24.0, 1.05, 2.0, 1.4);
-            sD_glint += vec3(sP22_fill / max(0.0001, hz4Fill)) * 0.40;
+            // Multi-order Kirchhoff diffraction grating (Stam 1999 / Toisoul & Ghosh 2017) + CIE XYZ spectral color
+            float gratingSweep = 0.08 * sin(mod(u_time * 0.45, 6.2831853));
+            float v_cdA = dot(T_cdA, H_key);
+            vec3 cdRainbowA = evalDiffractionGrating(B_cdA, L_key, V, 1480.0, rTrack * 0.18 + gratingSweep);
+            float cdFanA = exp(-(v_cdA * v_cdA) / (2.0 * 0.048 * 0.048)) * pow(max(0.0, dot(N, H_key)), 12.0);
             
-            // Kinetic Chromatic Dispersion: Hue sweeps across the rainbow as view/light angle shifts
-            float sDispersionPhase = dot(slopes, vec2(14.0, 9.5)) + hash12(floor(sFlakeCoord) * 17.9) * 6.28318;
-            vec3 sRainbowTint = 0.5 + 0.5 * cos(sDispersionPhase + vec3(0.0, 2.094, 4.189));
+            float v_cdB = dot(B_cdA, H_key);
+            vec3 cdRainbowB = evalDiffractionGrating(T_cdA, L_key, V, 1120.0, rTrack * 0.24 - gratingSweep);
+            float cdFanB = exp(-(v_cdB * v_cdB) / (2.0 * 0.048 * 0.048)) * pow(max(0.0, dot(N, H_key)), 12.0);
             
-            vec3 sGlintRadiance = (F_flake * G_smith * sD_glint) / (4.0 * NdotV);
+            float cdBroad = pow(max(0.0, dot(N, H_key)), 34.0) * 0.6;
             
-            // Analytical optical flare halo for diamond-dust sticker glitter
-            float sGlintMag = max(sGlintRadiance.r, max(sGlintRadiance.g, sGlintRadiance.b));
-            float sFlare = pow(clamp(sGlintMag * 0.16, 0.0, 1.0), 0.55);
-            vec3 sLuminousGlint = sGlintRadiance * sRainbowTint + (sRainbowTint + vec3(0.75)) * (sFlare * 2.0);
+            float edgeGlint = pow(max(0.0, dot(N, H_key)), 36.0) * smoothstep(0.02, 0.0, abs(surf.stickerDist)) * 1.4;
+            float edgeShadow = smoothstep(-0.005, 0.02, surf.stickerDist) * smoothstep(0.035, 0.01, surf.stickerDist) * 0.45;
             
-            vec3 stickerGlitter = sLuminousGlint * (foilMode == 1 ? 2.4 : 1.6) * holoPwr;
+            float isGoldFoil = step(0.48, hash12(surf.stickerCell * 19.3));
+            vec3 foilMetal = mix(vec3(0.92, 0.94, 0.97), u_color_gold.rgb * 1.35, isGoldFoil);
+            float foilSpec = pow(max(0.0, dot(N, H_key)), 42.0) * 0.85;
+            vec3 colFoil = foilMetal * (diffuse * 0.35 + 0.65) * (1.0 - edgeShadow) + foilMetal * foilSpec;
             
-            colFoil += stickerGlitter;
+            float microDots = step(0.65, sin(qSticker.x * 85.0) * sin(qSticker.y * 85.0)) * 0.16;
+            colFoil += cdRainbowA * microDots * 0.35 * holoPwr;
+            
+            if (foilMode >= 1 && NdotH > 0.01) {
+                float sFlakeFreq = flakeFreq * 1.4;
+                vec2 sFlakeCoord = surf.stickerLocal * sFlakeFreq;
+                float sFootprintLen = max(length(dFdx(sFlakeCoord)), length(dFdy(sFlakeCoord)));
+                vec2 sSkewed = vec2(sFlakeCoord.x - 0.57735027 * sFlakeCoord.y, 1.15470054 * sFlakeCoord.y);
+                
+                float sP22_G = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes,        alphaGlitter, 24.0, 1.05, 2.0, 1.4);
+                float sP22_R = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes * 0.93, alphaGlitter, 24.0, 1.05, 2.0, 1.4);
+                float sP22_B = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes * 1.07, alphaGlitter, 24.0, 1.05, 2.0, 1.4);
+                
+                vec3 sD_glint = vec3(sP22_R, sP22_G, sP22_B) / max(0.0001, hz4);
+                
+                float sP22_fill = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopesFill, alphaGlitter, 24.0, 1.05, 2.0, 1.4);
+                sD_glint += vec3(sP22_fill / max(0.0001, hz4Fill)) * 0.40;
+                
+                float sDispersionPhase = dot(slopes, vec2(14.0, 9.5)) + hash12(floor(sFlakeCoord) * 17.9) * 6.28318;
+                vec3 sRainbowTint = 0.5 + 0.5 * cos(sDispersionPhase + vec3(0.0, 2.094, 4.189));
+                
+                vec3 sGlintRadiance = (F_flake * G_smith * sD_glint) / (4.0 * NdotV);
+                
+                float sGlintMag = max(sGlintRadiance.r, max(sGlintRadiance.g, sGlintRadiance.b));
+                float sFlare = pow(clamp(sGlintMag * 0.16, 0.0, 1.0), 0.55);
+                vec3 sLuminousGlint = sGlintRadiance * sRainbowTint + (sRainbowTint + vec3(0.75)) * (sFlare * 2.0);
+                
+                vec3 stickerGlitter = sLuminousGlint * (foilMode == 1 ? 2.4 : 1.6) * holoPwr;
+                colFoil += stickerGlitter;
+            }
+            
+            float cdWeight = (foilMode == 1) ? 0.45 : 1.0;
+            vec3 lightA = cdRainbowA * (cdFanA * 5.2 + cdBroad * 1.4) * holoPwr * cdWeight;
+            vec3 lightB = cdRainbowB * (cdFanB * 5.2 + cdBroad * 1.4) * holoPwr * cdWeight;
+            float emblemGlint = pow(max(0.0, dot(N, H_key)), 110.0) * 2.0;
+            
+            vec3 colEmblem = (lightA + vec3(emblemGlint)) * emblem.x +
+                             (lightB + vec3(emblemGlint)) * emblem.y;
+            
+            vec3 colSticker = mix(colFoil, colFoil * 0.25 + colEmblem, totalEmblem);
+            
+            float stickerGloss = pow(max(0.0, dot(N, H_key)), 220.0) * 2.4;
+            float stickerFresnel = pow(1.0 - max(0.0, dot(N, V)), 3.5);
+            
+            colSticker += vec3(1.0) * stickerGloss;
+            colSticker = mix(colSticker, vec3(1.0), stickerFresnel * 0.35);
+            colSticker += vec3(1.0) * edgeGlint;
+            
+            finalColor = mix(finalColor, colSticker, stickerMask);
+        } else if (surf.stickerStyle == 1) {
+            // === STYLE 1: Crimson Cinnabar Wax / Rakkan Seal Stamp ===
+            vec3 waxBase = vec3(0.68, 0.12, 0.10);
+            vec3 waxDeep = vec3(0.34, 0.04, 0.04);
+            vec3 waxSSS  = vec3(0.95, 0.28, 0.16) * pow(clamp(dot(V, -L_key + N * 0.4), 0.0, 1.0), 2.5) * 0.45;
+            float waxRimAO = smoothstep(-0.08, 0.0, surf.stickerDist) * 0.35;
+            float waxSpec = pow(max(0.0, dot(N, H_key)), 48.0) * 0.65;
+            vec3 colWax = mix(waxBase, waxDeep, waxRimAO) * (diffuse * 0.85 + 0.25) + waxSSS + vec3(1.0, 0.85, 0.80) * waxSpec;
+            // Subtle gilded powder rub on the raised stamped emblem ridges
+            vec3 emblemWax = mix(waxBase * 1.25 + waxSpec * 1.4, u_color_gold.rgb * (diffuse + 0.5), 0.32);
+            colWax = mix(colWax, emblemWax, totalEmblem * 0.85);
+            finalColor = mix(finalColor, colWax, stickerMask);
+        } else if (surf.stickerStyle == 2) {
+            // === STYLE 2: Flush Brushed Metal / Maki-e / Pietra Dura Medallion Inlay ===
+            float brush = noise2D(mod(vec2(qSticker.x * 48.0, qSticker.y * 6.0), 256.0)) * 0.08;
+            vec3 metalBase = mix(u_color_gold.rgb, vec3(0.92, 0.85, 0.72), 0.22 + brush);
+            float metalSpec = pow(max(0.0, dot(N, H_key)), 72.0) * 1.35 + pow(max(0.0, dot(N, H_fill)), 36.0) * 0.35;
+            float settingGroove = smoothstep(0.025, 0.0, abs(surf.stickerDist));
+            vec3 colMetal = metalBase * (diffuse * 0.72 + 0.32) + metalBase * metalSpec;
+            // Oxidized dark antique bronze/patina in recessed emblem channels + bright gilded motif
+            vec3 darkRecess = u_color_stone.rgb * 0.45;
+            colMetal = mix(colMetal, darkRecess + u_color_gold.rgb * (0.25 + metalSpec * 0.5), emblem.x * 0.65);
+            colMetal = mix(colMetal, metalBase * 1.25 + vec3(1.0, 0.95, 0.82) * metalSpec * 1.2, emblem.y * 0.85);
+            colMetal *= (1.0 - settingGroove * 0.65);
+            finalColor = mix(finalColor, colMetal, stickerMask);
+        } else if (surf.stickerStyle == 3) {
+            // === STYLE 3: Luthier Mother-of-Pearl & Abalone Rosette Inlay ===
+            vec3 ebonyPurfling = vec3(0.04, 0.03, 0.03) * (diffuse + 0.2);
+            float mopThick = 0.68 + 0.26 * fbm3(surf.stickerLocal * 6.5);
+            vec3 mopIrid = evalIridescence(max(0.05, dot(H_key, V)), mopThick, 1.38, vec3(0.85, 0.90, 0.94));
+            float mopSpec = pow(max(0.0, dot(N, H_key)), 140.0) * 1.5;
+            vec3 colPearl = mix(vec3(0.82, 0.88, 0.90), mopIrid * 1.35, 0.72) * (diffuse * 0.75 + 0.35) + vec3(1.0) * mopSpec;
+            // Dark ebony background setting with luminous mother-of-pearl inlay lines
+            float purfRing = smoothstep(0.030, 0.0, abs(surf.stickerDist + 0.015));
+            vec3 colInlay = mix(finalColor * 0.45 + ebonyPurfling * 0.55, colPearl, totalEmblem);
+            colInlay = mix(colInlay, ebonyPurfling, purfRing * 0.85);
+            finalColor = mix(finalColor, colInlay, stickerMask);
+        } else {
+            // === STYLE 4: Hot-Iron Pyrography Wood Brand (Scorched into Wood Grain) ===
+            float scorchHalo = smoothstep(0.08, -0.04, surf.stickerDist) * 0.22;
+            vec3 toastedWood = finalColor * vec3(0.68, 0.46, 0.30);
+            vec3 charredCarbon = finalColor * 0.14 + vec3(0.04, 0.025, 0.015) * diffuse;
+            vec3 colBrand = mix(finalColor, toastedWood, scorchHalo + totalEmblem * 0.35);
+            colBrand = mix(colBrand, charredCarbon, totalEmblem * 0.92);
+            finalColor = mix(finalColor, colBrand, stickerMask);
         }
-        
-        // Kinetic Holographic Emblem Illumination
-        // In Mode 0 & Mode 2, use dual-fan CD rainbow beams. In Mode 1, balance with prism glow.
-        float cdWeight = (foilMode == 1) ? 0.45 : 1.0;
-        vec3 lightA = cdRainbowA * (cdFanA * 5.2 + cdBroad * 1.4) * holoPwr * cdWeight;
-        vec3 lightB = cdRainbowB * (cdFanB * 5.2 + cdBroad * 1.4) * holoPwr * cdWeight;
-        float emblemGlint = pow(max(0.0, dot(N, H_key)), 110.0) * 2.0;
-        
-        vec3 colEmblem = (lightA + vec3(emblemGlint)) * emblem.x +
-                         (lightB + vec3(emblemGlint)) * emblem.y;
-        
-        // High-contrast composite: crisp emblem atop metallic foil base
-        vec3 colSticker = mix(colFoil, colFoil * 0.25 + colEmblem, totalEmblem);
-        
-        // High-gloss clearcoat & Fresnel rim glaze
-        float stickerGloss = pow(max(0.0, dot(N, H_key)), 220.0) * 2.4;
-        float stickerFresnel = pow(1.0 - max(0.0, dot(N, V)), 3.5);
-        
-        colSticker += vec3(1.0) * stickerGloss;
-        colSticker = mix(colSticker, vec3(1.0), stickerFresnel * 0.35);
-        colSticker += vec3(1.0) * edgeGlint;
-        
-        finalColor = mix(finalColor, colSticker, stickerMask);
     }
     
     // --- Active Keystroke Shockwave & Energy Vein Glow ---

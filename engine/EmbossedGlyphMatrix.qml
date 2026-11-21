@@ -536,6 +536,7 @@ Item {
 
         var curPalette = root.glyphPalettes[root.currentPaletteIndex];
         var curHolo = (curPalette && curPalette.holo !== undefined) ? curPalette.holo : 0.0;
+        var curSealStyle = (curPalette && curPalette.sealStyle !== undefined) ? curPalette.sealStyle : 0;
         var themeHasHolo = (curHolo > 0.01);
 
         if (!root.stickerLifecycleInitialized) {
@@ -551,7 +552,7 @@ Item {
                     if (themeHasHolo && initUX >= -0.20 && initUX <= 1.20 && initUY >= -0.20 && initUY <= 1.20) {
                         var hInit = hash12(initCX * 37.19 + 15.3, initCY * 37.19 + 71.9);
                         if (hInit <= 0.58) {
-                            keptStickers.push({ cx: initCX, cy: initCY, intensity: curHolo });
+                            keptStickers.push({ cx: initCX, cy: initCY, intensity: curHolo, sealStyle: curSealStyle });
                         }
                     }
                 }
@@ -573,7 +574,7 @@ Item {
                         if (uvX >= 0.95 || uvY >= 0.95) {
                             var hCandidate = hash12(cx * 37.19 + 15.3, cy * 37.19 + 71.9);
                             if (hCandidate <= 0.58 && themeHasHolo) {
-                                keptStickers.push({ cx: cx, cy: cy, intensity: curHolo });
+                                keptStickers.push({ cx: cx, cy: cy, intensity: curHolo, sealStyle: curSealStyle });
                             }
                         }
                     }
@@ -598,10 +599,12 @@ Item {
         root.activeStickerList = keptStickers;
 
         // 4. Update the 8 shader uniform slots
+        // slot.w encodes active flag + persistent sealStyle: 0 = inactive, 1..5 = sealStyle 0..4
         function getSlot(idx) {
             if (idx < keptStickers.length) {
                 var s = keptStickers[idx];
-                return Qt.vector4d(s.cx, s.cy, s.intensity, 1.0);
+                var styleVal = (s.sealStyle !== undefined) ? s.sealStyle : 0;
+                return Qt.vector4d(s.cx, s.cy, s.intensity, 1.0 + styleVal);
             }
             return Qt.vector4d(0.0, 0.0, 0.0, 0.0);
         }
@@ -709,6 +712,23 @@ Item {
         ColorAnimation { duration: root.animDuration; easing.type: Easing.InOutSine }
     }
     property real filmRegime: 0.45
+    property int substrateIdA: 0
+    property int substrateIdB: 0
+    property real substrateBlend: 0.0
+
+    NumberAnimation {
+        id: substrateBlendAnim
+        target: root
+        property: "substrateBlend"
+        from: 0.0
+        to: 1.0
+        duration: root.animDuration
+        easing.type: Easing.InOutSine
+        onFinished: {
+            root.substrateIdA = root.substrateIdB
+            root.substrateBlend = 0.0
+        }
+    }
 
     Behavior on glitterDensity {
         NumberAnimation { duration: root.animDuration; easing.type: Easing.InOutSine }
@@ -735,6 +755,23 @@ Item {
         if (p.holo !== undefined) root.holoStrength = p.holo
         if (p.holoMode !== undefined) root.holoMode = p.holoMode
         if (p.filmRegime !== undefined) root.filmRegime = p.filmRegime
+        if (p.substrateId !== undefined) {
+            var nextSub = p.substrateId
+            if (nextSub !== root.substrateIdB) {
+                if (substrateBlendAnim.running) {
+                    root.substrateIdA = root.substrateIdB
+                    substrateBlendAnim.stop()
+                }
+                if (root.substrateIdA === nextSub) {
+                    root.substrateIdB = nextSub
+                    root.substrateBlend = 0.0
+                } else {
+                    root.substrateIdB = nextSub
+                    root.substrateBlend = 0.0
+                    substrateBlendAnim.start()
+                }
+            }
+        }
     }
 
     function setGlyphPalette(idx) {
@@ -908,6 +945,7 @@ Item {
         property vector4d u_sticker5: root.stickerSlot5
         property vector4d u_sticker6: root.stickerSlot6
         property vector4d u_sticker7: root.stickerSlot7
+        property vector4d u_substrate: Qt.vector4d(root.substrateIdA, root.substrateIdB, root.substrateBlend, 1.0)
 
         property var u_text_texture: textSource
 
