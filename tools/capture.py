@@ -165,7 +165,8 @@ CONCEPTS = {
     6: {
         "name": "ephemeris_biome",
         "title": "Real-Time Ephemeris Biome",
-        "snippet": """RealtimeEphemerisBiome {
+        "snippet": """Palettes { id: biomePalettesRef }
+        RealtimeEphemerisBiome {
             anchors.fill: parent
             simTime: parent.simTime
             bass: parent.bass
@@ -180,10 +181,10 @@ CONCEPTS = {
             transientHit: parent.transientHit
             weatherMode: 0.0
             syncToSystemClock: false
-            colorSky: "#1b2838"
-            colorFoliage: "#2a5a3a"
-            colorSunMoon: "#ffdd88"
-            colorWisp: "#66ffcc"
+            colorSky: biomePalettesRef.biomePalettes[parent.paletteIdx % biomePalettesRef.biomePalettes.length].sky
+            colorFoliage: biomePalettesRef.biomePalettes[parent.paletteIdx % biomePalettesRef.biomePalettes.length].foliage
+            colorSunMoon: biomePalettesRef.biomePalettes[parent.paletteIdx % biomePalettesRef.biomePalettes.length].sunMoon
+            colorWisp: biomePalettesRef.biomePalettes[parent.paletteIdx % biomePalettesRef.biomePalettes.length].wisp
         }"""
     },
     7: {

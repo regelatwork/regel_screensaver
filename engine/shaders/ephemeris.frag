@@ -34,350 +34,943 @@ layout(std140, binding = 0) uniform buf {
     float u_pad2;                // 252..255
 };
 
-// --- Fast GPU Simplex Noise & Hash ---
+const float PI = 3.14159265;
+const float TAU = 6.28318530;
+
+// ----------------------------------------------------------------------------
+// Precision-Safe Sine-Free Hash & Value/Ridged FBM Noise
+// ----------------------------------------------------------------------------
 float hash12(vec2 p) {
-    p = fract(p * vec2(5.3983, 5.4427));
-    p += dot(p.yx, p.xy + vec2(21.5351, 14.3137));
-    return fract(p.x * p.y * 95.4337);
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
 }
 
 vec2 hash22(vec2 p) {
-    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
-    return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+    vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.xx + p3.yz) * p3.zy);
 }
 
-float noise2D(vec2 p) {
+// Smooth value noise in [0, 1]
+float vnoise(vec2 p) {
     vec2 i = floor(p);
     vec2 f = fract(p);
     vec2 u = f * f * (3.0 - 2.0 * f);
-    return mix(mix(dot(hash22(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0)),
-                   dot(hash22(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
-               mix(dot(hash22(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)),
-                   dot(hash22(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x), u.y);
+    float a = hash12(mod(i, 256.0));
+    float b = hash12(mod(i + vec2(1.0, 0.0), 256.0));
+    float c = hash12(mod(i + vec2(0.0, 1.0), 256.0));
+    float d = hash12(mod(i + vec2(1.0, 1.0), 256.0));
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 
+// Positive 4-octave FBM in [0, 1]
 float fbm(vec2 p) {
     float v = 0.0;
     float a = 0.5;
-    mat2 rot = mat2(cos(0.42), sin(0.42), -sin(0.42), cos(0.42));
+    mat2 rot = mat2(0.80, 0.60, -0.60, 0.80);
     for (int i = 0; i < 4; ++i) {
-        v += a * noise2D(p);
-        p = rot * p * 2.05 + vec2(1.6, 0.9);
+        v += a * vnoise(p);
+        p = rot * p * 2.03 + vec2(17.1, 31.7);
         a *= 0.5;
     }
     return v;
 }
 
+// Positive 5-octave FBM for crisp sculpted clouds
+float fbm5(vec2 p) {
+    float v = 0.0;
+    float a = 0.5;
+    mat2 rot = mat2(0.80, 0.60, -0.60, 0.80);
+    for (int i = 0; i < 5; ++i) {
+        v += a * vnoise(p);
+        p = rot * p * 2.02 + vec2(13.7, 29.3);
+        a *= 0.5;
+    }
+    return v;
+}
+
+// Ridged multifractal noise in [0, 1] for craggy alpine peaks & ice crystals
+float ridgedFbm(vec2 p) {
+    float v = 0.0;
+    float a = 0.55;
+    float weight = 1.0;
+    mat2 rot = mat2(0.80, 0.60, -0.60, 0.80);
+    for (int i = 0; i < 4; ++i) {
+        float n = 1.0 - abs(vnoise(p) * 2.0 - 1.0);
+        n = n * n * weight;
+        weight = clamp(n * 1.8, 0.0, 1.0);
+        v += n * a;
+        p = rot * p * 2.15 + vec2(7.3, 19.1);
+        a *= 0.48;
+    }
+    return clamp(v, 0.0, 1.0);
+}
+
+// Tapered capsule SDF for organic branching limbs
+float sdCapsuleTapered(vec2 p, vec2 a, vec2 b, float r1, float r2) {
+    vec2 pa = p - a;
+    vec2 ba = b - a;
+    float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-5), 0.0, 1.0);
+    float r = mix(r1, r2, h);
+    return length(pa - ba * h) - r;
+}
+
+// Smooth minimum for organic bark joints & foliage lobes
+float smin(float a, float b, float k) {
+    float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+    return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+// ----------------------------------------------------------------------------
+// Terrain Height Functions (shared by direct render & lake reflection)
+// ----------------------------------------------------------------------------
+float getDistantPeakHeight(float x) {
+    // Dramatic twin alpine massifs framing the left and right, dipping to a scenic central saddle
+    float leftMassif  = 0.24 * exp(-pow((x + 0.62) * 1.9, 2.0));
+    float rightMassif = 0.27 * exp(-pow((x - 0.58) * 1.75, 2.0));
+    float farSpire    = 0.14 * exp(-pow((x + 0.24) * 3.1, 2.0));
+    float ridge = ridgedFbm(vec2(x * 1.85 + 2.4, 1.7));
+    float crags = ridgedFbm(vec2(x * 5.2 + 0.9, 4.3)) * 0.045;
+    return -0.05 + (leftMassif + rightMassif + farSpire + 0.06) * (0.62 + 0.55 * ridge) + crags;
+}
+
+// Smooth macro silhouette of mid-ground rolling hills (no vertical striping!)
+float getMidRidgeMacro(float x) {
+    float leftHill  = 0.13 * exp(-pow((x + 0.72) * 1.45, 2.0));
+    float rightHill = 0.12 * exp(-pow((x - 0.74) * 1.40, 2.0));
+    float gentleWave = 0.055 * fbm(vec2(x * 1.35 + 6.2, 4.1));
+    return -0.145 + leftHill + rightHill + gentleWave;
+}
+
+float getMidRidgeHeight(float x) {
+    float macro = getMidRidgeMacro(x);
+    // Organic irregular conifer/forest canopy edge (no uniform periodic sawtooth)
+    float clump1 = vnoise(vec2(x * 19.0 + 3.1, 2.0));
+    float clump2 = vnoise(vec2(x * 47.0 + 7.4, 5.3));
+    float spire  = vnoise(vec2(x * 105.0 + 1.2, 8.7));
+    float trees = (clump1 * 0.48 + clump2 * 0.34 + spire * 0.18) * 0.024;
+    return macro + trees;
+}
+
+float getPromontoryHeight(float x) {
+    // Mossy headland jutting into the alpine lake from left-center + flanking banks
+    float mound = -0.355 + 0.175 * exp(-pow((x + 0.15) * 2.05, 2.0));
+    float leftBank = -0.305 + 0.135 * smoothstep(-0.22, -0.95, x);
+    float rightBank = -0.365 + 0.125 * smoothstep(0.28, 0.95, x);
+    float h = max(mound, max(leftBank, rightBank));
+    h += (fbm(vec2(x * 3.2 + 1.5, 5.2)) - 0.5) * 0.022;
+    return h;
+}
+
+// ----------------------------------------------------------------------------
+// Atmospheric Sky & Sculpted Studio Ghibli Cumulus Clouds
+// ----------------------------------------------------------------------------
+vec3 evaluateSky(
+    vec2 dirP,
+    vec2 sunPos,
+    vec2 moonPos,
+    float sunElev,
+    float dayFactor,
+    float twilightFactor,
+    float nightFactor,
+    float overcast,
+    float t,
+    vec2 windDir,
+    bool includeStarsAndMoon
+) {
+    float skyY = clamp((dirP.y + 0.14) * 1.45, 0.0, 1.0);
+
+    // Subtle palette tinting so each of the 5 themes has its own atmospheric personality
+    vec3 palSky = u_color_sky.rgb;
+    float palLuma = dot(palSky, vec3(0.299, 0.587, 0.114));
+    vec3 palTint = mix(vec3(1.0), palSky / max(palLuma, 0.08), 0.16);
+
+    // Day sky: rich Ghibli cerulean zenith -> luminous turquoise-azure -> airy warm horizon
+    vec3 dayZenith  = vec3(0.10, 0.34, 0.78) * mix(vec3(1.0), palTint, 0.30);
+    vec3 dayMid     = vec3(0.32, 0.64, 0.94);
+    vec3 dayHorizon = vec3(0.81, 0.92, 0.98);
+    vec3 skyDay = mix(dayHorizon, dayMid, smoothstep(0.0, 0.40, skyY));
+    skyDay = mix(skyDay, dayZenith, smoothstep(0.30, 1.0, skyY));
+
+    // Dawn / Golden Hour sky: indigo-violet zenith -> rose-coral -> glowing apricot horizon
+    vec3 twiZenith  = vec3(0.15, 0.14, 0.36);
+    vec3 twiMid     = vec3(0.74, 0.36, 0.44);
+    vec3 twiHorizon = vec3(1.00, 0.67, 0.34);
+    vec3 skyTwi = mix(twiHorizon, twiMid, smoothstep(0.0, 0.38, skyY));
+    skyTwi = mix(skyTwi, twiZenith, smoothstep(0.35, 1.0, skyY));
+
+    // Night sky: velvety obsidian-indigo anchored to u_color_sky
+    vec3 nightZenith  = palSky * 0.45 + vec3(0.008, 0.014, 0.032);
+    vec3 nightHorizon = palSky * 1.45 + vec3(0.04, 0.07, 0.14);
+    vec3 skyNight = mix(nightHorizon, nightZenith, smoothstep(0.0, 0.85, skyY));
+
+    vec3 sky = mix(skyNight, skyDay, dayFactor);
+    sky = mix(sky, skyTwi, twilightFactor * 0.88);
+
+    // Overcast storm tint during rain/mist
+    vec3 overcastCol = mix(vec3(0.08, 0.11, 0.16), vec3(0.45, 0.52, 0.60), dayFactor);
+    sky = mix(sky, overcastCol, overcast * 0.55);
+
+    // Mie forward scattering around the Sun
+    float sunDist = length(dirP - sunPos);
+    if (sunElev > -0.22) {
+        float sunVis = smoothstep(-0.22, 0.05, sunElev);
+        vec3 sunWarm = mix(u_color_sun_moon.rgb, vec3(1.0, 0.97, 0.88), 0.55);
+        sunWarm = mix(sunWarm, vec3(1.0, 0.50, 0.18), twilightFactor * 0.75);
+        float mieWide = exp(-sunDist * 2.4) * (0.26 + twilightFactor * 0.46) * (1.0 - overcast * 0.5);
+        float mieTight = exp(-sunDist * 9.5) * (0.52 + u_bass * 0.15) * (1.0 - overcast * 0.65);
+        sky += sunWarm * (mieWide + mieTight) * sunVis;
+    }
+
+    // Crisp Circular Sub-Pixel Starfield & Milky Way Ribbon (night & deep twilight)
+    if (includeStarsAndMoon && nightFactor > 0.04 && overcast < 0.85) {
+        float starFade = nightFactor * smoothstep(-0.08, 0.18, dirP.y) * (1.0 - overcast * 0.75);
+
+        vec2 mwUV = mat2(0.84, -0.54, 0.54, 0.84) * (dirP - vec2(0.0, 0.18));
+        float mwBand = exp(-pow(mwUV.y * 4.5, 2.0));
+        float mwNoise = fbm(mwUV * vec2(3.2, 6.5) + vec2(1.4, 2.1));
+        float mwDust = smoothstep(0.32, 0.72, mwNoise) * mwBand;
+        vec3 mwCol = mix(vec3(0.18, 0.28, 0.52), vec3(0.55, 0.42, 0.68), vnoise(mwUV * 4.0));
+        sky += mwCol * mwDust * 0.28 * starFade;
+
+        for (int layer = 0; layer < 3; ++layer) {
+            float scale = (layer == 0) ? 24.0 : ((layer == 1) ? 46.0 : 84.0);
+            vec2 sp = dirP * scale + vec2(float(layer) * 19.3, float(layer) * 7.1);
+            vec2 cell = floor(sp);
+            vec2 f = fract(sp);
+            vec2 rnd = hash22(cell);
+            float chance = hash12(cell + 11.7);
+            float thresh = (layer == 0) ? 0.88 : ((layer == 1) ? 0.86 : 0.84);
+            if (chance > thresh) {
+                vec2 center = 0.18 + 0.64 * rnd;
+                float d = length(f - center);
+                float radius = mix(0.042, 0.105, (chance - thresh) / (1.0 - thresh));
+                float core = smoothstep(radius, radius * 0.15, d);
+                float halo = exp(-d * 14.0) * 0.32;
+                float twinkle = 0.68 + 0.32 * sin(mod(t * (2.2 + rnd.x * 3.0) + rnd.y * TAU, TAU));
+                vec3 starTint = mix(vec3(0.78, 0.88, 1.0), vec3(1.0, 0.93, 0.80), rnd.x);
+                float bright = (layer == 0) ? 1.15 : ((layer == 1) ? 0.80 : 0.52);
+                sky += starTint * (core + halo) * twinkle * bright * starFade;
+            }
+        }
+    }
+
+    // Sun Disc
+    if (sunElev > -0.12 && overcast < 0.8) {
+        float sunDisc = smoothstep(0.039, 0.032, sunDist);
+        vec3 discCol = mix(vec3(1.0, 0.98, 0.92), vec3(1.0, 0.72, 0.38), twilightFactor * 0.7);
+        sky += discCol * sunDisc * (1.8 * (1.0 - overcast * 0.65));
+    }
+
+    // Physically Shaded Lunar Disc & Unclipped Atmospheric Halo
+    if (includeStarsAndMoon && sunElev < 0.25) {
+        float moonVis = smoothstep(0.25, -0.10, sunElev) * (1.0 - overcast * 0.55);
+        float moonDist = length(dirP - moonPos);
+        float moonR = 0.040;
+
+        vec3 moonGlowCol = mix(vec3(0.68, 0.82, 1.0), u_color_sun_moon.rgb, 0.35);
+        sky += moonGlowCol * exp(-moonDist * 8.5) * 0.34 * moonVis;
+
+        if (moonDist < moonR + 0.006) {
+            float discMask = smoothstep(moonR, moonR - 0.0028, moonDist);
+            vec2 ml = (dirP - moonPos) / moonR;
+            float r2 = dot(ml, ml);
+            float z = sqrt(max(0.0, 1.0 - r2));
+            vec3 n = vec3(ml, z);
+
+            float phaseAng = u_lunar_phase * TAU;
+            vec3 lightDir = normalize(vec3(sin(phaseAng), 0.16, -cos(phaseAng)));
+            float lit = smoothstep(-0.07, 0.14, dot(n, lightDir));
+
+            float maria = fbm(ml * 3.2 + vec2(1.7, 0.9));
+            vec3 litSurface = mix(vec3(0.76, 0.80, 0.86), vec3(0.97, 0.97, 0.94), smoothstep(0.32, 0.68, maria));
+            litSurface = mix(litSurface, u_color_sun_moon.rgb, 0.18);
+            vec3 earthshine = mix(sky, vec3(0.10, 0.14, 0.22), 0.55);
+
+            sky = mix(sky, mix(earthshine, litSurface, lit), discMask * moonVis);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Crisp, Sculpted Studio Ghibli Cumulus Clouds
+    // ------------------------------------------------------------------------
+    if (dirP.y > -0.05) {
+        vec2 drift = windDir * mod(t * 0.016, 64.0);
+
+        // Layer A: High delicate cirrus streaks
+        vec2 cirrusP = vec2(dirP.x * 1.45 - drift.x * 0.55, dirP.y * 4.5 + 0.4);
+        float cirrus = smoothstep(0.58, 0.82, fbm(cirrusP)) * smoothstep(0.08, 0.28, dirP.y) * smoothstep(0.54, 0.32, dirP.y);
+        vec3 cirrusCol = mix(vec3(0.26, 0.32, 0.46), vec3(1.0, 0.98, 0.96), dayFactor);
+        cirrusCol = mix(cirrusCol, vec3(1.0, 0.74, 0.56), twilightFactor * 0.85);
+        sky = mix(sky, cirrusCol, cirrus * (0.30 + overcast * 0.22));
+
+        // Layer B: Billowing sculpted Ghibli cumulus towers
+        vec2 cUV = vec2(dirP.x * 1.55 - drift.x * 1.2, dirP.y * 2.55 - 0.06);
+        vec2 warp = vec2(fbm(cUV * 1.6 + vec2(3.1, 1.2)), fbm(cUV * 1.6 + vec2(8.4, 5.7))) - 0.5;
+        float baseDensity = fbm5(cUV + warp * 0.48);
+
+        // Flat base, billowy upper puffs
+        float heightEnv = smoothstep(0.00, 0.08, dirP.y) * smoothstep(0.47, 0.16, dirP.y);
+        float shaped = baseDensity * (0.76 + 0.48 * heightEnv);
+        float coverage = mix(0.52, 0.38, overcast);
+        // Crisp painterly cumulus edge
+        float cloudAlpha = smoothstep(coverage, coverage + 0.095, shaped) * heightEnv;
+
+        if (cloudAlpha > 0.005) {
+            vec2 lightPos = (dayFactor > 0.25) ? sunPos : moonPos;
+            vec2 toLight = normalize(lightPos - dirP);
+            float sampleTowardLight = fbm5(cUV + warp * 0.48 + toLight * vec2(0.08, 0.13));
+            float selfLit = clamp((baseDensity - sampleTowardLight) * 5.2 + 0.52 + (dirP.y - 0.10) * 1.45, 0.0, 1.0);
+
+            vec3 cloudLitDay = vec3(1.00, 0.99, 0.95);
+            vec3 cloudMidDay = vec3(0.78, 0.86, 0.95);
+            vec3 cloudShdDay = vec3(0.42, 0.55, 0.78);
+
+            vec3 cloudLitTwi = vec3(1.00, 0.78, 0.48);
+            vec3 cloudMidTwi = vec3(0.82, 0.46, 0.48);
+            vec3 cloudShdTwi = vec3(0.32, 0.22, 0.42);
+
+            vec3 cloudLitNgt = vec3(0.24, 0.32, 0.46);
+            vec3 cloudMidNgt = vec3(0.13, 0.18, 0.28);
+            vec3 cloudShdNgt = vec3(0.05, 0.08, 0.15);
+
+            vec3 cLit = mix(mix(cloudLitNgt, cloudLitDay, dayFactor), cloudLitTwi, twilightFactor * 0.88);
+            vec3 cMid = mix(mix(cloudMidNgt, cloudMidDay, dayFactor), cloudMidTwi, twilightFactor * 0.88);
+            vec3 cShd = mix(mix(cloudShdNgt, cloudShdDay, dayFactor), cloudShdTwi, twilightFactor * 0.88);
+
+            cLit = mix(cLit, vec3(0.56, 0.61, 0.69) * (0.25 + 0.75 * dayFactor), overcast * 0.55);
+            cShd = mix(cShd, vec3(0.17, 0.21, 0.29) * (0.3 + 0.7 * dayFactor), overcast * 0.65);
+
+            // Painterly 3-tone cumulus shading
+            vec3 cloudCol = mix(cShd, cMid, smoothstep(0.22, 0.52, selfLit));
+            cloudCol = mix(cloudCol, cLit, smoothstep(0.50, 0.82, selfLit));
+
+            // Warm sunlit silver-lining rim
+            float silverRim = exp(-sunDist * 3.8) * (1.0 - cloudAlpha * 0.35) * smoothstep(-0.1, 0.2, sunElev);
+            cloudCol += mix(vec3(1.0, 0.93, 0.78), vec3(1.0, 0.62, 0.30), twilightFactor) * silverRim * 0.60;
+
+            sky = mix(sky, cloudCol, cloudAlpha * 0.93);
+        }
+    }
+
+    return sky;
+}
+
+// ----------------------------------------------------------------------------
+// Main Fragment Shader
+// ----------------------------------------------------------------------------
 void main() {
     vec2 uv = qt_TexCoord0;
     float aspect = u_resolution.x / max(u_resolution.y, 1.0);
-    // Standard screen coordinates (+Y is UP towards sky, -Y is DOWN towards meadow)
     vec2 p = vec2(uv.x - 0.5, 0.5 - uv.y) * vec2(aspect, 1.0);
 
-    float t = u_time * 0.8;
-    float windSpeed = (0.5 + length(u_wind_vector) * 1.5 + u_bass * 1.8) * max(0.2, u_vortex_speed);
-    vec2 windDir = normalize(u_wind_vector + vec2(1.0, 0.15));
+    float t = mod(u_time, 3600.0);
+    float windSpeed = (0.45 + length(u_wind_vector) * 1.2 + u_bass * 1.4) * max(0.25, abs(u_vortex_speed));
+    vec2 windDir = normalize(u_wind_vector + vec2(0.85, 0.12));
+
+    float isRain = smoothstep(0.5, 0.9, u_weather_mode) * (1.0 - smoothstep(1.1, 1.5, u_weather_mode));
+    float isSnow = smoothstep(1.5, 1.9, u_weather_mode) * (1.0 - smoothstep(2.1, 2.5, u_weather_mode));
+    float isMist = smoothstep(2.5, 2.9, u_weather_mode);
+    float overcast = clamp(isRain * 0.75 + isSnow * 0.35 + isMist * 0.45, 0.0, 1.0);
 
     // ------------------------------------------------------------------------
-    // 1. Astronomical Ephemeris & Solar/Lunar Dynamics
+    // 1. Astronomical Ephemeris & Lighting Regime
     // ------------------------------------------------------------------------
     float solarHour = mod(u_solar_time, 24.0);
-    // Solar trajectory angle: 6h = Dawn, 12h = Noon, 18h = Sunset, 24h/0h = Midnight
-    float solarRad = (solarHour - 6.0) / 12.0 * 3.14159265;
+    float solarRad = (solarHour - 6.0) / 12.0 * PI;
     float sunElev = sin(solarRad);
-    float sunAzi = -cos(solarRad) * 0.42 * aspect;
+    float sunAzi = -cos(solarRad) * 0.46 * aspect;
 
-    // Sun screen coordinate
-    vec2 sunPos = vec2(sunAzi, sunElev * 0.35 + 0.05);
+    vec2 sunPos = vec2(sunAzi, sunElev * 0.36 + 0.05);
+    vec2 moonPos = vec2(-sunAzi, -sunElev * 0.36 + 0.06);
 
-    // Moon is positioned opposite the sun in the celestial dome
-    vec2 moonPos = vec2(-sunAzi, -sunElev * 0.35 + 0.05);
+    float dayFactor = smoothstep(-0.18, 0.28, sunElev);
+    float twilightFactor = smoothstep(0.36, -0.02, abs(sunElev)) * smoothstep(-0.34, -0.02, sunElev);
+    float nightFactor = 1.0 - smoothstep(-0.20, 0.12, sunElev);
 
-    // Daylight balance factor (0.0 = deep night, 0.5 = dawn/dusk, 1.0 = midday)
-    float dayFactor = smoothstep(-0.25, 0.35, sunElev);
-    float goldenHour = smoothstep(0.4, 0.0, abs(sunElev)) * (1.0 - smoothstep(0.35, 0.55, sunElev));
+    vec2 keyLightPos = mix(moonPos, sunPos, dayFactor);
+    vec3 keyLightCol = mix(vec3(0.55, 0.72, 0.98), vec3(1.0, 0.96, 0.86), dayFactor);
+    keyLightCol = mix(keyLightCol, vec3(1.0, 0.58, 0.28), twilightFactor * 0.85);
+    vec3 ambientShadowCol = mix(vec3(0.05, 0.09, 0.18), vec3(0.22, 0.34, 0.56), dayFactor);
+    ambientShadowCol = mix(ambientShadowCol, vec3(0.26, 0.18, 0.34), twilightFactor * 0.75);
+
+    vec3 hazeCol = mix(u_color_sky.rgb * 1.45 + vec3(0.04, 0.07, 0.13), vec3(0.72, 0.85, 0.96), dayFactor);
+    hazeCol = mix(hazeCol, vec3(0.95, 0.62, 0.40), twilightFactor * 0.82);
+    hazeCol = mix(hazeCol, mix(vec3(0.10, 0.13, 0.18), vec3(0.50, 0.56, 0.62), dayFactor), overcast * 0.5);
 
     // ------------------------------------------------------------------------
-    // 2. Atmospheric Sky Dome (Preetham / Ghibli Twilight Model)
+    // 2. Sky Dome & Sculpted Clouds
     // ------------------------------------------------------------------------
-    // Day Sky: Crisp Ghibli azure blue fading to warm horizon haze
-    vec3 skyDay = mix(vec3(0.55, 0.78, 0.95), vec3(0.22, 0.48, 0.85), clamp(p.y * 1.8 + 0.5, 0.0, 1.0));
-    // Golden Hour Sky: Amber-peach horizon into coral and lavender zenith
-    vec3 skySunset = mix(vec3(0.98, 0.55, 0.28), vec3(0.45, 0.22, 0.55), clamp(p.y * 1.5 + 0.5, 0.0, 1.0));
-    // Night Sky: Deep indigo/navy into starry celestial obsidian
-    vec3 skyNight = mix(u_color_sky.rgb, vec3(0.02, 0.03, 0.08), clamp(p.y * 1.5 + 0.4, 0.0, 1.0));
+    vec3 sceneColor = evaluateSky(
+        p, sunPos, moonPos, sunElev, dayFactor, twilightFactor, nightFactor,
+        overcast, t, windDir, true
+    );
 
-    vec3 skyColor = mix(skyNight, skyDay, dayFactor);
-    skyColor = mix(skyColor, skySunset, goldenHour * 0.85);
+    // ------------------------------------------------------------------------
+    // 3. Layer 1: Distant Snow-Capped Alpine Peaks (2D Ridged Facets, No Seams)
+    // ------------------------------------------------------------------------
+    float mtn1H = getDistantPeakHeight(p.x);
+    if (p.y < mtn1H + 0.008) {
+        float mtn1Mask = smoothstep(mtn1H + 0.0035, mtn1H - 0.0035, p.y);
+        // Smooth 2D alpine ridge heightfield for diagonal rocky faces & sunlit gullies
+        vec2 mUV = vec2(p.x * 4.2 + 1.3, p.y * 6.5 + 2.1);
+        float hC = ridgedFbm(mUV);
+        float hX = ridgedFbm(mUV + vec2(0.08, 0.0));
+        float hY = ridgedFbm(mUV + vec2(0.0, 0.08));
+        vec3 mNormal = normalize(vec3((hC - hX) * 6.0, (hC - hY) * 4.0 + 0.35, 0.65));
+        vec3 lightDir3 = normalize(vec3(keyLightPos.x - p.x, max(keyLightPos.y - p.y, 0.18), 0.55));
+        float facetLit = smoothstep(0.15, 0.82, dot(mNormal, lightDir3) * 0.5 + 0.5);
 
-    // Celestial Starfield & Milky Way Ribbon (visible during night & twilight)
-    if (dayFactor < 0.75) {
-        float nightAlpha = (1.0 - dayFactor);
-        vec2 starCoord1 = p * 80.0;
-        vec2 starGrid1 = floor(starCoord1);
-        float starRand1 = hash12(starGrid1);
-        float starTwinkle = 0.65 + 0.35 * sin(t * 3.0 + starRand1 * 62.8);
-        float star1 = pow(starRand1, 42.0) * starTwinkle;
+        vec3 rockShadow = mix(vec3(0.07, 0.11, 0.21), vec3(0.24, 0.35, 0.52), dayFactor);
+        vec3 rockLit    = mix(vec3(0.16, 0.23, 0.36), vec3(0.46, 0.55, 0.68), dayFactor);
+        rockLit = mix(rockLit, vec3(0.74, 0.46, 0.42), twilightFactor * 0.68);
+        vec3 mtn1Col = mix(rockShadow, rockLit, facetLit);
 
-        vec2 starCoord2 = p * 160.0;
-        vec2 starGrid2 = floor(starCoord2);
-        float starRand2 = hash12(starGrid2);
-        float star2 = pow(starRand2, 55.0) * 0.85;
+        // Snow caps clinging to upper ridges & sunlit alpine ledges (leaving rocky facets visible)
+        float distFromCrest = mtn1H - p.y;
+        float snowLine = 0.085 + 0.045 * vnoise(vec2(p.x * 5.5, 1.5)) - isSnow * 0.08;
+        float snowMask = smoothstep(snowLine, snowLine + 0.065, p.y)
+                       * smoothstep(0.11, 0.008, distFromCrest - hC * 0.055)
+                       * smoothstep(0.32, 0.72, facetLit * 0.7 + hC * 0.45);
+        vec3 snowCol = mix(vec3(0.32, 0.42, 0.60), vec3(0.97, 0.98, 1.0), dayFactor);
+        snowCol = mix(snowCol, vec3(1.0, 0.79, 0.64), twilightFactor * 0.72);
+        mtn1Col = mix(mtn1Col, snowCol, snowMask * 0.85);
 
-        // Milky Way Cosmic Ribbon Dust
-        float milkyDust = fbm(p * 2.5 + vec2(0.5, 0.8)) * fbm(p * 5.0 - vec2(0.8, 0.2));
-        vec3 milkyColor = mix(vec3(0.25, 0.35, 0.65), vec3(0.65, 0.45, 0.75), p.y + 0.5) * milkyDust * 0.4;
+        // Soft aerial perspective into the distant valley
+        float aerialHaze = smoothstep(0.26, -0.14, p.y) * 0.55 + 0.14;
+        mtn1Col = mix(mtn1Col, hazeCol, clamp(aerialHaze, 0.0, 0.80));
 
-        skyColor += (vec3(star1 + star2) + milkyColor) * nightAlpha;
+        sceneColor = mix(sceneColor, mtn1Col, mtn1Mask);
     }
 
     // ------------------------------------------------------------------------
-    // 3. Sun & Moon Celestial Discs
+    // 4. Layer 2: Mid-Ground Rolling Forested Hills & Pine Treeline (No Stripes!)
     // ------------------------------------------------------------------------
-    // Sun rendering
-    if (sunElev > -0.15) {
-        float sunDist = length(p - sunPos);
-        // Sun Disc
-        float sunDisc = smoothstep(0.045, 0.038, sunDist);
-        // Solar Corona & Rayleigh Atmospheric Glow
-        float sunGlow = exp(-sunDist * 6.5) * (1.2 + u_bass * 0.4);
-        vec3 sunColor = mix(u_color_sun_moon.rgb, vec3(1.0, 0.98, 0.92), 0.75);
-        if (goldenHour > 0.3) {
-            sunColor = mix(sunColor, vec3(1.0, 0.45, 0.15), goldenHour);
-        }
-        skyColor += sunColor * sunDisc * 2.5 + sunColor * sunGlow * (0.6 + goldenHour * 0.8);
-    }
+    float mtn2H = getMidRidgeHeight(p.x);
+    if (p.y < mtn2H + 0.008) {
+        float mtn2Mask = smoothstep(mtn2H + 0.0028, mtn2H - 0.0028, p.y);
+        // Smooth macro slope ONLY (never derived from high-freq trees!)
+        float macroC = getMidRidgeMacro(p.x);
+        float macroR = getMidRidgeMacro(p.x + 0.04);
+        float macroSlope = (macroR - macroC) / 0.04;
+        float sunBias = clamp((keyLightPos.x - p.x) * 2.5, -1.0, 1.0);
+        float hillLit = smoothstep(-0.35, 0.45, -macroSlope * sunBias + 0.18);
 
-    // Moon rendering (visible when sun is below or near horizon)
-    if (sunElev < 0.3) {
-        float moonAlpha = smoothstep(0.3, -0.1, sunElev);
-        float moonDist = length(p - moonPos);
-        float moonRadius = 0.042;
-        if (moonDist < moonRadius * 1.5) {
-            float moonDisc = smoothstep(moonRadius, moonRadius - 0.003, moonDist);
-            // Lunar Phase Shadow: phase from 0.0 (New) to 0.5 (Full) to 1.0 (New)
-            vec2 moonLocal = (p - moonPos) / moonRadius;
-            float phaseOffset = (u_lunar_phase - 0.5) * 2.0; // -1 to 1
-            float shadowDist = length(vec2(moonLocal.x - phaseOffset * 0.85, moonLocal.y));
-            float phaseShadow = smoothstep(0.9, 1.1, shadowDist);
+        // Soft 2D forest canopy clumps (organic foliage texture, zero vertical streaks)
+        float canopyTex = fbm(vec2(p.x * 11.0 + 2.1, p.y * 16.0 + 3.7));
+        float crestDepth = clamp((macroC - p.y) / 0.16, 0.0, 1.0);
 
-            // Lunar surface crater noise
-            float crater = fbm(moonLocal * 4.0) * 0.25;
-            vec3 moonSurface = vec3(0.92, 0.94, 0.98) - vec3(crater);
-            // Soft earthshine on dark side
-            vec3 earthshine = vec3(0.08, 0.12, 0.20);
-            vec3 moonCol = mix(earthshine, moonSurface, phaseShadow);
+        vec3 forestDark = mix(vec3(0.03, 0.07, 0.13), u_color_foliage.rgb * 0.32 + ambientShadowCol * 0.18, dayFactor);
+        vec3 forestLit  = mix(vec3(0.07, 0.14, 0.21), u_color_foliage.rgb * 0.78, dayFactor);
+        forestLit = mix(forestLit, forestLit * 0.72 + keyLightCol * 0.30, twilightFactor * 0.62);
 
-            float moonHalo = exp(-moonDist * 12.0) * 0.35;
-            skyColor += (moonCol * moonDisc + vec3(0.7, 0.85, 1.0) * moonHalo) * moonAlpha;
-        }
+        // Sunlit forest tops grading down into cool shaded valley floor
+        float shadeMix = clamp(hillLit * (0.45 + 0.55 * canopyTex) * (1.0 - crestDepth * 0.45), 0.0, 1.0);
+        vec3 mtn2Col = mix(forestDark, forestLit, shadeMix);
+
+        // Snow dusting on conifer canopy in winter mode
+        mtn2Col = mix(mtn2Col, vec3(0.78, 0.86, 0.96) * (0.28 + 0.72 * dayFactor), isSnow * smoothstep(0.45, 0.72, canopyTex) * 0.55);
+
+        // Misty valley floor fade
+        float baseHaze = smoothstep(-0.04, -0.18, p.y) * (0.42 + u_fog_density * 0.28);
+        mtn2Col = mix(mtn2Col, hazeCol, clamp(baseHaze, 0.0, 0.76));
+
+        sceneColor = mix(sceneColor, mtn2Col, mtn2Mask);
     }
 
     // ------------------------------------------------------------------------
-    // 4. Painterly Landscape Layers (Mountains, Terraces & Meadow)
+    // 5. Layer 3: Tranquil Mirrored Alpine Lake
     // ------------------------------------------------------------------------
-    vec3 sceneColor = skyColor;
+    float lakeLevel = -0.175;
+    float promH = getPromontoryHeight(p.x);
+    bool inLake = (p.y < lakeLevel) && (p.y >= promH - 0.004);
 
-    // Distant Alpine Mountain Peaks (Layer 1)
-    float mtn1Height = 0.10 + 0.16 * fbm(vec2(p.x * 0.8 + 1.2, 2.5));
-    if (p.y < mtn1Height) {
-        float mtn1Mask = smoothstep(mtn1Height, mtn1Height - 0.015, p.y);
-        vec3 mtn1Color = mix(skyColor * 0.7, vec3(0.25, 0.35, 0.50), dayFactor);
-        // Snow capped ridges
-        float snowCap = smoothstep(0.18, 0.24, mtn1Height) * smoothstep(0.14, 0.20, p.y);
-        mtn1Color = mix(mtn1Color, vec3(0.90, 0.95, 1.0), snowCap * 0.7);
-        sceneColor = mix(sceneColor, mtn1Color, mtn1Mask * 0.85);
-    }
+    if (p.y < lakeLevel + 0.005) {
+        float lakeMask = smoothstep(lakeLevel + 0.0025, lakeLevel - 0.0025, p.y);
+        float depth = clamp((lakeLevel - p.y) / 0.34, 0.0, 1.0);
 
-    // Mid-Distance Forested Ridge (Layer 2)
-    float mtn2Height = -0.04 + 0.12 * fbm(vec2(p.x * 1.6 + 5.0, 4.2));
-    if (p.y < mtn2Height) {
-        float mtn2Mask = smoothstep(mtn2Height, mtn2Height - 0.012, p.y);
-        vec3 mtn2Color = mix(vec3(0.08, 0.15, 0.22), u_color_foliage.rgb * 0.55, dayFactor);
-        sceneColor = mix(sceneColor, mtn2Color, mtn2Mask * 0.92);
-    }
+        // Multi-frequency horizontal water ripples
+        float wave1 = vnoise(vec2(p.x * 13.0 - t * windSpeed * 0.65, (p.y - lakeLevel) * 56.0 - t * 0.85));
+        float wave2 = vnoise(vec2(p.x * 27.0 + t * 0.35, (p.y - lakeLevel) * 110.0 + t * 1.05));
+        float ripple = (wave1 * 0.65 + wave2 * 0.35 - 0.5) * (0.016 + depth * 0.024);
 
-    // Foreground Rolling Meadow & Mossy Terrace (Layer 3)
-    float hillHeight = -0.18 + 0.07 * sin(p.x * 2.2 + 0.4) + 0.03 * fbm(vec2(p.x * 3.5, 6.0));
-    if (p.y < hillHeight) {
-        float hillMask = smoothstep(hillHeight, hillHeight - 0.01, p.y);
-        // Wind grass ripples
-        float grassWave = sin(p.x * 18.0 - t * windSpeed * 3.5 + p.y * 12.0);
-        float grassShimmer = (grassWave * 0.5 + 0.5) * (0.15 + u_bass * 0.25);
-
-        vec3 grassBase = mix(vec3(0.05, 0.12, 0.16), u_color_foliage.rgb, dayFactor);
-        vec3 grassColor = grassBase * (0.85 + grassShimmer);
-
-        // Alpine Valley Stream / Lake at the bottom
-        if (p.y < -0.32) {
-            float streamMask = smoothstep(-0.30, -0.34, p.y);
-            // Water ripples flowing along wind
-            float waterWave = sin(p.x * 25.0 - t * 4.0) * sin(p.y * 40.0 - t * 3.0);
-            vec3 waterColor = mix(vec3(0.04, 0.08, 0.18), vec3(0.12, 0.35, 0.45), dayFactor);
-            // Sky & Sun/Moon water reflection
-            waterColor += skyColor * 0.35 + vec3(waterWave * 0.06);
-            grassColor = mix(grassColor, waterColor, streamMask);
+        // Raindrop concentric rings on the lake surface
+        float rainRing = 0.0;
+        if (isRain > 0.05) {
+            vec2 rGrid = vec2(p.x * 12.0, (p.y - lakeLevel) * 32.0);
+            vec2 rCell = floor(rGrid);
+            vec2 rF = fract(rGrid);
+            vec2 rPos = 0.2 + 0.6 * hash22(rCell);
+            float rPhase = fract(t * 1.2 + hash12(rCell + 5.1));
+            float rDist = length((rF - rPos) * vec2(1.0, 1.8));
+            rainRing = smoothstep(0.055, 0.0, abs(rDist - rPhase * 0.45)) * (1.0 - rPhase) * isRain;
+            ripple += rainRing * 0.012;
         }
 
-        sceneColor = mix(sceneColor, grassColor, hillMask);
+        // Mirrored reflection coordinates
+        vec2 reflP = vec2(p.x + ripple * 1.35, lakeLevel + (lakeLevel - p.y) * 1.08 + ripple * 0.75);
+        vec3 reflSky = evaluateSky(
+            reflP, sunPos, moonPos, sunElev, dayFactor, twilightFactor, nightFactor,
+            overcast, t, windDir, false
+        );
+
+        // Reflected distant mountains & forested hills in the lake
+        float reflMtnH = getDistantPeakHeight(reflP.x);
+        if (reflP.y < reflMtnH) {
+            vec3 reflMtn = mix(vec3(0.05, 0.09, 0.16), vec3(0.24, 0.35, 0.50), dayFactor);
+            reflSky = mix(reflSky, reflMtn, 0.50);
+        }
+        float reflHillH = getMidRidgeMacro(reflP.x);
+        if (reflP.y < reflHillH) {
+            vec3 reflHill = mix(vec3(0.03, 0.07, 0.12), u_color_foliage.rgb * 0.42, dayFactor);
+            reflSky = mix(reflSky, reflHill, 0.65);
+        }
+        // Subtle bonsai canopy reflection shadow shimmering over the right-center water
+        float treeReflDist = length((reflP - vec2(0.06, 0.12)) * vec2(2.6, 4.2));
+        if (treeReflDist < 1.0) {
+            vec3 treeReflCol = mix(vec3(0.02, 0.05, 0.08), u_color_foliage.rgb * 0.30, dayFactor);
+            reflSky = mix(reflSky, treeReflCol, smoothstep(1.0, 0.35, treeReflDist) * 0.42);
+        }
+
+        vec3 waterDeep = mix(vec3(0.02, 0.05, 0.11), vec3(0.06, 0.24, 0.38), dayFactor);
+        waterDeep = mix(waterDeep, vec3(0.18, 0.16, 0.26), twilightFactor * 0.55);
+        float fresnel = mix(0.45, 0.80, pow(1.0 - depth, 1.55));
+        vec3 waterCol = mix(waterDeep, reflSky, fresnel);
+
+        // Shimmering vertical sun/moon glitter column across ripples
+        float glitterX = abs(p.x - keyLightPos.x + ripple * 2.8);
+        float glitterCol = exp(-glitterX * (13.0 - depth * 5.5)) * smoothstep(0.0, 0.10, depth);
+        float glitterSparkle = smoothstep(0.45, 0.76, wave1 * 0.5 + wave2 * 0.5 + 0.12);
+        waterCol += keyLightCol * glitterCol * (0.28 + 0.85 * glitterSparkle) * (1.0 - overcast * 0.65);
+
+        // Raindrop ring highlight
+        waterCol += vec3(0.72, 0.86, 0.96) * rainRing * (0.25 + 0.45 * dayFactor);
+
+        // Soft shoreline mist along the far water margin
+        float farEdge = smoothstep(0.018, 0.0, lakeLevel - p.y);
+        waterCol = mix(waterCol, hazeCol, farEdge * 0.48);
+
+        sceneColor = mix(sceneColor, waterCol, lakeMask);
     }
 
     // ------------------------------------------------------------------------
-    // 5. Central Ancient Mountain Bonsai / Pine Tree
+    // 6. Foreground Mossy Headland, Ancient Bonsai & Hanging Paper Lantern
     // ------------------------------------------------------------------------
-    // Gnarled trunk silhouette rising from meadow
-    vec2 trunkBase = vec2(0.06, -0.22);
-    vec2 toTrunk = p - trunkBase;
+    vec2 wispTarget = vec2((u_pointer.x - 0.5) * aspect, 0.5 - u_pointer.y);
+    vec2 wispHover = vec2(sin(mod(t * 2.4, TAU)) * 0.014, cos(mod(t * 3.1, TAU)) * 0.016);
+    vec2 wispPos = wispTarget + wispHover;
+    vec3 wispColor = u_color_wisp.rgb;
+    float wispVis = mix(0.48, 1.0, nightFactor + twilightFactor * 0.5);
 
-    // Curved organic trunk path
-    float trunkCurve = sin(toTrunk.y * 6.5) * 0.04 + (toTrunk.y * toTrunk.y) * 0.15;
-    float trunkDistX = abs(toTrunk.x - trunkCurve);
-    float trunkTaper = mix(0.042, 0.016, clamp((toTrunk.y + 0.05) / 0.35, 0.0, 1.0));
+    float swayPhase = mod(t * (1.2 + windSpeed * 0.55), TAU);
+    float branchSway = sin(swayPhase) * (0.006 + u_bass * 0.014);
+    float leafFlutter = sin(mod(t * 3.4 + p.x * 12.0, TAU)) * (0.002 + u_bass * 0.005);
 
-    if (toTrunk.y > -0.05 && toTrunk.y < 0.32 && trunkDistX < trunkTaper) {
-        float trunkBark = fbm(vec2(p.x * 35.0, p.y * 8.0));
-        vec3 barkColor = mix(vec3(0.12, 0.08, 0.06), vec3(0.28, 0.20, 0.14), trunkBark) * (0.35 + 0.65 * dayFactor);
-        sceneColor = mix(sceneColor, barkColor, smoothstep(trunkTaper, trunkTaper - 0.004, trunkDistX));
+    // Hanging paper lantern suspended from lower right cantilevered limb
+    float lanternSwing = sin(mod(t * 2.1 + 0.7, TAU)) * (0.008 + u_bass * 0.015);
+    vec2 lanternAnchor = vec2(0.11 + branchSway * 0.7, 0.055);
+    vec2 lanternPos = lanternAnchor + vec2(lanternSwing, -0.055);
+    float lanternGlowStrength = mix(1.0, 0.12, dayFactor) + twilightFactor * 0.58;
+    vec3 lanternCol = vec3(1.0, 0.68, 0.24);
+
+    // Warm lantern shimmer reflected in the lake directly below
+    if (inLake && lanternGlowStrength > 0.1) {
+        float lrX = abs(p.x - lanternPos.x + (vnoise(vec2(p.x * 18.0, p.y * 70.0 - t * 2.0)) - 0.5) * 0.032);
+        float lrY = smoothstep(-0.17, -0.45, p.y);
+        float lrGlow = exp(-lrX * 26.0) * (1.0 - lrY * 0.75) * lanternGlowStrength;
+        sceneColor += lanternCol * lrGlow * 0.36;
     }
 
-    // Tiered Pine Foliage Clouds (*Niwaki* style cloud clusters)
-    // 4 cloud cluster positions around the bonsai branches
-    vec2 clouds[4];
-    clouds[0] = vec2(-0.12, 0.12);
-    clouds[1] = vec2(0.18, 0.18);
-    clouds[2] = vec2(-0.04, 0.26);
-    clouds[3] = vec2(0.12, 0.32);
+    // --- Foreground Mossy Headland & Meadow Banks (ZERO vertical stripes!) ---
+    if (p.y < promH + 0.025) {
+        // Delicate multi-frequency swaying meadow grass silhouette
+        float grassPhase = mod(p.x * 48.0 - t * windSpeed * 2.2, TAU);
+        float bend = sin(grassPhase) * 0.25;
+        float bladeTuft = (vnoise(vec2(p.x * 52.0 + bend, 3.1)) * 0.55 + vnoise(vec2(p.x * 118.0 + bend * 1.4, 7.2)) * 0.45) * 0.013;
+        float grassTop = promH + bladeTuft;
+        float promMask = smoothstep(grassTop + 0.0022, grassTop - 0.0022, p.y);
 
-    float foliageSway = sin(t * 2.0 + u_time * windSpeed) * (0.008 + u_bass * 0.02);
+        if (promMask > 0.001) {
+            // Smooth depth computed from promH (NOT grassTop!) -> completely eliminates vertical banding!
+            float depthIntoHill = clamp((promH - p.y) / 0.22, 0.0, 1.0);
+            float windRipple = sin(mod(p.x * 14.0 - t * windSpeed * 2.2 + p.y * 11.0, TAU)) * 0.5 + 0.5;
+            float mossTex = fbm(vec2(p.x * 10.0 + 1.2, p.y * 14.0 + 2.4));
+            float fineGrass = vnoise(vec2(p.x * 45.0, p.y * 38.0));
 
-    for (int i = 0; i < 4; ++i) {
-        vec2 cPos = clouds[i] + vec2(foliageSway * float(i + 1), 0.0);
-        vec2 cDiff = p - cPos;
-        // Cloud ellipse
-        float cDist = length(vec2(cDiff.x * 1.5, cDiff.y * 2.2));
-        float cRadius = 0.085 + 0.025 * float(i % 2);
+            vec3 grassDark = mix(vec3(0.02, 0.05, 0.08), u_color_foliage.rgb * 0.26, dayFactor);
+            vec3 grassMid  = mix(vec3(0.05, 0.12, 0.15), u_color_foliage.rgb * 0.88, dayFactor);
+            vec3 grassSun  = mix(vec3(0.12, 0.22, 0.23), mix(u_color_foliage.rgb * 1.28, keyLightCol, 0.38), dayFactor);
+            grassSun = mix(grassSun, grassSun * 0.7 + vec3(0.95, 0.52, 0.22) * 0.35, twilightFactor * 0.7);
 
-        if (cDist < cRadius) {
-            float cMask = smoothstep(cRadius, cRadius - 0.02, cDist);
-            float leafDetail = fbm(cDiff * 25.0);
-            vec3 folCol = mix(vec3(0.06, 0.14, 0.12), u_color_foliage.rgb * 1.25, dayFactor);
-            folCol *= (0.75 + 0.5 * leafDetail);
+            float crestLight = smoothstep(0.58, 0.0, depthIntoHill) * (0.50 + 0.50 * mossTex);
+            vec3 hillCol = mix(grassDark, grassMid, smoothstep(0.92, 0.12, depthIntoHill) * (0.78 + 0.22 * fineGrass));
+            hillCol = mix(hillCol, grassSun, crestLight * (0.62 + 0.38 * windRipple));
 
-            // Sun rim lighting on foliage edges
-            if (sunElev > 0.0) {
-                float rimLight = clamp(dot(normalize(cDiff), normalize(sunPos - cPos)), 0.0, 1.0);
-                folCol += vec3(1.0, 0.95, 0.7) * pow(rimLight, 3.0) * 0.6 * dayFactor;
+            // Sculpted mossy boulders at the bonsai base with directional shading & moss caps
+            float rNoise = (fbm(p * 24.0) - 0.5) * 0.022;
+            float rock1 = length((p - vec2(-0.19, -0.21)) * vec2(1.0, 1.85)) + rNoise;
+            float rock2 = length((p - vec2(-0.01, -0.225)) * vec2(0.88, 1.95)) + rNoise;
+            float rockDist = min(rock1, rock2);
+            if (rockDist < 0.068) {
+                float rockMask = smoothstep(0.066, 0.054, rockDist);
+                float rockTop = smoothstep(-0.235, -0.185, p.y);
+                vec3 stoneDark = mix(vec3(0.04, 0.06, 0.10), vec3(0.20, 0.23, 0.27), dayFactor);
+                vec3 stoneLit  = mix(vec3(0.11, 0.15, 0.20), vec3(0.45, 0.47, 0.49), dayFactor);
+                vec3 stoneCol  = mix(stoneDark, stoneLit, rockTop * (0.5 + 0.5 * mossTex));
+                // Lush moss cap draped over top of boulders
+                float mossCap = smoothstep(0.55, 0.88, rockTop + (mossTex - 0.5) * 0.45);
+                stoneCol = mix(stoneCol, grassSun * 0.9, mossCap * 0.65);
+                hillCol = mix(hillCol, stoneCol, rockMask * 0.92);
             }
 
-            sceneColor = mix(sceneColor, folCol, cMask * 0.95);
+            // Soft ambient occlusion shadow right beneath the bonsai trunk & canopy
+            float trunkAO = exp(-pow((p.x + 0.10) * 6.5, 2.0) - pow((p.y + 0.215) * 18.0, 2.0));
+            hillCol *= (1.0 - trunkAO * 0.42);
+
+            // Snow dusting in winter mode
+            hillCol = mix(hillCol, vec3(0.85, 0.92, 0.99) * (0.26 + 0.74 * dayFactor), isSnow * smoothstep(0.42, 0.0, depthIntoHill) * 0.78);
+
+            // Dynamic point lighting from Wisp & Hanging Lantern on the meadow
+            float dWispHill = length(p - wispPos);
+            hillCol += wispColor * (0.011 / (dWispHill * dWispHill + 0.026)) * wispVis;
+            float dLantHill = length(p - lanternPos);
+            hillCol += lanternCol * (0.008 / (dLantHill * dLantHill + 0.022)) * lanternGlowStrength;
+
+            // Sparkling bioluminescent meadow flowers (treble-reactive at dusk/night)
+            vec2 flGrid = p * 26.0;
+            vec2 flCell = floor(flGrid);
+            vec2 flF = fract(flGrid);
+            float flChance = hash12(flCell + 3.7);
+            if (flChance > 0.85 && depthIntoHill > 0.05 && depthIntoHill < 0.75) {
+                vec2 flCenter = 0.2 + 0.6 * hash22(flCell);
+                float flD = length(flF - flCenter);
+                float flDot = smoothstep(0.15, 0.02, flD);
+                float flSparkle = 0.6 + 0.4 * sin(mod(t * 4.0 + flChance * TAU, TAU));
+                vec3 flCol = mix(u_color_wisp.rgb, vec3(0.65, 1.0, 0.88), fract(flChance * 7.3));
+                float flVis = (nightFactor * 0.85 + 0.15) * (0.50 + u_treble * 1.4);
+                hillCol += flCol * flDot * flSparkle * flVis;
+            }
+
+            sceneColor = mix(sceneColor, hillCol, promMask);
+        }
+    }
+
+    // --- Bonsai Gnarled Trunk & Sweeping Branches (continuous welded SDF) ---
+    if (p.x > -0.52 && p.x < 0.42 && p.y > -0.26 && p.y < 0.42) {
+        vec2 sw1 = vec2(branchSway * 0.35, 0.0);
+        vec2 sw2 = vec2(branchSway * 0.75, 0.0);
+        vec2 sw3 = vec2(branchSway * 1.10, 0.0);
+
+        // Tapered root flare gripping into the mossy rocks
+        float dTree = sdCapsuleTapered(p, vec2(-0.155, -0.228), vec2(-0.105, -0.172), 0.015, 0.022);
+        dTree = smin(dTree, sdCapsuleTapered(p, vec2(-0.055, -0.232), vec2(-0.098, -0.170), 0.013, 0.020), 0.014);
+        dTree = smin(dTree, sdCapsuleTapered(p, vec2(-0.112, -0.226), vec2(-0.102, -0.175), 0.018, 0.024), 0.012);
+
+        // S-curved gnarled main trunk
+        vec2 t1 = vec2(-0.102, -0.18);
+        vec2 t2 = vec2(-0.135, -0.06) + sw1 * 0.4;
+        vec2 t3 = vec2(-0.065,  0.07) + sw1;
+        vec2 t4 = vec2(-0.015,  0.18) + sw2;
+        vec2 t5 = vec2( 0.022,  0.24) + sw3;
+
+        dTree = smin(dTree, sdCapsuleTapered(p, t1, t2, 0.029, 0.023), 0.012);
+        dTree = smin(dTree, sdCapsuleTapered(p, t2, t3, 0.023, 0.018), 0.012);
+        dTree = smin(dTree, sdCapsuleTapered(p, t3, t4, 0.018, 0.012), 0.010);
+        dTree = smin(dTree, sdCapsuleTapered(p, t4, t5, 0.012, 0.007), 0.008);
+
+        // Sweeping left lower limb
+        vec2 l1 = vec2(-0.24, 0.02) + sw2;
+        vec2 l2 = vec2(-0.31, 0.055) + sw2;
+        dTree = smin(dTree, sdCapsuleTapered(p, t2 + vec2(0.01, 0.04), l1, 0.015, 0.009), 0.010);
+        dTree = smin(dTree, sdCapsuleTapered(p, l1, l2, 0.009, 0.005), 0.006);
+
+        // Sweeping right cantilevered limb over the lake
+        vec2 r1 = vec2(0.06, 0.05) + sw2;
+        vec2 r2 = vec2(0.18, 0.085) + sw3;
+        dTree = smin(dTree, sdCapsuleTapered(p, t3 - vec2(0.01, 0.02), r1, 0.015, 0.010), 0.010);
+        dTree = smin(dTree, sdCapsuleTapered(p, r1, r2, 0.010, 0.005), 0.006);
+
+        // Upper left & right crown branches
+        vec2 ul1 = vec2(-0.16, 0.175) + sw3;
+        dTree = smin(dTree, sdCapsuleTapered(p, t4 - vec2(0.01, 0.03), ul1, 0.011, 0.005), 0.008);
+        vec2 ur1 = vec2(0.11, 0.21) + sw3;
+        dTree = smin(dTree, sdCapsuleTapered(p, t4, ur1, 0.010, 0.005), 0.008);
+
+        float barkNoise = fbm(vec2(p.x * 42.0, p.y * 14.0));
+        dTree += (barkNoise - 0.5) * 0.0038;
+
+        if (dTree < 0.004) {
+            float trunkMask = smoothstep(0.0028, -0.0022, dTree);
+            float sunBias = clamp((keyLightPos.x - p.x) * 3.0, -1.0, 1.0);
+            float barkRim = smoothstep(-0.025, 0.025, (p.x - (-0.09)) * sunBias);
+            vec3 barkDark = mix(vec3(0.05, 0.04, 0.05), vec3(0.14, 0.09, 0.07), dayFactor);
+            vec3 barkLit  = mix(vec3(0.13, 0.12, 0.15), vec3(0.38, 0.26, 0.18), dayFactor);
+            barkLit = mix(barkLit, vec3(0.50, 0.29, 0.16), twilightFactor * 0.65);
+
+            vec3 barkCol = mix(barkDark, barkLit, (0.30 + 0.70 * barkNoise) * (0.35 + 0.65 * barkRim));
+            // Subtle mossy patina near the lower trunk base
+            float baseMoss = smoothstep(-0.11, -0.21, p.y) * smoothstep(0.45, 0.75, barkNoise);
+            barkCol = mix(barkCol, u_color_foliage.rgb * (0.25 + 0.45 * dayFactor), baseMoss * 0.45);
+
+            float dLantBark = length(p - lanternPos);
+            barkCol += lanternCol * (0.006 / (dLantBark * dLantBark + 0.015)) * lanternGlowStrength;
+            float dWispBark = length(p - wispPos);
+            barkCol += wispColor * (0.007 / (dWispBark * dWispBark + 0.02)) * wispVis;
+
+            sceneColor = mix(sceneColor, barkCol, trunkMask);
+        }
+
+        // --- Hanging Paper Lantern (Tōrō) ---
+        float dCord = sdCapsuleTapered(p, lanternAnchor, lanternPos + vec2(0.0, 0.018), 0.0015, 0.0015);
+        if (dCord < 0.002) {
+            sceneColor = mix(sceneColor, vec3(0.08, 0.06, 0.05), smoothstep(0.002, 0.0, dCord));
+        }
+        vec2 lp = p - lanternPos;
+        float lanternBody = length(vec2(lp.x * 1.35, lp.y * 0.95));
+        if (lanternBody < 0.022) {
+            float lMask = smoothstep(0.018, 0.014, lanternBody);
+            float ribs = 0.92 + 0.08 * sin(lp.y * 280.0);
+            vec3 paperDay = vec3(0.95, 0.88, 0.72) * ribs;
+            vec3 paperLit = vec3(1.0, 0.86, 0.45) * (1.25 + 0.25 * sin(mod(t * 5.0, TAU))) * ribs;
+            vec3 lCol = mix(paperDay, paperLit, clamp(lanternGlowStrength, 0.0, 1.0));
+            float caps = smoothstep(0.012, 0.015, abs(lp.y));
+            lCol = mix(lCol, vec3(0.10, 0.07, 0.05), caps);
+            sceneColor = mix(sceneColor, lCol, lMask);
+        }
+        float lDist = length(lp);
+        sceneColor += lanternCol * exp(-lDist * 16.0) * 0.62 * lanternGlowStrength;
+
+        // --- Layered Painterly Niwaki Foliage Canopies (6 lush multi-lobe pads) ---
+        vec2 padCenter[6];
+        vec2 padScale[6];
+        padCenter[0] = vec2(-0.30, 0.075) + sw2 + vec2(leafFlutter, 0.0);
+        padScale[0]  = vec2(0.115, 0.056);
+
+        padCenter[1] = vec2(-0.17, 0.195) + sw3 + vec2(leafFlutter * 1.2, 0.0);
+        padScale[1]  = vec2(0.125, 0.062);
+
+        padCenter[2] = vec2( 0.19, 0.105) + sw3 + vec2(leafFlutter, 0.0);
+        padScale[2]  = vec2(0.135, 0.062);
+
+        padCenter[3] = vec2(-0.06, 0.135) + sw2 + vec2(leafFlutter * 0.8, 0.0);
+        padScale[3]  = vec2(0.105, 0.052);
+
+        padCenter[4] = vec2( 0.10, 0.225) + sw3 + vec2(leafFlutter * 1.1, 0.0);
+        padScale[4]  = vec2(0.118, 0.058);
+
+        padCenter[5] = vec2( 0.00, 0.275) + sw3 + vec2(leafFlutter * 1.3, 0.0);
+        padScale[5]  = vec2(0.145, 0.072);
+
+        vec3 sunDir3 = normalize(vec3(keyLightPos - vec2(0.0, 0.16), 0.55));
+
+        for (int i = 0; i < 6; ++i) {
+            vec2 d = (p - padCenter[i]) / padScale[i];
+            if (dot(d, d) < 2.2) {
+                float lobe1 = length(d - vec2(-0.42, -0.06)) * 1.18;
+                float lobe2 = length(d - vec2( 0.00,  0.14)) * 1.02;
+                float lobe3 = length(d - vec2( 0.44, -0.08)) * 1.15;
+                float padDist = smin(lobe1, smin(lobe2, lobe3, 0.25), 0.25);
+
+                float leafFbm = fbm(p * 34.0 + vec2(float(i) * 4.7, float(i) * 2.3));
+                float fineLeaf = vnoise(p * 82.0 + vec2(float(i) * 9.1, 1.4));
+                float ruffledDist = padDist - (leafFbm - 0.45) * 0.36 - (fineLeaf - 0.5) * 0.12;
+
+                if (ruffledDist < 0.98) {
+                    float cMask = smoothstep(0.98, 0.86, ruffledDist);
+
+                    // Rich 3D dome normal + distinct underside shadow for painterly pad separation
+                    vec3 n = normalize(vec3(
+                        d.x * 0.65 + (leafFbm - 0.5) * 0.45,
+                        d.y * 0.95 + 0.30 + (fineLeaf - 0.5) * 0.35,
+                        0.68
+                    ));
+                    float ndl = clamp(dot(n, sunDir3) * 0.5 + 0.5, 0.0, 1.0);
+                    float underShadow = smoothstep(-0.65, 0.15, d.y);
+
+                    vec3 folBase = u_color_foliage.rgb;
+                    vec3 folShadow = mix(vec3(0.015, 0.04, 0.08), folBase * 0.22 + ambientShadowCol * 0.22, dayFactor);
+                    vec3 folMid    = mix(folBase * 0.24 + vec3(0.03, 0.07, 0.10), folBase * 0.95, dayFactor);
+                    vec3 folCrown  = mix(folBase * 0.46 + vec3(0.14, 0.22, 0.30), mix(folBase * 1.42, keyLightCol, 0.42), dayFactor);
+                    folCrown = mix(folCrown, mix(folBase * 0.9, vec3(1.0, 0.58, 0.28), 0.55), twilightFactor * 0.72);
+
+                    float litTone = smoothstep(0.24, 0.60, ndl * (0.45 + 0.55 * underShadow) + (leafFbm - 0.5) * 0.24);
+                    float crownTone = smoothstep(0.58, 0.86, ndl * underShadow + (fineLeaf - 0.5) * 0.22);
+
+                    vec3 folCol = mix(folShadow, folMid, litTone);
+                    folCol = mix(folCol, folCrown, crownTone * 0.88);
+
+                    // Snow cap on foliage tops in Alpine Winter / Snow mode
+                    float snowTop = isSnow * smoothstep(0.08, 0.52, d.y + (leafFbm - 0.5) * 0.25);
+                    folCol = mix(folCol, vec3(0.88, 0.94, 1.0) * (0.3 + 0.7 * dayFactor), snowTop * 0.75);
+
+                    // Warm point-light bounce from hanging paper lantern & will-o'-the-wisp
+                    float dLant = length(p - lanternPos);
+                    folCol += lanternCol * (0.007 / (dLant * dLant + 0.016)) * lanternGlowStrength;
+                    float dWisp = length(p - wispPos);
+                    folCol += wispColor * (0.009 / (dWisp * dWisp + 0.024)) * wispVis;
+
+                    sceneColor = mix(sceneColor, folCol, cMask * 0.98);
+                }
+            }
         }
     }
 
     // ------------------------------------------------------------------------
-    // 6. Interactive Will-o'-the-Wisp Companion Light
+    // 7. Layered Valley Mist & Fog Ribbons
     // ------------------------------------------------------------------------
-    // Wisp follows mouse pointer with organic hovering
-    vec2 wispTarget = vec2((u_pointer.x - 0.5) * aspect, 0.5 - u_pointer.y);
-    vec2 wispHover = vec2(sin(t * 3.5) * 0.012, cos(t * 4.2) * 0.015);
-    vec2 wispPos = wispTarget + wispHover;
+    float effectiveFog = clamp(u_fog_density + isMist * 0.55 + isRain * 0.22, 0.0, 1.4);
+    if (effectiveFog > 0.05) {
+        float fogBand = smoothstep(0.06, -0.14, p.y) * smoothstep(-0.42, -0.18, p.y);
+        vec2 fogUV1 = vec2(p.x * 2.4 - mod(t * windSpeed * 0.06, 64.0), p.y * 5.0);
+        vec2 fogUV2 = vec2(p.x * 4.2 - mod(t * windSpeed * 0.10, 64.0) + 4.3, p.y * 7.5);
+        float fogNoise = smoothstep(0.28, 0.76, fbm(fogUV1) * 0.65 + fbm(fogUV2) * 0.35);
+        vec3 fogCol = mix(hazeCol, vec3(0.92, 0.96, 1.0), dayFactor * 0.35);
+        fogCol = mix(fogCol, vec3(1.0, 0.75, 0.52), twilightFactor * 0.45);
+        sceneColor = mix(sceneColor, fogCol, clamp(fogBand * fogNoise * effectiveFog * 0.48, 0.0, 0.75));
+    }
 
+    // ------------------------------------------------------------------------
+    // 8. Interactive Will-o'-the-Wisp Companion & Smooth Orbiting Fairy Motes
+    // ------------------------------------------------------------------------
     float wispDist = length(p - wispPos);
-    // Brilliant inner fairy core
-    float wispCore = smoothstep(0.014, 0.002, wispDist);
-    // Ethereal pulsing aura
-    float wispPulse = 0.85 + 0.25 * sin(t * 8.0);
-    float wispGlow = exp(-wispDist * 14.0) * wispPulse;
-    // Outer point-light illumination of meadow & branches
-    float wispLight = (0.025 / (wispDist * wispDist + 0.035));
+    float wispPulse = 0.88 + 0.16 * sin(mod(t * 5.5, TAU));
+    float wispCore = smoothstep(0.011, 0.0015, wispDist);
+    float wispInner = exp(-wispDist * 20.0) * wispPulse;
+    float wispAura = exp(-wispDist * 6.5) * 0.22 * wispPulse;
 
-    vec3 wispColor = u_color_wisp.rgb;
-    sceneColor += wispColor * wispCore * 3.5;
-    sceneColor += wispColor * wispGlow * 1.5;
-    sceneColor += wispColor * wispLight * 0.12;
+    sceneColor += mix(wispColor, vec3(1.0, 0.99, 0.94), 0.72) * wispCore * (1.8 * wispVis + 0.5);
+    sceneColor += wispColor * (wispInner * 1.05 + wispAura) * wispVis;
 
-    // Fluttering fairy dust trail
-    float trailAngle = atan(p.y - wispPos.y, p.x - wispPos.x);
-    float trailSpark = pow(hash12(floor(p * 90.0 - t * 2.0)), 18.0) * smoothstep(0.12, 0.02, wispDist);
-    sceneColor += vec3(1.0, 0.95, 0.8) * trailSpark * 1.8;
-
-    // ------------------------------------------------------------------------
-    // 7. Keystroke Firefly Spores & Pollen Embers
-    // ------------------------------------------------------------------------
-    if (u_keystroke_energy > 0.02) {
-        // Swarms of glowing golden fireflies rising into the breeze
-        vec2 sporeGrid = floor(p * 45.0 - vec2(t * windSpeed * 4.0, t * 8.0));
-        float sporeRand = hash12(sporeGrid);
-        if (sporeRand > 0.82) {
-            vec2 sporeLocal = fract(p * 45.0 - vec2(t * windSpeed * 4.0, t * 8.0)) - vec2(0.5);
-            float sporeDist = length(sporeLocal);
-            float sporeGlow = smoothstep(0.28, 0.04, sporeDist) * u_keystroke_energy;
-            float sporeBlink = 0.6 + 0.4 * sin(t * 12.0 + sporeRand * 30.0);
-            vec3 sporeColor = mix(vec3(1.0, 0.85, 0.3), vec3(0.4, 1.0, 0.5), sporeRand);
-            sceneColor += sporeColor * sporeGlow * sporeBlink * 2.2;
+    if (wispDist < 0.15) {
+        for (int m = 0; m < 6; ++m) {
+            float fm = float(m);
+            float ang = mod(t * (1.4 + fm * 0.28) + fm * 1.0472, TAU);
+            float rad = 0.022 + 0.016 * sin(mod(t * 2.1 + fm * 1.7, TAU)) + fm * 0.007;
+            vec2 motePos = wispPos + vec2(cos(ang) * rad * 1.15, sin(ang) * rad * 0.85);
+            float md = length(p - motePos);
+            float moteGlow = smoothstep(0.006, 0.0008, md) + exp(-md * 95.0) * 0.42;
+            sceneColor += mix(wispColor, vec3(1.0, 0.98, 0.85), 0.5) * moteGlow * 0.80 * wispVis;
         }
     }
 
     // ------------------------------------------------------------------------
-    // 8. Meteorological Weather Overlays (Rain, Snow, Mist)
+    // 9. Organic Jittered Fireflies (Ambient Night + Keystroke Spore Burst)
     // ------------------------------------------------------------------------
-    // Mode 1: Gentle Spring Rain
-    if (u_weather_mode > 0.5 && u_weather_mode < 1.5) {
-        vec2 rainCell = vec2(p.x * 120.0 - t * 4.0, uv.y * 32.0 - t * 45.0);
-        float rainRand = hash12(floor(rainCell));
-        float rainStreak = pow(rainRand, 25.0) * pow(fract(rainCell.y), 3.0);
-        sceneColor += vec3(0.75, 0.88, 1.0) * rainStreak * 0.85;
-    }
-    // Mode 2: Alpine Snowfall
-    else if (u_weather_mode >= 1.5 && u_weather_mode < 2.5) {
-        vec2 snowCell = vec2(p.x * 60.0 + sin(t + uv.y * 5.0) * 2.0, uv.y * 22.0 - t * 6.0);
-        float snowRand = hash12(floor(snowCell));
-        if (snowRand > 0.88) {
-            float flakeDist = length(fract(snowCell) - vec2(0.5));
-            float flake = smoothstep(0.35, 0.05, flakeDist);
-            sceneColor += vec3(0.95, 0.98, 1.0) * flake * 0.9;
+    float fireflyIntensity = clamp(nightFactor * 0.58 + twilightFactor * 0.35 + u_keystroke_energy * 1.35 + u_mids * 0.22, 0.0, 1.8);
+    if (fireflyIntensity > 0.08 && p.y < 0.24) {
+        float meadowEnv = smoothstep(0.24, -0.05, p.y) * smoothstep(-0.48, -0.25, p.y);
+        for (int fl = 0; fl < 2; ++fl) {
+            float scale = (fl == 0) ? 11.0 : 18.0;
+            vec2 drift = vec2(mod(t * windSpeed * (0.28 + float(fl) * 0.14), 64.0), mod(t * (0.35 + u_keystroke_energy * 0.6), 64.0));
+            vec2 fp = p * scale - drift + vec2(float(fl) * 13.7, float(fl) * 5.3);
+            vec2 fCell = floor(fp);
+            vec2 fF = fract(fp);
+            float chance = hash12(fCell + 7.1);
+            float threshold = mix(0.84, 0.68, clamp(u_keystroke_energy, 0.0, 1.0));
+            if (chance > threshold) {
+                vec2 rnd = hash22(fCell);
+                vec2 center = 0.22 + 0.56 * rnd + 0.12 * vec2(
+                    sin(mod(t * 2.2 + rnd.x * TAU, TAU)),
+                    cos(mod(t * 1.9 + rnd.y * TAU, TAU))
+                );
+                float d = length(fF - center);
+                float orb = smoothstep(0.13, 0.015, d) + exp(-d * 10.5) * 0.32;
+                float blink = 0.45 + 0.55 * sin(mod(t * (3.5 + rnd.x * 3.0) + rnd.y * TAU, TAU));
+                vec3 ffCol = mix(u_color_wisp.rgb, vec3(0.75, 1.0, 0.45), rnd.x * 0.55);
+                float layerAlpha = (fl == 0) ? 1.0 : 0.65;
+                sceneColor += ffCol * orb * blink * fireflyIntensity * meadowEnv * layerAlpha;
+            }
         }
     }
 
-    // Volumetric Valley Fog & Mist
-    if (u_fog_density > 0.05) {
-        float fogBand = smoothstep(0.05, -0.25, p.y) * smoothstep(-0.45, -0.25, p.y);
-        float fogFlow = fbm(p * 3.5 + vec2(t * windSpeed * 0.3, 0.0));
-        vec3 fogCol = mix(skyColor * 0.65, vec3(0.85, 0.92, 0.98), dayFactor * 0.5);
-        sceneColor = mix(sceneColor, fogCol, fogBand * fogFlow * u_fog_density * 0.75);
+    // ------------------------------------------------------------------------
+    // 10. Meteorological Weather Overlays (Slanted Rain Streaks & Parallax Snow)
+    // ------------------------------------------------------------------------
+    if (isRain > 0.02) {
+        for (int rl = 0; rl < 2; ++rl) {
+            float rScaleX = (rl == 0) ? 58.0 : 98.0;
+            float rScaleY = (rl == 0) ? 8.5  : 14.0;
+            float rSpeed  = (rl == 0) ? 22.0 : 14.0;
+            vec2 rp = vec2(p.x + p.y * 0.18, p.y);
+            vec2 cellUV = vec2(rp.x * rScaleX, rp.y * rScaleY + mod(t * rSpeed, 128.0));
+            vec2 rCell = floor(cellUV);
+            vec2 rF = fract(cellUV);
+            float rChance = hash12(rCell + float(rl) * 19.0);
+            if (rChance > 0.76) {
+                float xOff = 0.2 + 0.6 * hash12(rCell + 3.1);
+                float dx = abs(rF.x - xOff);
+                float streak = smoothstep(0.075, 0.008, dx) * smoothstep(0.0, 0.25, rF.y) * smoothstep(1.0, 0.55, rF.y);
+                float bright = (rl == 0) ? 0.38 : 0.22;
+                sceneColor += mix(vec3(0.55, 0.68, 0.85), vec3(0.82, 0.90, 0.98), dayFactor) * streak * bright * isRain;
+            }
+        }
+    }
+
+    if (isSnow > 0.02) {
+        for (int sl = 0; sl < 3; ++sl) {
+            float fsl = float(sl);
+            float sScale = 14.0 + fsl * 10.0;
+            float fallSpeed = 1.6 - fsl * 0.35;
+            float swayX = sin(mod(t * (1.2 + fsl * 0.4) + p.y * 4.5 + fsl * 2.1, TAU)) * 0.35;
+            vec2 sp = vec2(p.x * sScale + swayX - mod(t * windSpeed * 0.3, 64.0), p.y * sScale + mod(t * fallSpeed, 64.0));
+            vec2 sCell = floor(sp);
+            vec2 sF = fract(sp);
+            float sChance = hash12(sCell + fsl * 23.1);
+            if (sChance > 0.78) {
+                vec2 sPos = 0.22 + 0.56 * hash22(sCell + 5.7);
+                float sd = length(sF - sPos);
+                float sRad = mix(0.16, 0.09, fsl * 0.4);
+                float flake = smoothstep(sRad, sRad * 0.2, sd);
+                sceneColor += vec3(0.92, 0.96, 1.0) * flake * (0.72 - fsl * 0.16) * isSnow;
+            }
+        }
     }
 
     // ------------------------------------------------------------------------
-    // 9. Screensaver Lifecycle Phenomena
+    // 11. Screensaver Lifecycle Phenomena
     // ------------------------------------------------------------------------
-    // Backspace Autumn Gust: Swirling leaf vortices
     if (u_vortex_speed < 0.0) {
-        float gustFactor = clamp(-u_vortex_speed * 0.7, 0.0, 1.5);
-        vec2 leafCell = floor(p * 25.0 - vec2(t * 15.0, sin(t * 8.0) * 5.0));
-        float leafRand = hash12(leafCell);
-        if (leafRand > 0.85) {
-            vec3 leafCol = mix(vec3(0.95, 0.35, 0.1), vec3(0.85, 0.65, 0.1), leafRand);
-            sceneColor = mix(sceneColor, leafCol, gustFactor * 0.7);
+        float gustFactor = clamp(-u_vortex_speed * 0.75, 0.0, 1.2);
+        vec2 lp = p * 12.0 - vec2(mod(t * 7.5, 64.0), sin(mod(t * 3.0, TAU)) * 2.0);
+        vec2 lCell = floor(lp);
+        vec2 lF = fract(lp);
+        float lRand = hash12(lCell + 11.3);
+        if (lRand > 0.78) {
+            vec2 c = 0.25 + 0.5 * hash22(lCell);
+            vec2 d = lF - c;
+            float ang = mod(t * 4.0 + lRand * TAU, TAU);
+            float ca = cos(ang), sa = sin(ang);
+            d = mat2(ca, -sa, sa, ca) * d;
+            float leafShape = length(vec2(d.x * 1.1, d.y * 2.6));
+            float leafMask = smoothstep(0.18, 0.08, leafShape);
+            vec3 leafCol = mix(vec3(0.92, 0.34, 0.12), vec3(0.96, 0.68, 0.18), lRand);
+            sceneColor = mix(sceneColor, leafCol, leafMask * gustFactor * 0.85);
         }
     }
 
-    // Wrong Password: Sudden Mountain Frost Crystals
     if (u_shockwave_intensity > 0.01 || u_frost_amount > 0.01) {
-        float frostStrength = max(u_shockwave_intensity, u_frost_amount);
+        float frostStrength = clamp(max(u_shockwave_intensity, u_frost_amount), 0.0, 1.0);
         float borderDist = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
-        float frostRime = fbm(uv * 18.0 + vec2(t * 0.2)) * 0.4;
-        float frostEdge = smoothstep(0.35 * frostStrength, 0.05, borderDist + frostRime);
-        vec3 frostColor = vec3(0.85, 0.94, 1.0);
-        // Frost cools and desaturates scene
+        float crystal = ridgedFbm(uv * vec2(aspect * 12.0, 12.0) + vec2(1.4, 2.7));
+        float fineIce = ridgedFbm(uv * vec2(aspect * 28.0, 28.0) - vec2(3.1, 1.2));
+        float frostEdge = smoothstep(0.28 * frostStrength, 0.0, borderDist - (crystal - 0.5) * 0.14);
+        vec3 frostCol = mix(vec3(0.76, 0.89, 1.0), vec3(0.98, 0.99, 1.0), smoothstep(0.45, 0.85, fineIce));
         float lum = dot(sceneColor, vec3(0.299, 0.587, 0.114));
-        sceneColor = mix(sceneColor, mix(vec3(lum), frostColor, 0.65), frostEdge * frostStrength);
+        vec3 chilled = mix(vec3(lum) * vec3(0.82, 0.92, 1.0), frostCol, 0.55 + 0.35 * fineIce);
+        sceneColor = mix(sceneColor, chilled, frostEdge * frostStrength * 0.88);
     }
 
-    // Correct Password: Golden Dawn Awakening (God Rays to Desktop)
     if (u_vortex_speed > 2.0) {
-        float dawnSpeed = u_vortex_speed - 2.0;
-        vec3 dawnBurst = mix(vec3(1.0, 0.85, 0.4), vec3(1.0, 0.98, 0.9), sin(t * 6.0) * 0.5 + 0.5);
-        sceneColor = mix(sceneColor, dawnBurst * 2.0, clamp(dawnSpeed * 0.6, 0.0, 0.92));
+        float dawnSpeed = clamp((u_vortex_speed - 2.0) * 0.6, 0.0, 0.92);
+        vec3 dawnBurst = mix(vec3(1.0, 0.86, 0.48), vec3(1.0, 0.98, 0.92), 0.5 + 0.5 * sin(mod(t * 4.0, TAU)));
+        sceneColor = mix(sceneColor, dawnBurst * 1.45, dawnSpeed);
     }
 
-    fragColor = vec4(sceneColor, 1.0) * qt_Opacity;
+    // Gentle Filmic Tone Mapping & Subtle Painterly Vignette
+    sceneColor = sceneColor / (vec3(1.0) + sceneColor * 0.18);
+    float vig = 1.0 - dot(uv - 0.5, uv - 0.5) * 0.24;
+    sceneColor *= vig;
+
+    fragColor = vec4(clamp(sceneColor, 0.0, 1.0), 1.0) * qt_Opacity;
 }

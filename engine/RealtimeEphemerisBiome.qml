@@ -23,11 +23,11 @@ Item {
     property point windVector: Qt.point(0.3, 0.05)
 
     // Ephemeris & Atmospheric Ingestion Parameters
-    property real solarTime: 14.5       // 0.0 to 24.0 solar hours
+    property real solarTime: 16.2       // 0.0 to 24.0 solar hours (default warm Ghibli afternoon)
     property bool syncToSystemClock: true
     property real weatherMode: 0.0      // 0 = Clear, 1 = Rain, 2 = Snow, 3 = Mist
-    property real lunarPhase: 0.5       // 0.0 = New Moon, 0.5 = Full Moon, 1.0 = New Moon
-    property real fogDensity: 0.5
+    property real lunarPhase: 0.35      // 0.0 = New Moon, 0.5 = Full Moon, 1.0 = New Moon
+    property real fogDensity: 0.45
     property real frostAmount: 0.0
 
     // Neural audio rhythm & vocal choreography
@@ -124,6 +124,10 @@ Item {
             if (root.syncToSystemClock) {
                 var d = new Date()
                 root.solarTime = d.getHours() + d.getMinutes() / 60.0 + d.getSeconds() / 3600.0
+                // Synodic lunar phase (29.53058867 days from known new moon 2000-01-06 18:14 UTC)
+                var daysSinceEpoch = (d.getTime() - 947182440000.0) / 86400000.0
+                var cycle = (daysSinceEpoch % 29.53058867) / 29.53058867
+                root.lunarPhase = cycle < 0 ? cycle + 1.0 : cycle
             }
         }
     }
@@ -150,7 +154,7 @@ Item {
         property color u_color_foliage: Qt.rgba(root.colorFoliage.r, Math.min(1.0, root.colorFoliage.g + vocalFireflies * 0.2), root.colorFoliage.b, 1.0)
         property color u_color_sun_moon: root.colorSunMoon
         property color u_color_wisp: Qt.rgba(Math.min(1.0, root.colorWisp.r + vocalFireflies * 0.4), Math.min(1.0, root.colorWisp.g + vocalFireflies * 0.5), Math.min(1.0, root.colorWisp.b + vocalFireflies * 0.2), 1.0)
-        property real u_time: root.simTime
+        property real u_time: root.simTime % 3600.0
         property real u_keystroke_energy: root.keystrokeEnergy
         property real u_shockwave_intensity: effectiveShockwave
         property real u_vortex_speed: root.vortexSpeed
