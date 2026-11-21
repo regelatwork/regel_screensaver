@@ -33,7 +33,7 @@ layout(std140, binding = 0) uniform buf {
     float u_glyph_spacing;       // 256..259 (Glyph grid spacing / density)
     float u_glyph_zoom;          // 260..263 (Overall field zoom scale)
     float u_holo_mode;           // 264..267 (Hologram sticker intensity / density)
-    float u_pad1;                // 268..271
+    float u_film_regime;         // 268..271 (0.0 = thin high-IOR bismuth, 1.0 = thick pearlescent opal/nacre)
     vec2  u_quote_size;          // 272..279 (quote bounding half-width and half-height)
     vec2  u_glitter_scroll;      // 280..287 (64-bit wrapped skewed simplex scroll mod 4096.0)
     vec4  u_sticker0;            // 288..303 (Active sticker slot 0: cx, cy, intensity, active)
@@ -308,9 +308,9 @@ vec3 evalDiffractionGrating(vec3 T_grating, vec3 L, vec3 V, float d_nm, float ra
     float opticalPath = d_nm * abs(dot(T_grating, L + V) + radialMod);
     vec3 spectrum = vec3(0.0);
     spectrum += wavelengthToRGB(opticalPath)          * 1.00;
-    spectrum += wavelengthToRGB(opticalPath * 0.5000) * 0.62;
-    spectrum += wavelengthToRGB(opticalPath * 0.3333) * 0.40;
-    spectrum += wavelengthToRGB(opticalPath * 0.2500) * 0.26;
+    spectrum += wavelengthToRGB(opticalPath * 0.5000) * 0.58;
+    spectrum += wavelengthToRGB(opticalPath * 0.3333) * 0.34;
+    spectrum += wavelengthToRGB(opticalPath * 0.2500) * 0.20;
     return spectrum;
 }
 
@@ -1596,10 +1596,14 @@ void main() {
     float wPorcelain  = smoothstep(0.20, 0.45, phaseNoise) * smoothstep(0.80, 0.58, phaseNoise);
     float wIridescent = smoothstep(0.55, 0.78, phaseNoise);
     
-    // --- Directional Ambient & Key Light (Soft, Elegant, No Blinding Glare) ---
+    // --- Directional Key Light + Counter-Orbiting Soft Rim Fill Light ---
     float lightAng = mod(u_time * 0.32, 6.2831853);
     vec3 L_key = normalize(vec3(cos(lightAng) * 0.55 - 0.25, sin(lightAng) * 0.45 + 0.4, 0.85));
     vec3 H_key = normalize(L_key + V);
+
+    float fillAng = mod(-u_time * 0.19 + 2.4, 6.2831853);
+    vec3 L_fill = normalize(vec3(cos(fillAng) * 0.50 + 0.30, sin(fillAng) * 0.45 - 0.35, 0.80));
+    vec3 H_fill = normalize(L_fill + V);
     
     // Ambient Occlusion in carved/sunken crevices
     float ao = clamp(smoothstep(-0.06, 0.03, surf.glyphDist) * 0.45 + 0.55, 0.0, 1.0);
@@ -1622,14 +1626,18 @@ void main() {
                         + u_color_sheen.rgb * sssTotal * 0.6
                         + vec3(1.0) * specKeyGloss * 0.75;
     
-    // --- Shading Phase 3a: Thin-Film Iridescent Interference (Belcour & Barla, SIGGRAPH 2017) ---
-    // Analytically integrates Airy multi-bounce reflectance against CIE XYZ Gaussian sensitivity curves
-    // using the microfacet incidence angle cos(theta_1) = dot(H, V).
+    // --- Shading Phase 3a: Theme-Aware Thin-Film Iridescence (Belcour & Barla, SIGGRAPH 2017) ---
+    // Smoothly adapts film thickness and IOR per palette:
+    // u_film_regime = 0.0 -> thin high-IOR metallic bismuth (0.18..0.46 um, eta = 1.85)
+    // u_film_regime = 1.0 -> thick moderate-IOR pearlescent opal & abalone nacre (0.50..1.06 um, eta = 1.38)
     float cosThetaN = max(0.0, dot(N, V));
     float cosThetaIrid = max(0.01, dot(H_key, V));
-    float filmThicknessUm = 0.42 + 0.34 * sin(phaseAux * 6.2831853 + mod(u_time * 0.15, 6.2831853));
+    float regime = clamp(u_film_regime, 0.0, 1.0);
+    float filmEta = mix(1.85, 1.38, regime);
+    float filmWave = 0.5 + 0.5 * sin(phaseAux * 6.2831853 + mod(u_time * 0.15, 6.2831853));
+    float filmThicknessUm = mix(mix(0.18, 0.50, regime), mix(0.46, 1.06, regime), filmWave);
     vec3 iridBaseF0 = mix(u_color_sheen.rgb, vec3(0.85), 0.35);
-    vec3 iridSpectrum = evalIridescence(cosThetaIrid, filmThicknessUm, 1.48, iridBaseF0);
+    vec3 iridSpectrum = evalIridescence(cosThetaIrid, filmThicknessUm, filmEta, iridBaseF0);
     float iridWeight = clamp((0.25 + 0.75 * pow(1.0 - cosThetaN, 2.0)) * u_iridescence_strength, 0.0, 1.0);
     vec3 colIridescent = mix(u_color_stone.rgb * diffuse, iridSpectrum * (0.45 + 0.85 * diffuse), iridWeight);
     colIridescent += iridSpectrum * specKeyGloss * 1.45;
@@ -1651,6 +1659,10 @@ void main() {
     float hy = dot(B_surf, H_key);
     float hz = NdotH;
     vec2 slopes = -vec2(hx, hy) / max(0.0001, hz);
+
+    float hzFill = max(0.0001, dot(N, H_fill));
+    vec2 slopesFill = -vec2(dot(T_surf, H_fill), dot(B_surf, H_fill)) / hzFill;
+    float hz4Fill = hzFill * hzFill * hzFill * hzFill;
     
     float alphaGlitter = 0.36;
     float hz4 = hz * hz * hz * hz;
@@ -1674,8 +1686,8 @@ void main() {
 
     // --- Shading Phase 4: Patterned Physically Based Microflake Glints (Deliot & Belcour, HPG 2023) ---
     // Pure-ALU O(1) distributed binomial law on an equilateral simplex grid (zero texture lookups).
-    // Uses scroll-free screen derivatives and 64-bit-wrapped u_glitter_scroll (mod 4096.0)
-    // to guarantee full float32 precision over indefinite scrolling runtimes.
+    // Tuned for high-contrast diamond-pinpoint scintillation (slopeScale = 20.0, zeta = 1.85)
+    // with dual-light (key + counter-orbiting rim fill) excitation.
     if (u_glitter_density > 0.01 && NdotH > 0.01) {
         // Veined mineral distribution (wrapped mod 256.0 to match periodic noise2D lattice)
         float veinNoise = noise2D(mod(pos * 0.55, 256.0) + vec2(warp * 0.40, -warp * 0.30));
@@ -1695,21 +1707,26 @@ void main() {
         float stoneFootprintLen = max(length(dFdx(screenFlakeUV)), length(dFdy(screenFlakeUV)));
         vec2 screenSkewed = vec2(screenFlakeUV.x - 0.57735027 * screenFlakeUV.y, 1.15470054 * screenFlakeUV.y);
         
-        float stoneLogDensity = mix(0.9, 2.2, clamp(u_glitter_density * stoneGlitterMask, 0.0, 1.0));
+        float stoneLogDensity = mix(0.65, 1.85, clamp(u_glitter_density * stoneGlitterMask, 0.0, 1.0));
         
-        // Evaluate Deliot & Belcour (2023) distributed binomial slope distribution P22_glint
-        float p22_G = evalDeliotGlintP22(screenSkewed, u_glitter_scroll, stoneFootprintLen, slopes,        alphaGlitter, 14.0, stoneLogDensity, 1.6, 1.4);
-        float p22_R = evalDeliotGlintP22(screenSkewed, u_glitter_scroll, stoneFootprintLen, slopes * 0.98, alphaGlitter, 14.0, stoneLogDensity, 1.6, 1.4);
-        float p22_B = evalDeliotGlintP22(screenSkewed, u_glitter_scroll, stoneFootprintLen, slopes * 1.02, alphaGlitter, 14.0, stoneLogDensity, 1.6, 1.4);
+        // Key light glints (warm metallic gold with subtle R/G/B slope dispersion)
+        float p22_G = evalDeliotGlintP22(screenSkewed, u_glitter_scroll, stoneFootprintLen, slopes,        alphaGlitter, 20.0, stoneLogDensity, 1.85, 1.4);
+        float p22_R = evalDeliotGlintP22(screenSkewed, u_glitter_scroll, stoneFootprintLen, slopes * 0.98, alphaGlitter, 20.0, stoneLogDensity, 1.85, 1.4);
+        float p22_B = evalDeliotGlintP22(screenSkewed, u_glitter_scroll, stoneFootprintLen, slopes * 1.02, alphaGlitter, 20.0, stoneLogDensity, 1.85, 1.4);
         
         vec3 D_glint = vec3(p22_R, p22_G, p22_B) / max(0.0001, hz4);
         vec3 glintRadiance = (F_flake * G_smith * D_glint) / (4.0 * NdotV);
+
+        // Secondary counter-orbiting rim fill glints (cool sheen accent so off-axis facets catch light)
+        float p22_fill = evalDeliotGlintP22(screenSkewed, u_glitter_scroll, stoneFootprintLen, slopesFill, alphaGlitter, 20.0, stoneLogDensity, 1.85, 1.4);
+        vec3 fillTint = mix(u_color_sheen.rgb, vec3(1.0), 0.45);
+        glintRadiance += (fillTint * G_smith * (p22_fill / max(0.0001, hz4Fill))) / (4.0 * NdotV) * 0.38;
         
         // Analytical HDR optical bloom synthesis for high-intensity specular peaks
         float glintMag = max(glintRadiance.r, max(glintRadiance.g, glintRadiance.b));
         float flareIntensity = pow(clamp(glintMag * 0.14, 0.0, 1.0), 0.6);
         vec3 flareColor = mix(u_color_gold.rgb, vec3(1.0), 0.45);
-        vec3 luminousGlint = glintRadiance + flareColor * (flareIntensity * 1.6);
+        vec3 luminousGlint = glintRadiance + flareColor * (flareIntensity * 1.75);
         
         finalColor += luminousGlint * (u_glitter_density * stoneGlitterMask * 1.15);
     }
@@ -1750,15 +1767,16 @@ void main() {
         vec3 B_cdA = normalize(cross(N, T_cdA));
         
         // Multi-order Kirchhoff diffraction grating (Stam 1999 / Toisoul & Ghosh 2017) + CIE XYZ spectral color
+        // Channel A: 1480 nm CD-ROM / security foil pitch (vivid 1st-order laser rainbow + 2nd-order magenta/cyan)
         float gratingSweep = 0.08 * sin(mod(u_time * 0.45, 6.2831853));
         float v_cdA = dot(T_cdA, H_key);
-        vec3 cdRainbowA = evalDiffractionGrating(B_cdA, L_key, V, 2150.0, rTrack * 0.18 + gratingSweep);
-        float cdFanA = exp(-(v_cdA * v_cdA) / (2.0 * 0.055 * 0.055)) * pow(max(0.0, dot(N, H_key)), 12.0);
+        vec3 cdRainbowA = evalDiffractionGrating(B_cdA, L_key, V, 1480.0, rTrack * 0.18 + gratingSweep);
+        float cdFanA = exp(-(v_cdA * v_cdA) / (2.0 * 0.048 * 0.048)) * pow(max(0.0, dot(N, H_key)), 12.0);
         
-        // Channel B Tangent Frame (Orthogonal etched grating: periodic spacing along T_cdA)
+        // Channel B: 1120 nm orthogonal DVD/micro-grating pitch (wider spectral spread & contrasting color-flip)
         float v_cdB = dot(B_cdA, H_key);
-        vec3 cdRainbowB = evalDiffractionGrating(T_cdA, L_key, V, 1750.0, rTrack * 0.24 - gratingSweep);
-        float cdFanB = exp(-(v_cdB * v_cdB) / (2.0 * 0.055 * 0.055)) * pow(max(0.0, dot(N, H_key)), 12.0);
+        vec3 cdRainbowB = evalDiffractionGrating(T_cdA, L_key, V, 1120.0, rTrack * 0.24 - gratingSweep);
+        float cdFanB = exp(-(v_cdB * v_cdB) / (2.0 * 0.048 * 0.048)) * pow(max(0.0, dot(N, H_key)), 12.0);
         
         float cdBroad = pow(max(0.0, dot(N, H_key)), 34.0) * 0.6;
         
@@ -1784,12 +1802,16 @@ void main() {
             float sFootprintLen = max(length(dFdx(sFlakeCoord)), length(dFdy(sFlakeCoord)));
             vec2 sSkewed = vec2(sFlakeCoord.x - 0.57735027 * sFlakeCoord.y, 1.15470054 * sFlakeCoord.y);
             
-            // Multi-spectral chromatic scintillation via Deliot & Belcour (2023) distributed binomial law
-            float sP22_G = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes,        alphaGlitter, 18.0, 1.25, 1.8, 1.4);
-            float sP22_R = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes * 0.93, alphaGlitter, 18.0, 1.25, 1.8, 1.4);
-            float sP22_B = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes * 1.07, alphaGlitter, 18.0, 1.25, 1.8, 1.4);
+            // High-contrast razor-sharp diamond-dust scintillation (slopeScale = 24.0, zeta = 2.0)
+            float sP22_G = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes,        alphaGlitter, 24.0, 1.05, 2.0, 1.4);
+            float sP22_R = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes * 0.93, alphaGlitter, 24.0, 1.05, 2.0, 1.4);
+            float sP22_B = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopes * 1.07, alphaGlitter, 24.0, 1.05, 2.0, 1.4);
             
             vec3 sD_glint = vec3(sP22_R, sP22_G, sP22_B) / max(0.0001, hz4);
+            
+            // Secondary rim fill prismatic sparkle
+            float sP22_fill = evalDeliotGlintP22(sSkewed, vec2(0.0), sFootprintLen, slopesFill, alphaGlitter, 24.0, 1.05, 2.0, 1.4);
+            sD_glint += vec3(sP22_fill / max(0.0001, hz4Fill)) * 0.40;
             
             // Kinetic Chromatic Dispersion: Hue sweeps across the rainbow as view/light angle shifts
             float sDispersionPhase = dot(slopes, vec2(14.0, 9.5)) + hash12(floor(sFlakeCoord) * 17.9) * 6.28318;
@@ -1800,7 +1822,7 @@ void main() {
             // Analytical optical flare halo for diamond-dust sticker glitter
             float sGlintMag = max(sGlintRadiance.r, max(sGlintRadiance.g, sGlintRadiance.b));
             float sFlare = pow(clamp(sGlintMag * 0.16, 0.0, 1.0), 0.55);
-            vec3 sLuminousGlint = sGlintRadiance * sRainbowTint + (sRainbowTint + vec3(0.75)) * (sFlare * 1.9);
+            vec3 sLuminousGlint = sGlintRadiance * sRainbowTint + (sRainbowTint + vec3(0.75)) * (sFlare * 2.0);
             
             vec3 stickerGlitter = sLuminousGlint * (foilMode == 1 ? 2.4 : 1.6) * holoPwr;
             

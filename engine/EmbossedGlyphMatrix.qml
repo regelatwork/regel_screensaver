@@ -708,6 +708,8 @@ Item {
     Behavior on colorVoid {
         ColorAnimation { duration: root.animDuration; easing.type: Easing.InOutSine }
     }
+    property real filmRegime: 0.45
+
     Behavior on glitterDensity {
         NumberAnimation { duration: root.animDuration; easing.type: Easing.InOutSine }
     }
@@ -715,6 +717,9 @@ Item {
         NumberAnimation { duration: root.animDuration; easing.type: Easing.InOutSine }
     }
     Behavior on holoStrength {
+        NumberAnimation { duration: root.animDuration; easing.type: Easing.InOutSine }
+    }
+    Behavior on filmRegime {
         NumberAnimation { duration: root.animDuration; easing.type: Easing.InOutSine }
     }
 
@@ -729,6 +734,7 @@ Item {
         if (p.iridescence !== undefined) root.iridescenceStrength = p.iridescence
         if (p.holo !== undefined) root.holoStrength = p.holo
         if (p.holoMode !== undefined) root.holoMode = p.holoMode
+        if (p.filmRegime !== undefined) root.filmRegime = p.filmRegime
     }
 
     function setGlyphPalette(idx) {
@@ -890,7 +896,7 @@ Item {
         property real u_glyph_spacing: root.glyphSpacing
         property real u_glyph_zoom: root.glyphZoom
         property real u_holo_mode: root.holoMode
-        property real u_pad1: 0.0
+        property real u_film_regime: root.filmRegime
         property vector2d u_quote_size: Qt.vector2d(root.quoteHalfW, root.quoteHalfH)
         property vector2d u_glitter_scroll: Qt.vector2d(root.glitterSkewScrollX, root.glitterSkewScrollY)
 
