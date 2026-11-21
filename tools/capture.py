@@ -255,11 +255,9 @@ CONCEPTS = {
             pointerVel: Qt.point(0.0, 0.0)
             scrollSpeed: 0.6
             embossDepth: 1.0
-            colorStone: "#081c15"
-            colorPorcelain: "#edf6f9"
-            colorGold: "#d4af37"
-            colorSheen: "#52b788"
-            colorVoid: "#020907"
+            autoCycleThemes: false
+            cycleInterval: 0.01
+            paletteIndex: parent.paletteIdx
         }"""
     },
 }
@@ -290,13 +288,15 @@ class CaptureEngine:
         return qimage_to_pil(qimg)
 
     def capture_still(self, target="concept", concept_id=1, width=1280, height=720, warmup=3.0,
-                      bass=0.7, mids=0.5, treble=0.6):
+                      bass=0.7, mids=0.5, treble=0.6, palette_idx=0):
+        self.view.setSource(QUrl())
+        self.view.engine().clearComponentCache()
         self.view.resize(width, height)
-        qml_path = self.build_qml(target, concept_id, width, height, warmup, bass, mids, treble)
+        qml_path = self.build_qml(target, concept_id, width, height, warmup, bass, mids, treble, palette_idx)
         self.view.setSource(QUrl.fromLocalFile(qml_path))
         self.view.show()
         # Warmup delay for GPU RHI pipeline & physics convergence
-        self.wait(int(warmup * 1000) if warmup < 1.0 else 400)
+        self.wait(int(warmup * 1000) if warmup < 1.0 else 750)
         img = self.grab_current_frame()
         return img
 
@@ -349,8 +349,8 @@ class CaptureEngine:
         print("")
         return frames
 
-    def build_qml(self, target, concept_id, width, height, sim_time, bass, mids, treble):
-        path = f"/tmp/regel_cap_{os.getpid()}_{target}_{concept_id}.qml"
+    def build_qml(self, target, concept_id, width, height, sim_time, bass, mids, treble, palette_idx=0):
+        path = f"/tmp/RegelCap_{os.getpid()}_{target}_{concept_id}_{palette_idx}.qml"
         if target == "concept":
             conf = CONCEPTS.get(concept_id, CONCEPTS[1])
             qml = f"""import QtQuick
@@ -359,6 +359,7 @@ import "file://{ENGINE_DIR}"
 Item {{
     width: {width}
     height: {height}
+    property int paletteIdx: {palette_idx}
     property real simTime: {sim_time}
     property real subBass: {bass}
     property real bass: {bass}
@@ -610,11 +611,51 @@ def generate_all_showcase(engine):
 
     print("\n✅ All authentic capture assets generated successfully!")
 
+def generate_glyph_substrates_grid(engine, output="assets/screenshots/concept-9-substrates-grid.jpg"):
+    print("\nGenerating Authentic 3x2 Concept 9 Substrates & Medallions Showcase Grid...")
+    showcase = [
+        (0,  "01 • Song Celadon & Kintsugi (Wax Seals)",       3.2),
+        (5,  "06 • Cybernetic Bismuth (Hopper + Holo)",       5.4),
+        (7,  "08 • Abalone & Fire Opal Nacre (Iridescence)",  4.6),
+        (8,  "09 • Tiger-Flame Maple (MOP Rosettes)",         6.1),
+        (10, "11 • Shou Sugi Ban Charred Cedar (Holo)",       7.3),
+        (12, "13 • Weathered Driftwood (Pyrography Brands)",  8.5),
+    ]
+    tile_w, tile_h = 960, 540
+    captured = []
+    for p_idx, title, sim_t in showcase:
+        print(f"  -> Capturing Concept 9 Palette {p_idx}: {title}...")
+        img = engine.capture_still(target="concept", concept_id=9, width=tile_w, height=tile_h, warmup=sim_t, palette_idx=p_idx)
+        if img.size != (tile_w, tile_h):
+            img = img.resize((tile_w, tile_h), Image.Resampling.LANCZOS)
+        draw = ImageDraw.Draw(img)
+        badge_w = len(title) * 8 + 32
+        draw.rounded_rectangle([18, 18, 18 + badge_w, 50], radius=6,
+                               fill=(5, 8, 17, 215), outline=(255, 255, 255, 75), width=1)
+        draw.text((30, 27), title.upper(), fill=(255, 255, 255, 235))
+        captured.append(img)
+
+    grid = Image.new("RGB", (tile_w * 3, tile_h * 2), (5, 8, 17))
+    for idx, img in enumerate(captured):
+        col = idx % 3
+        row = idx // 3
+        grid.paste(img, (col * tile_w, row * tile_h))
+
+    draw_grid = ImageDraw.Draw(grid)
+    for c in range(1, 3):
+        draw_grid.line([(c * tile_w, 0), (c * tile_w, tile_h * 2)], fill=(30, 45, 70), width=2)
+    draw_grid.line([(0, tile_h), (tile_w * 3, tile_h)], fill=(30, 45, 70), width=2)
+
+    os.makedirs(os.path.dirname(os.path.abspath(output)), exist_ok=True)
+    grid.save(output, quality=92)
+    print(f"Successfully generated authentic 3x2 Concept 9 grid -> {output} ({os.path.getsize(output) // 1024} KB)")
+
 def main():
     parser = argparse.ArgumentParser(description="Regel Headless Capture Engine & Benchmarker")
-    parser.add_argument("--target", choices=["concept", "widget-desktop", "widget-panel", "grid", "all"], default="concept",
+    parser.add_argument("--target", choices=["concept", "widget-desktop", "widget-panel", "grid", "glyph-grid", "all"], default="concept",
                         help="Target element to capture")
     parser.add_argument("--concept", default="1", help="Concept ID (1-9)")
+    parser.add_argument("--palette", type=int, default=0, help="Palette index (used by Concept 9)")
     parser.add_argument("--warmup", type=float, default=2.5, help="Simulation warmup time in seconds")
     parser.add_argument("--duration", type=float, default=0.0, help="Recording duration in seconds (0 for still image)")
     parser.add_argument("--fps", type=int, default=30, help="Frames per second for animation")
@@ -635,6 +676,11 @@ def main():
         out = args.output or "assets/screenshots/regel-archetypes-grid.jpg"
         generate_authentic_grid(engine, out)
         return
+
+    if args.target == "glyph-grid":
+        out = args.output or "assets/screenshots/concept-9-substrates-grid.jpg"
+        generate_glyph_substrates_grid(engine, out)
+        os._exit(0)
 
     cid = 1
     try:
@@ -665,7 +711,8 @@ def main():
             concept_id=cid,
             width=args.width,
             height=args.height,
-            warmup=args.warmup
+            warmup=args.warmup,
+            palette_idx=args.palette
         )
         if img:
             save_image_file(img, out_file)

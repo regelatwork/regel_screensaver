@@ -1,5 +1,9 @@
 # Archetype 09: The Embossed Glyph Matrix (Chrono-Glyph Bas-Relief & Shifting Materials)
 
+![Concept 9: Song Celadon & Kintsugi Porcelain Hero View](../assets/screenshots/concept-9-embossed-glyph.jpg)
+
+![Concept 9: 3x2 Procedural Substrates & Artisanal Medallions Showcase](../assets/screenshots/concept-9-substrates-grid.jpg)
+
 ## 1. Aesthetic Vision
 A mesmerizing, architectural bas-relief monolith wall scrolling gently across the screen, engraved with a vast, borderless field of **organically scattered esoteric glyphs, ancient runes, classical multi-font letters, and real-time command text (e.g. `fortune`)**.
 
@@ -12,20 +16,17 @@ Rather than a rigid tile grid or a static stone carving:
   * *Procedural Glyphs*: 24 glyphs across 6 distinct typographic styles (Classical Antiqua, Modernist Sans, Greek Epigraphic, Elder Futhark runes, Cuneiform, Alchemical sigils) with dynamic stroke weights ranging from delicate hairline ($0.015$) to extra bold / black ($0.033$).
   * *Fortune Inscriptions*: Cycles through curated typographic profiles (Classical Antiqua, Editorial Didone, Monumental Grotesque, Humanist Book Serif, Lapidary Epigraphic, Technical Monospace) with varying weights (`Light`, `Normal`, `Medium`, `Bold`, `Black`), letter-spacing, and line heights.
 * **Configurable Spacing & Zoom**: Independent user sliders for **Glyph Spacing** ($0.6\times - 2.5\times$) and **Field Zoom Scale** ($0.4\times - 2.5\times$) to seamlessly transition from dense, intimate glyph studies to panoramic vistas.
-* **Independent Holographic Stickers & CD Diffraction (Active Across 7 Curated Themes)**:
-  * Holographic effects are modeled as **physical holographic foil stickers** (circular serrated seals, rounded security tags, hexagonal badges, 8-pointed starbursts, faceted diamond lozenges, gothic archway portals, chamfered octagons, and 12-pointed solar medallions) stuck onto the monolith with their own raised thickness, edge bevel, and glossy metallic foil base.
-  * Three optical foil modes:
-    * **Mode 0: Pure CD Rainbow Diffraction Foil**: Metallic mirror substrate with concentric dual-fan CD rainbow diffraction beams and micro-dot security watermarks.
-    * **Mode 1: Prismatic Diamond-Dust Glitter Vinyl**: High-density crystalline microflake glitter bed with wide multi-spectral rainbow dispersion under a glossy clearcoat.
-    * **Mode 2: Hybrid CD Rainbow + Glitter Vinyl**: Combining both sweeping CD rainbow diffraction fans and scintillating prismatic crystal sparkles.
-  * Stickers are completely independent from the glyph grid and can **freely overlap embossed glyphs, stone, and chiseled quotes**.
-  * **Theme Availability**: Stickers and holographic diffraction are active across **7 curated themes** (Obsidian, Lapislazuli, Cybernetic Bismuth, Starlight Diamond, Prismatic Opal, Cosmic Nebula, Abalone Shell), while the remaining 2 classical themes (Imperial Jade and Alabaster) remain pure, matte, and free of artificial stickers.
+* **Persistent Medallions, Artisanal Seals & Holographic Stickers (32 Designs Across 5 Physical Craft Media)**:
+  * Every one of the **13 curated themes** pairs its procedural substrate with a material-authentic persistent medallion style (`sealStyle` 0..4), freely overlapping embossed glyphs, substrates, and chiseled quotes:
+    * **Style 0 — Holographic Security Foil Stickers (8 designs, 3 optical foil modes)**: Multi-order Kirchhoff CD diffraction foil, Deliot & Belcour diamond-dust glitter vinyl, and hybrid badges (*Lapislazuli, Volcanic Obsidian, Cybernetic Bismuth, Hammered Platinum, Abalone & Fire Opal, Shou Sugi Ban, Workshop Pine*).
+    * **Style 1 — Crimson Cinnabar Wax / *Rakkan* Seals (6 designs)**: Square *tensho* chop, 8-petal lotus, endless knot, crescent moon & stars, 16-petal *kiku*, and double-lobed gourd stamp with organic wax-drip edge wobble and warm wax SSS (*Song Celadon & Kintsugi Porcelain*).
+    * **Style 2 — Flush Brushed Metal / *Maki-e* / *Pietra Dura* Inlays (6 designs)**: Florentine compass, Art Deco sunburst, 8-fold *Rub el Hizb* rosette, Byzantine cross, armillary astrolabe, and Roman laurel lozenge (*Tenmoku Oil-Spot Ceramic, Carrara Marble & Rose Gold, Burl Walnut & French Polish*).
+    * **Style 3 — Luthier Mother-of-Pearl & Abalone Rosettes (6 designs)**: Classical guitar rosette, fretboard split-diamond crown, tendril scroll, Art Nouveau wings, Celtic triquetra, and baroque fleur-de-lis with Belcour & Barla thick-film iridescence and ebony purfling (*Tiger-Flame Maple Lutherie*).
+    * **Style 4 — Hot-Iron Pyrography Wood Brands (6 designs)**: Maritime anchor, Nordic wayfinder staves, cooperage barrel mark, alpine peaks & conifer, blacksmith shield, and antler solar crest scorched deeply into the wood grain (*Weathered Silver Driftwood*).
   * **Off-Screen Generation & Continuous Persistence (Zero Mid-Screen Popping)**:
-    * Stickers are **never spawned or deleted in the middle of the screen**.
-    * As the material scrolls from bottom-right towards top-left, candidate sticker grid cells are evaluated as they cross the off-screen entry boundary ($uv \in [0.95, 1.25]$).
-    * If a holographic theme is active when a candidate cell reaches the entry boundary, the sticker is spawned and affixed to that material cell.
-    * Once affixed, the physical sticker **persists continuously across subsequent theme transitions** (e.g., shifting into non-holographic jade or marble), maintaining its metallic foil, micro-relief, and iridescent diffraction until it naturally scrolls completely past the exit edges ($uv < -0.25$).
-    * If a non-holographic theme is active as a cell crosses the entry boundary, no sticker is spawned, preventing any sudden popping if a holographic theme activates later while that cell is in view.
+    * Medallions are **never spawned or deleted in the middle of the screen**.
+    * As the slab scrolls from bottom-right towards top-left, candidate grid cells are evaluated as they cross the off-screen entry boundary ($uv \in [0.95, 1.25]$) and stamped with the active theme's `sealStyle`.
+    * Once affixed, each physical medallion **persists continuously in its own craft medium across subsequent theme transitions** (e.g., a cinnabar wax seal or mother-of-pearl rosette stays intact even as the slab morphs into a new substrate) until it scrolls completely past the exit edges ($uv < -0.25$).
 * **Scroll-Synchronized Quote Transitions (Zero In-View Popping)**:
   * Quote updates are no longer governed by a blind timer. Instead, the QML engine tracks the exact vertical phase of the quote in scrolling material space:
     $$\text{quoteCoord}_y = (1.9 \times \text{zoom} + \text{scrollVec}_y) \times 0.055 + 0.45$$
