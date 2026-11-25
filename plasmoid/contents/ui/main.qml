@@ -98,6 +98,9 @@ PlasmoidItem {
     readonly property var currentHarpPalette: palettes.harpPalettes[concept7PaletteIdx % palettes.harpPalettes.length]
     property real harpDewDensity: (Plasmoid.configuration && typeof Plasmoid.configuration.harpDewDensity === "number") ? Plasmoid.configuration.harpDewDensity : 0.75
     property real harpTension: (Plasmoid.configuration && typeof Plasmoid.configuration.harpTension === "number") ? Plasmoid.configuration.harpTension : 1.0
+    property real harpCondensationRate: (Plasmoid.configuration && typeof Plasmoid.configuration.harpCondensationRate === "number") ? Plasmoid.configuration.harpCondensationRate : 0.35
+    property real harpSilkFriction: (Plasmoid.configuration && typeof Plasmoid.configuration.harpSilkFriction === "number") ? Plasmoid.configuration.harpSilkFriction : 0.65
+    property real harpVibrationSensitivity: (Plasmoid.configuration && typeof Plasmoid.configuration.harpVibrationSensitivity === "number") ? Plasmoid.configuration.harpVibrationSensitivity : 0.55
 
     // --- Concept 8 Parameters ---
     property int concept8PaletteIdx: (Plasmoid.configuration && typeof Plasmoid.configuration.concept8Palette === "number") ? Plasmoid.configuration.concept8Palette : 0

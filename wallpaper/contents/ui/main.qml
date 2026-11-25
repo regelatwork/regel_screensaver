@@ -110,6 +110,9 @@ WallpaperItem {
     readonly property var currentHarpPalette: palettes.harpPalettes[concept7PaletteIdx % palettes.harpPalettes.length]
     property real harpDewDensity: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.harpDewDensity === "number") ? wallpaperRoot.configuration.harpDewDensity : 0.75
     property real harpTension: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.harpTension === "number") ? wallpaperRoot.configuration.harpTension : 1.0
+    property real harpCondensationRate: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.harpCondensationRate === "number") ? wallpaperRoot.configuration.harpCondensationRate : 0.35
+    property real harpSilkFriction: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.harpSilkFriction === "number") ? wallpaperRoot.configuration.harpSilkFriction : 0.65
+    property real harpVibrationSensitivity: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.harpVibrationSensitivity === "number") ? wallpaperRoot.configuration.harpVibrationSensitivity : 0.55
 
     // --- Concept 8 Parameters ---
     property int concept8PaletteIdx: (wallpaperRoot.configuration && typeof wallpaperRoot.configuration.concept8Palette === "number") ? wallpaperRoot.configuration.concept8Palette : 0
@@ -329,6 +332,9 @@ WallpaperItem {
             case 7:
                 target.dewDensity = Qt.binding(() => wallpaperRoot.harpDewDensity);
                 target.tension = Qt.binding(() => wallpaperRoot.harpTension);
+                target.condensationRate = Qt.binding(() => wallpaperRoot.harpCondensationRate);
+                target.silkFriction = Qt.binding(() => wallpaperRoot.harpSilkFriction);
+                target.vibrationSensitivity = Qt.binding(() => wallpaperRoot.harpVibrationSensitivity);
                 target.colorSilk = Qt.binding(() => wallpaperRoot.currentHarpPalette.silk);
                 target.colorDew = Qt.binding(() => wallpaperRoot.currentHarpPalette.dew);
                 target.colorResonance = Qt.binding(() => wallpaperRoot.currentHarpPalette.resonance);

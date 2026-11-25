@@ -32,7 +32,36 @@ layout(std140, binding = 0) uniform buf {
     float u_shatter_progress;    // 244..247 (Shatter / repair progress)
     float u_pad1;                // 248..251 (Damped beat impulse)
     float u_pad2;                // 252..255 (Gated audio activity 0..1)
+    // 16 Falling Droplet slots (256..511, 16-byte aligned)
+    // xy = screen-space pos, z = radius (<=0 inactive), w = fallSpeed
+    vec4 u_fall0;
+    vec4 u_fall1;
+    vec4 u_fall2;
+    vec4 u_fall3;
+    vec4 u_fall4;
+    vec4 u_fall5;
+    vec4 u_fall6;
+    vec4 u_fall7;
+    vec4 u_fall8;
+    vec4 u_fall9;
+    vec4 u_fall10;
+    vec4 u_fall11;
+    vec4 u_fall12;
+    vec4 u_fall13;
+    vec4 u_fall14;
+    vec4 u_fall15;
+    // 6 Active Elastic Impulse Waves (512..607, 16-byte aligned)
+    // xy = web-local origin, z = signedAmp (+up recoil / -down impact), w = age (<=0 inactive)
+    vec4 u_wave0;
+    vec4 u_wave1;
+    vec4 u_wave2;
+    vec4 u_wave3;
+    vec4 u_wave4;
+    vec4 u_wave5;
 };
+
+// 80x32 Polar Spatial Grid Data Texture (20 spokes x 4 slots x 32 rings)
+layout(binding = 1) uniform sampler2D u_drop_grid;
 
 const float PI = 3.14159265;
 const float TAU = 6.28318530;
@@ -107,6 +136,23 @@ float radiusToSpiralIndex(float r, float spacing) {
     return (-0.78 + sqrt(disc)) / (2.0 * 0.018);
 }
 
+// Reconstruct exact web-local droplet position from a polar-grid cell (s, k, slot, param)
+vec2 getGridDropPos(float s, float k, int slot, float param, float spacing, float tension) {
+    if (slot < 2) {
+        float rDrop = mix(spiralIndexToRadius(k, spacing), spiralIndexToRadius(k + 1.0, spacing), param);
+        float ang = getSpokeAngle(s);
+        return vec2(cos(ang), sin(ang)) * rDrop;
+    } else {
+        float a0 = getSpokeAngle(s);
+        float a1 = getSpokeAngle(mod(s + 1.0, NUM_RADIALS));
+        float span = max(0.08, mod(a1 - a0 + TAU, TAU));
+        float ang = a0 + param * span;
+        float sagC = span * (0.14 + 0.09 / max(0.55, 0.45 + tension * 0.55));
+        float rDrop = spiralIndexToRadius(k, spacing) / (1.0 + sagC * 4.0 * param * (1.0 - param));
+        return vec2(cos(ang), sin(ang)) * rDrop;
+    }
+}
+
 // --- Simulated Multi-Octave Ambient Wind Field ---
 // Produces a gentle, organic, non-periodic breeze that bows the center of the web
 // while keeping the outer boundary anchors tethered.
@@ -179,8 +225,17 @@ vec3 evalBackdrop(vec2 pos, float t, float aspect) {
 
 // --- Evaluate Optical Prism Dewdrop ---
 // Returns vec4(rgb, alpha) so droplets sit with real 3D volume over the silk
-vec4 evalDewdrop(vec2 p, vec2 dropCenter, float dropRadius, vec2 mouseVec, float t, float aspect, float px) {
-    float dDrop = length(p - dropCenter);
+vec4 evalDewdrop(vec2 p, vec2 dropCenter, float dropRadius, vec2 mouseVec, float t, float aspect, float px, float fallStretch) {
+    vec2 rel = p - dropCenter;
+    if (fallStretch > 0.001) {
+        // Subtle teardrop elongation along gravity while falling
+        float stretchY = 1.0 + fallStretch * 0.65;
+        rel.y /= stretchY;
+        float taper = 1.0 + fallStretch * 0.24 * clamp(rel.y / max(dropRadius, 0.001), -0.8, 1.0);
+        rel.x *= taper * (1.0 + fallStretch * 0.14);
+    }
+
+    float dDrop = length(rel);
     if (dDrop > dropRadius * 2.4) {
         return vec4(0.0);
     }
@@ -196,7 +251,7 @@ vec4 evalDewdrop(vec2 p, vec2 dropCenter, float dropRadius, vec2 mouseVec, float
         float aa = max(px * 1.25, 0.0007);
         float dropMask = smoothstep(dropRadius + aa, dropRadius - aa, dDrop);
 
-        vec2 n2 = (p - dropCenter) / max(dropRadius, 0.0005);
+        vec2 n2 = rel / max(dropRadius, 0.0005);
         float r2 = clamp(dot(n2, n2), 0.0, 0.999);
         float nz = sqrt(1.0 - r2);
         vec3 N = vec3(n2, nz);
@@ -247,7 +302,7 @@ vec4 evalDewdrop(vec2 p, vec2 dropCenter, float dropRadius, vec2 mouseVec, float
 
     // Subtle 4-point diffraction star glint on larger drops catching moonlight / treble
     if (dropRadius > 0.0072) {
-        vec2 glintOff = (p - dropCenter) - vec2(-0.34, 0.40) * dropRadius;
+        vec2 glintOff = rel - vec2(-0.34, 0.40) * dropRadius;
         float gx = exp(-abs(glintOff.x) * 420.0) * exp(-abs(glintOff.y) * 95.0);
         float gy = exp(-abs(glintOff.y) * 420.0) * exp(-abs(glintOff.x) * 95.0);
         float star = (gx + gy) * smoothstep(0.0072, 0.011, dropRadius) * (0.28 + u_treble * 0.65);
@@ -290,6 +345,65 @@ void main() {
 
     // Central structural hub (slightly off-center like a natural orb web)
     vec2 hub = vec2(0.05 * aspect, 0.03) + u_ambient_drift * 0.08;
+    float spiralSpacing = 0.028 * (0.92 + u_tension * 0.08);
+    float angleStep = TAU / NUM_RADIALS;
+
+    // Static droplet weight sag via O(1) polar-grid neighborhood lookup (C-smooth, fold-free)
+    float invTens = 1.0 / max(0.55, 0.50 + u_tension * 0.50);
+    float elasticDispY = 0.0;
+    vec2 preHub = p - hub;
+    float preR = length(preHub);
+    if (preR > 0.05 && preR < 1.30) {
+        float prePhi = atan(preHub.y, preHub.x);
+        float preS = mod(floor((prePhi + PI) / angleStep) + NUM_RADIALS, NUM_RADIALS);
+        float preK = clamp(floor(radiusToSpiralIndex(preR, spiralSpacing)), 0.0, 31.0);
+        for (int ds = -1; ds <= 1; ++ds) {
+            float sc = mod(preS + float(ds) + NUM_RADIALS, NUM_RADIALS);
+            for (int dk = -2; dk <= 2; ++dk) {
+                float kc = preK + float(dk);
+                if (kc < 0.0 || kc > 31.0) continue;
+                for (int sl = 0; sl < 4; ++sl) {
+                    vec4 tex = texture(u_drop_grid, (vec2(sc * 4.0 + float(sl), kc) + 0.5) / vec2(80.0, 32.0));
+                    if (tex.g <= 0.25) continue; // only drops > 0.005 produce noticeable sag
+                    float dropR = tex.g * 0.020;
+                    vec2 dLocal = getGridDropPos(sc, kc, sl, tex.r, spiralSpacing, u_tension);
+                    vec2 sDiff = preHub - dLocal;
+                    float d2 = dot(sDiff, sDiff);
+                    if (d2 > 0.004225) continue; // 0.065^2 smooth compact support
+                    float d = sqrt(d2);
+                    float rNormDrop = dropR / 0.010;
+                    float mSag = rNormDrop * rNormDrop * rNormDrop;
+                    float sagPeak = min(0.0085, 0.0028 * mSag) * invTens;
+                    float wSmooth = smoothstep(0.065, 0.0, d);
+                    elasticDispY -= sagPeak * wSmooth * wSmooth;
+                }
+            }
+        }
+    }
+    elasticDispY = clamp(elasticDispY, -0.014, 0.014);
+
+    // Traveling elastic recoil & impact waves (release snap-back & catch weight jolt)
+    vec4 impWaves[6];
+    impWaves[0] = u_wave0; impWaves[1] = u_wave1; impWaves[2] = u_wave2;
+    impWaves[3] = u_wave3; impWaves[4] = u_wave4; impWaves[5] = u_wave5;
+    float cWave = 0.55 * sqrt(max(0.4, u_tension));
+    float elasticWaveGlow = 0.0;
+    for (int wi = 0; wi < 6; ++wi) {
+        vec4 iw = impWaves[wi];
+        if (iw.w <= 0.0 || abs(iw.z) < 0.0002) {
+            continue;
+        }
+        float wDist = length(p - (hub + iw.xy));
+        float rFront = cWave * iw.w;
+        float pkt = (wDist - rFront) / 0.075;
+        float env = exp(-pkt * pkt) * exp(-iw.w * 2.4) * exp(-wDist * 1.8);
+        float wDisp = iw.z * env * cos((wDist - rFront) * 42.0);
+        elasticDispY += wDisp;
+        elasticWaveGlow += abs(wDisp) * 28.0;
+    }
+
+    // Apply elastic vertical displacement (negative dispY = downward sag, positive = upward recoil)
+    p.y -= elasticDispY;
 
     // Auth Failed Resonant Shatter: high-frequency fracture displacement
     if (u_shockwave_intensity > 0.01) {
@@ -304,7 +418,6 @@ void main() {
     // ------------------------------------------------------------------------
     // 3. Radial Silk Strands (Signed Distance + Physical String Harmonics)
     // ------------------------------------------------------------------------
-    float angleStep = TAU / NUM_RADIALS;
     float approxIdx = floor((phi + PI) / angleStep);
 
     // Backspace Harmonic Dampener: mutes vibrations when vortexSpeed < 0
@@ -418,7 +531,6 @@ void main() {
     float saggedR = r * catenaryFactor + spiralFlutter;
 
     // Progressive spiral spacing
-    float spiralSpacing = 0.028 * (0.92 + u_tension * 0.08);
     float kFloat = radiusToSpiralIndex(saggedR, spiralSpacing);
     float kNear = floor(kFloat + 0.5);
 
@@ -453,49 +565,54 @@ void main() {
     // Gossamer silk threads (clean hierarchy: radials > capture spirals > hub mesh)
     vec3 radialCol = u_color_silk.rgb * radialSilk * (0.72 * radialSheen);
     vec3 spiralCol = u_color_silk.rgb * (spiralSilk * 0.48 * spiralSheen + hubMesh * 0.35);
-    vec3 spiralGlow = u_color_resonance.rgb * spiralSilk * (u_mids * 0.45 + u_treble * 0.35) * dampFactor;
+    vec3 spiralGlow = u_color_resonance.rgb * spiralSilk * (u_mids * 0.45 + u_treble * 0.35 + elasticWaveGlow * 0.65) * dampFactor;
+    vec3 waveSilkPulse = u_color_resonance.rgb * radialSilk * (elasticWaveGlow * 0.75) * dampFactor;
 
-    sceneColor += radialCol + spiralCol + radialResonance + spiralGlow;
+    sceneColor += radialCol + spiralCol + radialResonance + spiralGlow + waveSilkPulse;
 
     // ------------------------------------------------------------------------
-    // 6. Crystalline Morning Dewdrops (Optical Prisms with Refraction)
+    // 6. Crystalline Morning Dewdrops (300+ Simulated Physical Optical Prisms)
+    // A) O(1) Polar Spatial Grid lookup for all on-web physical droplets
     // ------------------------------------------------------------------------
-    // A) Primary droplets seated at radial-spiral intersections
-    if (kNear >= 1.0 && ringR > 0.075 && ringR < 1.15) {
-        vec2 dropPos = hub + vec2(cos(bestSpokeAngle), sin(bestSpokeAngle)) * ringR;
-        // Droplet rides seamlessly with the radial thread's transverse wave!
-        dropPos += vec2(-sin(bestSpokeAngle), cos(bestSpokeAngle)) * bestWaveSway;
-
-        float dropSeed = hash12(vec2(bestSpokeIdx * 3.17 + 1.1, kNear * 5.41 + 2.3));
-        if (dropSeed < u_dew_density) {
-            float sizeRand = hash12(vec2(bestSpokeIdx * 9.7, kNear * 7.3));
-            // Skew distribution so most drops are delicate beads and a few are lush prisms
-            float dropRadius = mix(0.0038, 0.0115, sizeRand * sizeRand);
-            vec4 dew = evalDewdrop(p, dropPos, dropRadius, mouseVec, t, aspect, px);
-            sceneColor = mix(sceneColor, dew.rgb, dew.a) + dew.rgb * (1.0 - dew.a);
+    if (r > 0.05 && r < 1.32) {
+        float baseS = mod(approxIdx + NUM_RADIALS, NUM_RADIALS);
+        float baseK = clamp(floor(radiusToSpiralIndex(r, spiralSpacing)), 0.0, 31.0);
+        for (int ds = -1; ds <= 1; ++ds) {
+            float sc = mod(baseS + float(ds) + NUM_RADIALS, NUM_RADIALS);
+            for (int dk = -1; dk <= 1; ++dk) {
+                float kc = baseK + float(dk);
+                if (kc < 0.0 || kc > 31.0) continue;
+                for (int sl = 0; sl < 4; ++sl) {
+                    vec4 tex = texture(u_drop_grid, (vec2(sc * 4.0 + float(sl), kc) + 0.5) / vec2(80.0, 32.0));
+                    if (tex.g <= 0.002) continue;
+                    float dropR = tex.g * 0.020;
+                    vec2 dropPos = hub + getGridDropPos(sc, kc, sl, tex.r, spiralSpacing, u_tension);
+                    vec2 diff = p - dropPos;
+                    float maxR = dropR * 2.5;
+                    if (dot(diff, diff) > maxR * maxR) continue;
+                    vec4 dynDew = evalDewdrop(p, dropPos, dropR, mouseVec, t, aspect, px, 0.0);
+                    sceneColor = mix(sceneColor, dynDew.rgb, dynDew.a) + dynDew.rgb * (1.0 - dynDew.a);
+                }
+            }
         }
     }
 
-    // B) Smaller glistening micro-beads strung directly along the sagging spiral threads
-    if (kNear >= 2.0 && ringR > 0.12 && ringR < 1.12) {
-        // Place up to 2 micro-beads along the span between spokes, solved analytically onto the spiral curve
-        float midT = (sectorT < 0.5) ? 0.33 : 0.67;
-        float beadAngle = rightSpokeAngle + midT * spanAngle;
-        float beadArc = 4.0 * midT * (1.0 - midT);
-        float beadCatFactor = 1.0 + sagCoeff * beadArc;
-        float beadRBase = ringR / beadCatFactor;
-        float beadFlutter = sin(wrapPhase(midT * PI)) * sin(wrapPhase(t * 24.0 + beadRBase * 30.0)) * u_mids * 0.0035 * dampFactor;
-        float beadR = max(0.08, (ringR - beadFlutter) / beadCatFactor);
-        vec2 beadPos = hub + vec2(cos(beadAngle), sin(beadAngle)) * beadR;
+    // B) Falling teardrop droplets (screen-space, velocity-stretched)
+    vec4 fallDrops[16];
+    fallDrops[0] = u_fall0;   fallDrops[1] = u_fall1;   fallDrops[2] = u_fall2;   fallDrops[3] = u_fall3;
+    fallDrops[4] = u_fall4;   fallDrops[5] = u_fall5;   fallDrops[6] = u_fall6;   fallDrops[7] = u_fall7;
+    fallDrops[8] = u_fall8;   fallDrops[9] = u_fall9;   fallDrops[10] = u_fall10; fallDrops[11] = u_fall11;
+    fallDrops[12] = u_fall12; fallDrops[13] = u_fall13; fallDrops[14] = u_fall14; fallDrops[15] = u_fall15;
 
-        float beadSlot = (sectorT < 0.5) ? 1.0 : 2.0;
-        float sectorSeedIdx = floor(mod(rightSpokeAngle + PI, TAU) / angleStep + 0.5);
-        float beadSeed = hash12(vec2(sectorSeedIdx * 11.3 + beadSlot * 4.7, kNear * 8.9));
-        if (beadSeed < u_dew_density * 0.62) {
-            float beadRadius = mix(0.0024, 0.0056, hash12(vec2(beadSeed * 19.1, kNear * 3.1)));
-            vec4 bead = evalDewdrop(p, beadPos, beadRadius, mouseVec, t, aspect, px);
-            sceneColor = mix(sceneColor, bead.rgb, bead.a) + bead.rgb * (1.0 - bead.a);
-        }
+    for (int fi = 0; fi < 16; ++fi) {
+        vec4 fr = fallDrops[fi];
+        if (fr.z <= 0.0) continue;
+        vec2 diff = pScreen - fr.xy;
+        float maxR = fr.z * 3.8;
+        if (dot(diff, diff) > maxR * maxR) continue;
+        float fallStretch = clamp(fr.w * 0.55, 0.0, 0.65);
+        vec4 fDew = evalDewdrop(pScreen, fr.xy, fr.z, mouseVec, t, aspect, px, fallStretch);
+        sceneColor = mix(sceneColor, fDew.rgb, fDew.a) + fDew.rgb * (1.0 - fDew.a);
     }
 
     // ------------------------------------------------------------------------

@@ -42,6 +42,9 @@ KCM.SimpleKCM {
     property int cfg_concept7Palette: 0
     property alias cfg_harpDewDensity: harpDewSlider.value
     property alias cfg_harpTension: harpTensionSlider.value
+    property alias cfg_harpCondensationRate: harpCondensationSlider.value
+    property alias cfg_harpSilkFriction: harpFrictionSlider.value
+    property alias cfg_harpVibrationSensitivity: harpVibSlider.value
 
     // Archetype 8: The Analog Telemetry Console
     property int cfg_concept8Palette: 0
@@ -277,6 +280,36 @@ KCM.SimpleKCM {
             to: 2.0
             stepSize: 0.1
             value: 1.0
+        }
+
+        QQC2.Slider {
+            id: harpCondensationSlider
+            Kirigami.FormData.label: "Condensation Rate:"
+            visible: root.cfg_activeConcept === 7
+            from: 0.0
+            to: 1.0
+            stepSize: 0.05
+            value: 0.35
+        }
+
+        QQC2.Slider {
+            id: harpFrictionSlider
+            Kirigami.FormData.label: "Silk Friction:"
+            visible: root.cfg_activeConcept === 7
+            from: 0.1
+            to: 1.0
+            stepSize: 0.05
+            value: 0.65
+        }
+
+        QQC2.Slider {
+            id: harpVibSlider
+            Kirigami.FormData.label: "Vibration Sensitivity:"
+            visible: root.cfg_activeConcept === 7
+            from: 0.0
+            to: 1.0
+            stepSize: 0.05
+            value: 0.55
         }
 
         // --- Concept 8: The Analog Telemetry Console ---

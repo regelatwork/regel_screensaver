@@ -430,6 +430,9 @@ ApplicationWindow {
             tension: (typeof sldTension !== "undefined") ? sldTension.value : 1.0
             dewDensity: (typeof sldDewDensity !== "undefined") ? sldDewDensity.value : 0.75
             chromaticDispersion: (typeof sldDispersion !== "undefined") ? sldDispersion.value : 0.85
+            condensationRate: (typeof sldCondensation !== "undefined") ? sldCondensation.value : 0.35
+            silkFriction: (typeof sldSilkFriction !== "undefined") ? sldSilkFriction.value : 0.65
+            vibrationSensitivity: (typeof sldVibSensitivity !== "undefined") ? sldVibSensitivity.value : 0.55
         }
 
         // Concept 8: The Analog Telemetry Console (Ballistic Galvanometers & Phosphor CRT)
@@ -879,6 +882,48 @@ ApplicationWindow {
                             from: 0.0
                             to: 1.0
                             value: 0.85
+                            stepSize: 0.05
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Condensation Rate: " + (sldCondensation.value * 100).toFixed(0) + "%"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldCondensation
+                            from: 0.0
+                            to: 1.0
+                            value: 0.35
+                            stepSize: 0.05
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Silk Friction: " + (sldSilkFriction.value * 100).toFixed(0) + "%"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldSilkFriction
+                            from: 0.1
+                            to: 1.0
+                            value: 0.65
+                            stepSize: 0.05
+                            Layout.preferredWidth: 140
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Vibration Sensitivity: " + (sldVibSensitivity.value * 100).toFixed(0) + "%"; color: "#cbd5e1" }
+                        Item { Layout.fillWidth: true }
+                        Slider {
+                            id: sldVibSensitivity
+                            from: 0.0
+                            to: 1.0
+                            value: 0.55
                             stepSize: 0.05
                             Layout.preferredWidth: 140
                         }

@@ -201,6 +201,9 @@ Item {
         vortexSpeed: fullRep.plasmoidItem.globalVortexSpeed
         dewDensity: fullRep.plasmoidItem.harpDewDensity
         tension: fullRep.plasmoidItem.harpTension
+        condensationRate: fullRep.plasmoidItem.harpCondensationRate
+        silkFriction: fullRep.plasmoidItem.harpSilkFriction
+        vibrationSensitivity: fullRep.plasmoidItem.harpVibrationSensitivity
         colorSilk: fullRep.plasmoidItem.currentHarpPalette.silk
         colorDew: fullRep.plasmoidItem.currentHarpPalette.dew
         colorResonance: fullRep.plasmoidItem.currentHarpPalette.resonance
